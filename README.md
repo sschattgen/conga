@@ -1,7 +1,7 @@
 # Clonotype Neighbor Graph Analysis (CoNGA) -- developmental
 
 This repository contains the developmental `conga` python package and associated scripts
-and workflows that may or may not be stable. Please see the main repo at pbradley/conga for the latest stable version.
+and workflows that may or may not be stable. Please see the main repo at phbradley/conga for the latest stable version.
 Questions and requests can be directed to `pbradley` at `fredhutch` dot `org`.
 
 # Running
