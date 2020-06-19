@@ -46,14 +46,8 @@ conda activate conga_env
 conda install seaborn scikit-learn statsmodels numba pytables ipython 
 conda install -c conda-forge python-igraph leidenalg notebook louvain spyder
 pip install scanpy loompy anndata2ri
-
 ```
-
-Preliminary results suggest that, at least with default clustering parameters, the older `louvain`
-clustering algorithm seems to give slightly 'better' results than the newer `leiden` algorithm,
-ie finds a few more GEX/TCR associations, probably because there seem to be fewer, larger clusters.
-If the `louvain` package is installed `conga` will use that. 
-
+anndata2ri and loompy dependencies are only needed if converting from Seurat to h5ad or loom formats as CoNGA inputs. Anndata2ri requires R on the PATH or assigned to R_HOME for installation.
 
 # svg to png
 The `conga` image-making pipeline requires an svg to png conversion. There seem to be a variety of
@@ -61,4 +55,3 @@ options for doing this, with the best choice being somewhat platform dependent. 
 ImageMagick `convert` (on linux) and Inkscape (on mac). The conversion is handled in the file
 `conga/convert_svg_to_png.py`, so you can modify that file if things are not working and you have
 a tool installed; `conga` may not be looking in the right place. 
-
