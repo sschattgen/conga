@@ -69,7 +69,7 @@ conda activate conga_new_env   (or source activate conga_new_env)
 conda install seaborn scikit-learn statsmodels numba pytables
 conda install -c conda-forge python-igraph leidenalg
 conda install -c conda-forge louvain
-pip install scanpy
+pip install scanpy loompy
 ```
 
 (And consider also adding `conda install -c conda-forge notebook` for Jupyter notebook stuff.)
