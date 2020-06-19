@@ -15,6 +15,7 @@ from . import util
 from . import pmhc_scoring
 from . import plotting
 from .tcrdist.tcr_distances import TcrDistCalculator
+import loompy
 
 # silly hack
 all_sexlinked_genes = frozenset('XIST DDX3Y EIF1AY KDM5D LINC00278 NLGN4Y RPS4Y1 TTTY14 TTTY15 USP9Y UTY ZFY'.split())
@@ -175,8 +176,11 @@ def read_dataset(
     elif gex_data_type == '10x_h5':
         adata = sc.read_10x_h5( gex_data, gex_only=True )
 
+    elif gex_data_type == 'loom':
+        adata = sc.read_loom( gex_data ,sparse = True, cleanup = True )
+
     else:
-        print('unrecognized gex_data_type:', gex_data_type, "should be one of ['h5ad', '10x_mtx', '10x_h5']")
+        print('unrecognized gex_data_type:', gex_data_type, "should be one of ['h5ad', '10x_mtx', '10x_h5', 'loom']")
         exit()
 
     if adata.isview: # this is so weird
