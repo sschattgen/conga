@@ -78,13 +78,12 @@ def make_rank_genes_logo_stack( ranks, upper_left, logo_width, max_logo_height,
     ''' ranks is a list of (gene,l2r,pval)
     '''
 
-    def pval_factor( pval, min_pval ):
-        return math.sqrt( max(1e-6, -1 * math.log10( max(min_pval, pval) ) ))
+    def pval_factor( pval, min_pval=top_pval_for_max_height ):
+        return math.sqrt( max(1e-3, -1 * math.log10( max(min_pval,pval) ) ))
         #return -1 * math.log10( max(min_pval,pval) )
 
     top_pval = ranks[0][2]
-    logo_height = max_logo_height * ( pval_factor(top_pval, top_pval_for_max_height) /
-                                      pval_factor(top_pval_for_max_height, top_pval_for_max_height) )
+    logo_height = max_logo_height * pval_factor(top_pval) / pval_factor(top_pval_for_max_height)
 
     if logo_height<1e-3:
         return []
@@ -98,7 +97,7 @@ def make_rank_genes_logo_stack( ranks, upper_left, logo_width, max_logo_height,
 
     cmds = []
     for gene,l2r,pval in ranks[:num_genes_to_show]:
-        height = height_scale * pval_factor(pval, min_pval_for_scaling)
+        height = height_scale * pval_factor(pval,min_pval_for_scaling)
         if height<0.01:
             continue
         x1 = x0 + logo_width
@@ -212,7 +211,7 @@ def make_logo_plots(
         make_gex_header=True,
         make_gex_header_raw=True,
         make_gex_header_nbrZ=True,
-        gex_header_tcr_score_names = ['imhc', 'cdr3len', 'cd8', 'nndists_tcr'], # was alphadist
+        gex_header_tcr_score_names = ['mhci2', 'cdr3len', 'cd8', 'nndists_tcr'], # was alphadist
         include_full_tcr_cluster_names_in_logo_lines=False,
 
 ):
@@ -776,7 +775,7 @@ def make_logo_plots(
 
         plt.xlim((1.03,0.0))
         plt.axis('off')
-        plt.text(0.0,0.0, 'Clusters (size>{:d})'.format(min_cluster_size-1),
+        plt.text(0.0,0.0, 'Biclusters (size>{:d})'.format(min_cluster_size-1),
                  ha='left', va='top', transform=plt.gca().transAxes)
         leaves = R['leaves'][:] #list( hierarchy.leaves_list( Z ) )
         leaves.reverse() # since we are drawing them downward, but the leaf-order increases upward
@@ -1278,7 +1277,7 @@ def make_summary_figure(
 
 
 
-def make_clone_plots(adata, num_clones_to_plot, pngfile, dpi=200):
+def make_clone_plots(adata, num_clones_to_plot, pngfile):
     ''' This is called before we've condensed to a single cell per clone
     So we don't have PCA or UMAP yet
     '''
@@ -1316,7 +1315,7 @@ def make_clone_plots(adata, num_clones_to_plot, pngfile, dpi=200):
         plt.text(0, 0, '{} cells'.format(clone_size), ha='left', va='bottom', transform=plt.gca().transAxes)
     plt.tight_layout()
     print('making:', pngfile)
-    plt.savefig(pngfile, dpi=dpi)
+    plt.savefig(pngfile)
 
 
 

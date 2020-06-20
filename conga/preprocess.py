@@ -279,10 +279,10 @@ def read_dataset(
 #return or pass in adata?
 def filter_normalize_and_hvg(
         adata,
-        min_genes=200,
+        min_genes,
+        n_genes,
+        percent_mito,
         min_cells=3,
-        n_genes=2000,
-        percent_mito=0.1,
         hvg_min_mean = 0.0125,
         hvg_max_mean=3,
         antibody = False,
@@ -298,6 +298,17 @@ def filter_normalize_and_hvg(
     ##   - "qcheck" thingy
 
     global all_sexlinked_genes
+
+    #sets some default parameter for qc if unspecified
+
+    if min_genes is None:
+        min_genes=200
+
+    if n_genes is None:
+        n_genes=2000
+
+    if percent_mito is None:
+        n_genes=0.1
 
     #filters out cells with less than given number of genes expressed (200)
     #filters out genes present in less than given number of cells (3)
@@ -458,9 +469,9 @@ def cluster_and_tsne_and_umap(
 
     return adata
 
-def filter_and_scale( adata ):
+def filter_and_scale( adata , min_genes = None, n_genes= None, percent_mito= None ):
     ## now process as before
-    adata = filter_normalize_and_hvg(adata, exclude_TR_genes= True, exclude_sexlinked=True, percent_mito=0.1)
+    adata = filter_normalize_and_hvg( adata, min_genes, n_genes , percent_mito , exclude_TR_genes= True, exclude_sexlinked=True)
 
     ## should consider adding cell cycle here:
     sc.pp.regress_out(adata, ['n_counts','percent_mito'])
