@@ -303,12 +303,15 @@ def filter_normalize_and_hvg(
 
     if min_genes is None:
         min_genes=200
+        print('min_genes not set. Using default ' + str(min_genes) )
 
     if n_genes is None:
         n_genes=2000
+        print('n_genes not set. Using default ' + str(n_genes) )
 
     if percent_mito is None:
-        n_genes=0.1
+        percent_mito=0.1
+        print('percent_mito not set. Using default ' + str(percent_mito) )
 
     #filters out cells with less than given number of genes expressed (200)
     #filters out genes present in less than given number of cells (3)
