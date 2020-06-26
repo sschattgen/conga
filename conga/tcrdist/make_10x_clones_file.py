@@ -735,4 +735,3 @@ def make_10x_clones_file_batch(
 
     _make_clones_file( organism, clones_file, clonotype2tcrs, clonotype2barcodes )
 
-  
