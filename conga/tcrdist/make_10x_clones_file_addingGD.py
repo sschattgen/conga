@@ -408,7 +408,7 @@ def read_tcr_data_batch(
                         if t1[3] == t2[3]:
                             print('repeat??', count1, count2, t1, t2)
     else:
-        
+
         for l in df.itertuples():
             bc = l.barcode
             clonotype = l.raw_clonotype_id
@@ -1056,15 +1056,16 @@ def make_10x_clones_file(
         clones_file, # the OUTPUT file, the one we're making
         stringent = True, # dont believe the 10x clonotypes; reduce 'duplicated' and 'fake' clones
         consensus_annotations_csvfile = None,
+        include_gammadelta = False
 ):
 
-    assert organism in ['human','mouse']
+    assert organism in ['human','mouse', 'human_gd', 'mouse_gd']
 
     clonotype2tcrs, clonotype2barcodes = read_tcr_data( organism, filtered_contig_annotations_csvfile,
-                                                        consensus_annotations_csvfile )
+                                                        consensus_annotations_csvfile , include_gammadelta )
 
     if stringent:
-        clonotype2tcrs, clonotype2barcodes = setup_filtered_clonotype_dicts( clonotype2tcrs, clonotype2barcodes )
+        clonotype2tcrs, clonotype2barcodes = setup_filtered_clonotype_dicts( clonotype2tcrs, clonotype2barcodes, include_gammadelta )
 
 
     _make_clones_file( organism, clones_file, clonotype2tcrs, clonotype2barcodes )
@@ -1082,17 +1083,14 @@ def make_10x_clones_file_batch(
         
 ):
 
-    assert organism in ['human','mouse']
+    assert organism in ['human','mouse', 'human_gd', 'mouse_gd']
 
     clonotype2tcrs, clonotype2barcodes = read_tcr_data_batch( organism, metadata_file, barcode_file, 
                                                         consensus_annotations_csvfile, 
                                                         remove_barcodes, include_gammadelta)
 
     if stringent:
-    	if multiple_donors:
-            clonotype2tcrs, clonotype2barcodes = setup_filtered_clonotype_dicts( clonotype2tcrs, clonotype2barcodes )
-    	else:
-            clonotype2tcrs, clonotype2barcodes = setup_filtered_clonotype_dicts( clonotype2tcrs, clonotype2barcodes )
+            clonotype2tcrs, clonotype2barcodes = setup_filtered_clonotype_dicts( clonotype2tcrs, clonotype2barcodes, include_gammadelta )
 
 
     _make_clones_file( organism, clones_file, clonotype2tcrs, clonotype2barcodes )
