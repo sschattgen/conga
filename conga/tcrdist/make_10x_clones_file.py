@@ -697,7 +697,7 @@ def make_10x_clones_file(
         consensus_annotations_csvfile = None,
 ):
 
-    assert organism in ['human','mouse']
+    assert organism in ['human','mouse','human_gd','mouse_gd']
 
     clonotype2tcrs, clonotype2barcodes = read_tcr_data( organism, filtered_contig_annotations_csvfile,
                                                         consensus_annotations_csvfile )
@@ -720,7 +720,7 @@ def make_10x_clones_file_batch(
         
 ):
 
-    assert organism in ['human','mouse']
+    assert organism in ['human','mouse','human_gd','mouse_gd']
 
     clonotype2tcrs, clonotype2barcodes = read_tcr_data_batch( organism, metadata_file, barcode_file, 
                                                         consensus_annotations_csvfile, 
