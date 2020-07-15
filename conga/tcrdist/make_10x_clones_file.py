@@ -727,9 +727,9 @@ def make_10x_clones_file_batch(
                                                         remove_barcodes)
 
     if stringent:
-    	if multiple_donors:
+        if multiple_donors:
             clonotype2tcrs, clonotype2barcodes = setup_filtered_clonotype_dicts( clonotype2tcrs, clonotype2barcodes )
-    	else:
+        else:
             clonotype2tcrs, clonotype2barcodes = setup_filtered_clonotype_dicts( clonotype2tcrs, clonotype2barcodes )
 
 
