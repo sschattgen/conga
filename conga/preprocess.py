@@ -467,8 +467,8 @@ def cluster_and_tsne_and_umap(
         adata.obsm['X_{}_2d'.format(tag)] = adata.obsm['X_umap_'+tag]
 
 
-    del adata.obsm['X_umap']
-    del adata.obsm['X_pca']
+    adata.obsm['X_umap'] = adata.obsm['X_umap_gex']
+    adata.obsm['X_pca'] = adata.obsm['X_pca_gex']
 
     return adata
 
@@ -480,6 +480,10 @@ def filter_and_scale( adata , min_genes = None, n_genes= None, percent_mito= Non
     sc.pp.regress_out(adata, ['n_counts','percent_mito'])
 
     sc.pp.scale(adata, max_value=10)
+
+    #stash as a layer for gex analysis 
+
+    adata.layers['scaled'] = sc.pp.scale(adata, max_value=10, copy=True).X 
 
     return adata
 

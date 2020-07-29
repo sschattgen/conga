@@ -107,7 +107,7 @@ def read_tcr_data(
             chain = l.chain
             if chain not in ['TRG','TRD']:
                 continue
-            ab = chain[2]
+            gd = chain[2]
             if clonotype not in clonotype2tcrs_backup:
                 clonotype2tcrs_backup[ clonotype ] = {'G':Counter(), 'D':Counter() }
             # stolen from below
@@ -127,7 +127,7 @@ def read_tcr_data(
 
             tcr_chain = ( vg, jg, l.cdr3, l.cdr3_nt.lower() )
 
-            clonotype2tcrs_backup[clonotype][ab][tcr_chain] += int(l.umis)
+            clonotype2tcrs_backup[clonotype][gd][tcr_chain] += int(l.umis)
 
         for id in clonotype2tcrs_backup:
             for gd in 'GD':
@@ -378,7 +378,7 @@ def read_tcr_data_batch(
             chain = l.chain
             if chain not in ['TRG','TRD']:
                 continue
-            ab = chain[2]
+            gd = chain[2]
             if clonotype not in clonotype2tcrs_backup:
                 clonotype2tcrs_backup[ clonotype ] = {'G':Counter(), 'D':Counter() }
             # stolen from below
@@ -398,7 +398,7 @@ def read_tcr_data_batch(
 
             tcr_chain = ( vg, jg, l.cdr3, l.cdr3_nt.lower() )
 
-            clonotype2tcrs_backup[clonotype][ab][tcr_chain] += int(l.umis)
+            clonotype2tcrs_backup[clonotype][gd][tcr_chain] += int(l.umis)
 
         for id in clonotype2tcrs_backup:
             for gd in 'GD':
