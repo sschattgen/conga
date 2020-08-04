@@ -273,8 +273,7 @@ def read_tcr_data_batch(
         organism,
         metadata_file,
         consensus_annotations_csvfile, 
-        barcode_file,
-        remove_barcodes = False,
+        barcode_filter=None,
         include_gammadelta = False,
         allow_unknown_genes = False,
         verbose = False     
@@ -284,6 +283,15 @@ def read_tcr_data_batch(
     Returns:
 
     clonotype2tcrs, clonotype2barcodes
+
+	metadata_file is a csv file with the columns file,suffix,sample for passing in multiple libraries
+	and at the same time correcting 10X barcode suffixes to match an aggregrate gex matrices
+		file = path to the filter_contig_annotations.csv file
+		suffix = the libraries suffix in the aggregate data
+		sample = still working on this 
+
+    barcode_filter can be set to the path of a csv file containing barcodes that will 
+    be removed from analysis. 
 
     """
     assert exists( metadata_file )
@@ -315,11 +323,13 @@ def read_tcr_data_batch(
 
     df = pd.concat(contig_list)
     
-    if remove_barcodes:
+    if barcode_filter is None:
+    	pass
+    else:
       
-        assert exists(barcode_file)
+        assert exists(barcode_filter)
 
-        BC = pd.read_csv(barcode_file, header = None   )
+        BC = pd.read_csv(barcode_filter, header = None   )
         BCfilter = BC[0].tolist()
         bdrop = str( BC[0].nunique() )
 
@@ -1074,10 +1084,9 @@ def make_10x_clones_file_batch(
         metadata_file,
         organism,
         clones_file, # the OUTPUT file, the one we're making
-        barcode_file = None,
         stringent = True, # dont believe the 10x clonotypes; reduce 'duplicated' and 'fake' clones
         consensus_annotations_csvfile = None,
-        remove_barcodes = False,
+        barcode_filter = None,
         multiple_donors = False, # ongoing
         include_gammadelta = False
         
@@ -1085,9 +1094,8 @@ def make_10x_clones_file_batch(
 
     assert organism in ['human','mouse', 'human_gd', 'mouse_gd']
 
-    clonotype2tcrs, clonotype2barcodes = read_tcr_data_batch( organism, metadata_file, barcode_file, 
-                                                        consensus_annotations_csvfile, 
-                                                        remove_barcodes, include_gammadelta)
+    clonotype2tcrs, clonotype2barcodes = read_tcr_data_batch( organism, metadata_file, barcode_filter, 
+                                                        consensus_annotations_csvfile, include_gammadelta)
 
     if stringent:
             clonotype2tcrs, clonotype2barcodes = setup_filtered_clonotype_dicts( clonotype2tcrs, clonotype2barcodes, include_gammadelta )
