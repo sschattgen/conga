@@ -280,18 +280,21 @@ def read_tcr_data_batch(
 ):
     """ Parse tcr data, only taking 'productive' tcrs
 
+    Input args:
+
+    metadata_file is a csv file with the columns file,suffix,sample for passing in multiple libraries
+    and at the same time correcting 10X barcode suffixes to match an aggregrate gex matrices
+        file = path to the filter_contig_annotations.csv file
+        suffix = the libraries suffix in the aggregate data
+        sample = still working on this 
+
+    barcode_filter can be set to the path of a csv file containing barcodes that will 
+    be removed from analysis. 
+
     Returns:
 
     clonotype2tcrs, clonotype2barcodes
 
-	metadata_file is a csv file with the columns file,suffix,sample for passing in multiple libraries
-	and at the same time correcting 10X barcode suffixes to match an aggregrate gex matrices
-		file = path to the filter_contig_annotations.csv file
-		suffix = the libraries suffix in the aggregate data
-		sample = still working on this 
-
-    barcode_filter can be set to the path of a csv file containing barcodes that will 
-    be removed from analysis. 
 
     """
     assert exists( metadata_file )
