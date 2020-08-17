@@ -179,8 +179,11 @@ def read_dataset(
     elif gex_data_type == 'loom':
         adata = sc.read_loom( gex_data ,sparse = True, cleanup = True )
 
+    elif gex_data_type == 'sparse_csv':
+        adata = sc.read_csv( gex_data  , first_column_names = True )
+
     else:
-        print('unrecognized gex_data_type:', gex_data_type, "should be one of ['h5ad', '10x_mtx', '10x_h5', 'loom']")
+        print('unrecognized gex_data_type:', gex_data_type, "should be one of ['h5ad', '10x_mtx', '10x_h5', 'loom', 'sparse_csv']")
         exit()
 
     if adata.isview: # this is so weird
