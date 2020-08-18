@@ -205,7 +205,7 @@ def read_tcr_data_batch(
 
         unbc = str( df['barcode'].nunique() )
         
-        print("filtering barcodes using " + barcode_file )
+        print("filtering barcodes using " + barcode_filter )
         print(unbc + " unique barcodes prior to filtering")
         print( "matching " + bdrop + " barcodes" )
 

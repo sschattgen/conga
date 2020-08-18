@@ -49,7 +49,6 @@ def fixup_gene_name( gene, gene_suffix, expected_gene_names ):
 def read_tcr_data(
         organism,
         contig_annotations_csvfile,
-        consensus_annotations_csvfile,
         include_gammadelta = False,
         allow_unknown_genes = False,
         verbose = False
@@ -200,7 +199,6 @@ def read_tcr_data(
 def read_tcr_data_batch(
         organism,
         metadata_file,
-        consensus_annotations_csvfile, 
         barcode_filter=None,
         include_gammadelta = False,
         allow_unknown_genes = False,
@@ -266,7 +264,7 @@ def read_tcr_data_batch(
 
         unbc = str( df['barcode'].nunique() )
         
-        print("filtering barcodes using " + barcode_file )
+        print("filtering barcodes using " + barcode_filter )
         print(unbc + " unique barcodes prior to filtering")
         print( "matching " + bdrop + " barcodes" )
 
