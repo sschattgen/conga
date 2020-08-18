@@ -49,7 +49,6 @@ def fixup_gene_name( gene, gene_suffix, expected_gene_names ):
 def read_tcr_data(
         organism,
         contig_annotations_csvfile,
-        consensus_annotations_csvfile,
         include_gammadelta = False,
         allow_unknown_genes = False,
         verbose = False
@@ -134,87 +133,14 @@ def read_tcr_data(
                         print('repeat??', count1, count2, t1, t2)
 
 
+    clonotype2tcrs = clonotype2tcrs_backup
 
-    if consensus_annotations_csvfile is None:
-        clonotype2tcrs = clonotype2tcrs_backup
-    else:
-
-        ## now read details on the individual chains for each clonotype
-        # ==> tcr/human/JCC176_TX2_TCR_consensus_annotations.csv <==
-        # clonotype_id,consensus_id,length,chain,v_gene,d_gene,j_gene,c_gene,full_length,productive,cdr3,cdr3_nt,reads,umis
-        # clonotype100,clonotype100_consensus_1,550,TRB,TRBV24-1*01,TRBD1*01,TRBJ2-7*01,TRBC2*01,True,True,CATSDPGQGGYEQYF,TGTGCCACCAGTGACCCCGGACAGGGAGGATACGAGCAGTACTTC,8957,9
-
-        assert exists(consensus_annotations_csvfile)
-        df = pd.read_csv( consensus_annotations_csvfile )
-        df['productive'] = df['productive'].astype(str) #sometimes it already is if there are 'Nones' in there...
-
-
-        ## first get clonotypes with one alpha and one beta
-        clonotype2tcrs = {}
-
-        for l in df.itertuples():
-            assert l.productive in [ 'None', 'False', 'True']
-            if l.productive == 'True':
-                id = l.clonotype_id
-                if id not in clonotype2tcrs:
-                    # dictionaries mapping from tcr to umi-count
-                    clonotype2tcrs[id] = { 'A':Counter(), 'B':Counter() } #, 'G':[], 'D': [] }
-                    assert id in clonotype2barcodes
-
-                ch = l.chain
-                if not ch.startswith('TR'):
-                    print('skipline:', consensus_annotations_csvfile, ch, l.v_gene, l.j_gene)
-                    continue
-                ab = ch[2]
-                if ab not in 'AB':
-                    print('skipline:', consensus_annotations_csvfile, ch, l.v_gene, l.j_gene)
-                    continue
-                vg = fixup_gene_name(l.v_gene, gene_suffix, expected_gene_names)
-                jg = fixup_gene_name(l.j_gene, gene_suffix, expected_gene_names)
-
-                if vg not in expected_gene_names:
-                    print('unrecognized V gene:', organism, vg)
-                    if not allow_unknown_genes:
-                        continue
-                if jg not in expected_gene_names:
-                    print('unrecognized J gene:', organism, jg)
-                    if not allow_unknown_genes:
-                        continue
-                #assert vg in all_align_fasta[organism]
-                #assert jg in all_align_fasta[organism]
-                tcr_chain = ( vg, jg, l.cdr3, l.cdr3_nt.lower() )
-
-                if tcr_chain not in clonotype2tcrs[id][ab]:
-                    umis = int( l.umis )
-                    clonotype2tcrs[id][ab][ tcr_chain ] = umis
-                    old_umis = clonotype2tcrs_backup[id][ab][tcr_chain]
-                    if umis != old_umis:
-                        print('diff_umis:',umis, old_umis, id,ab,tcr_chain)
-                else:
-                    print('repeat?',id,ab,tcr_chain)
-            # else:
-            #     if l.productive not in [ 'None','False' ]:
-            #         print('unproductive?',l.productive)
-
-
-        if verbose:
-            idl1 = sorted( clonotype2tcrs_backup.keys())
-            idl2 = sorted( clonotype2tcrs.keys())
-            print('same ids:', len(idl1), len(idl2), idl1==idl2)
-            for id in clonotype2tcrs_backup:
-                if id in clonotype2tcrs:
-                    for ab in 'AB':
-                        tl1 = sorted(clonotype2tcrs_backup[id][ab].keys())
-                        tl2 = sorted(clonotype2tcrs[id][ab].keys())
-                        if tl1 != tl2:
-                            print('diffids:',id,ab,tl1,tl2)
 
     return clonotype2tcrs, clonotype2barcodes
 
 def read_tcr_data_batch(
         organism,
         metadata_file,
-        consensus_annotations_csvfile, 
         barcode_filter=None,
         include_gammadelta = False,
         allow_unknown_genes = False,
@@ -359,82 +285,8 @@ def read_tcr_data_batch(
                     if t1[3] == t2[3]:
                         print('repeat??', count1, count2, t1, t2)
 
-
-
-    if consensus_annotations_csvfile is None:
-        clonotype2tcrs = clonotype2tcrs_backup
-    else:
-
-        ## now read details on the individual chains for each clonotype
-        # ==> tcr/human/JCC176_TX2_TCR_consensus_annotations.csv <==
-        # clonotype_id,consensus_id,length,chain,v_gene,d_gene,j_gene,c_gene,full_length,productive,cdr3,cdr3_nt,reads,umis
-        # clonotype100,clonotype100_consensus_1,550,TRB,TRBV24-1*01,TRBD1*01,TRBJ2-7*01,TRBC2*01,True,True,CATSDPGQGGYEQYF,TGTGCCACCAGTGACCCCGGACAGGGAGGATACGAGCAGTACTTC,8957,9
-
-        assert exists(consensus_annotations_csvfile)
-        df = pd.read_csv( consensus_annotations_csvfile )
-        df['productive'] = df['productive'].astype(str) #sometimes it already is if there are 'Nones' in there...
-
-
-        ## first get clonotypes with one alpha and one beta
-        clonotype2tcrs = {}
-
-        for l in df.itertuples():
-            assert l.productive in [ 'None', 'False', 'True']
-            if l.productive == 'True':
-                id = l.clonotype_id
-                if id not in clonotype2tcrs:
-                    # dictionaries mapping from tcr to umi-count
-                    clonotype2tcrs[id] = { 'A':Counter(), 'B':Counter() } #, 'G':[], 'D': [] }
-                    assert id in clonotype2barcodes
-
-                ch = l.chain
-                if not ch.startswith('TR'):
-                    print('skipline:', consensus_annotations_csvfile, ch, l.v_gene, l.j_gene)
-                    continue
-                ab = ch[2]
-                if ab not in 'AB':
-                    print('skipline:', consensus_annotations_csvfile, ch, l.v_gene, l.j_gene)
-                    continue
-                vg = fixup_gene_name(l.v_gene, gene_suffix, expected_gene_names)
-                jg = fixup_gene_name(l.j_gene, gene_suffix, expected_gene_names)
-
-                if vg not in expected_gene_names:
-                    print('unrecognized V gene:', organism, vg)
-                    if not allow_unknown_genes:
-                        continue
-                if jg not in expected_gene_names:
-                    print('unrecognized J gene:', organism, jg)
-                    if not allow_unknown_genes:
-                        continue
-                #assert vg in all_align_fasta[organism]
-                #assert jg in all_align_fasta[organism]
-                tcr_chain = ( vg, jg, l.cdr3, l.cdr3_nt.lower() )
-
-                if tcr_chain not in clonotype2tcrs[id][ab]:
-                    umis = int( l.umis )
-                    clonotype2tcrs[id][ab][ tcr_chain ] = umis
-                    old_umis = clonotype2tcrs_backup[id][ab][tcr_chain]
-                    if umis != old_umis:
-                        print('diff_umis:',umis, old_umis, id,ab,tcr_chain)
-                else:
-                    print('repeat?',id,ab,tcr_chain)
-            # else:
-            #     if l.productive not in [ 'None','False' ]:
-            #         print('unproductive?',l.productive)
-
-
-        if verbose:
-            idl1 = sorted( clonotype2tcrs_backup.keys())
-            idl2 = sorted( clonotype2tcrs.keys())
-            print('same ids:', len(idl1), len(idl2), idl1==idl2)
-            for id in clonotype2tcrs_backup:
-                if id in clonotype2tcrs:
-                    for ab in 'AB':
-                        tl1 = sorted(clonotype2tcrs_backup[id][ab].keys())
-                        tl2 = sorted(clonotype2tcrs[id][ab].keys())
-                        if tl1 != tl2:
-                            print('diffids:',id,ab,tl1,tl2)
-
+    clonotype2tcrs = clonotype2tcrs_backup
+    
     return clonotype2tcrs, clonotype2barcodes
 
 def _make_clones_file( organism, outfile, clonotype2tcrs, clonotype2barcodes, verbose=False ):
@@ -706,13 +558,11 @@ def make_10x_clones_file(
         organism,
         clones_file, # the OUTPUT file, the one we're making
         stringent = True, # dont believe the 10x clonotypes; reduce 'duplicated' and 'fake' clones
-        consensus_annotations_csvfile = None,
 ):
 
     assert organism in ['human','mouse','human_gd','mouse_gd']
 
-    clonotype2tcrs, clonotype2barcodes = read_tcr_data( organism, filtered_contig_annotations_csvfile,
-                                                        consensus_annotations_csvfile )
+    clonotype2tcrs, clonotype2barcodes = read_tcr_data( organism, filtered_contig_annotations_csvfile)
 
     if stringent:
         clonotype2tcrs, clonotype2barcodes = setup_filtered_clonotype_dicts( clonotype2tcrs, clonotype2barcodes )
@@ -725,7 +575,6 @@ def make_10x_clones_file_batch(
         organism,
         clones_file, # the OUTPUT file, the one we're making
         stringent = True, # dont believe the 10x clonotypes; reduce 'duplicated' and 'fake' clones
-        consensus_annotations_csvfile = None,
         barcode_filter = None,
         multiple_donors = False, # ongoing
         include_gammadelta = False
@@ -734,8 +583,7 @@ def make_10x_clones_file_batch(
 
     assert organism in ['human','mouse', 'human_gd', 'mouse_gd']
 
-    clonotype2tcrs, clonotype2barcodes = read_tcr_data_batch( organism, metadata_file, barcode_filter, 
-                                                        consensus_annotations_csvfile, include_gammadelta)
+    clonotype2tcrs, clonotype2barcodes = read_tcr_data_batch( organism, metadata_file, barcode_filter, include_gammadelta)
 
     if stringent:
             clonotype2tcrs, clonotype2barcodes = setup_filtered_clonotype_dicts( clonotype2tcrs, clonotype2barcodes, include_gammadelta )
