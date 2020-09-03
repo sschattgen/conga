@@ -7,6 +7,9 @@ import numpy as np
 from . import util
 from . import preprocess as pp
 from . import imhc_scoring
+import olga.load_model as load_model
+import olga.generation_probability as pgen
+import olga.sequence_generation as seq_gen
 
 
 cdr3_score_FG = 'fg'
@@ -28,10 +31,63 @@ aa_props_df.set_index('aa', inplace=True)
 #                      [ '{}_{}'.format(x,y) for x in aa_props_df.columns for y in cdr3_score_modes ]
 
 #tmp hacking SIMPLIFY -- dont include info on which version of the loop is used for scoring
-all_tcr_scorenames = ['alphadist', 'cd8', 'cdr3len', 'imhc', 'mait', 'inkt', 'nndists_tcr'] + list(aa_props_df.columns)
+all_tcr_scorenames = ['alphadist', 'cd8', 'cdr3len', 'imhc', 'mait', 'inkt', 'pgen', 'nndists_tcr'] + list(aa_props_df.columns)
 
 amino_acids = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', \
                'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y']
+
+
+# build the olga pgen models =====
+
+#Define the files for loading in generative model/data
+beta_params_file_name = util.path_to_olga + 'default_models/human_T_beta/model_params.txt'
+beta_marginals_file_name = util.path_to_olga + 'default_models/human_T_beta/model_marginals.txt'
+beta_V_anchor_pos_file = util.path_to_olga + 'default_models/human_T_beta/V_gene_CDR3_anchors.csv'
+beta_J_anchor_pos_file = util.path_to_olga + 'default_models/human_T_beta/J_gene_CDR3_anchors.csv'
+
+alpha_params_file_name = util.path_to_olga + 'default_models/human_T_alpha/model_params.txt'
+alpha_marginals_file_name = util.path_to_olga + 'default_models/human_T_alpha/model_marginals.txt'
+alpha_V_anchor_pos_file = util.path_to_olga + 'default_models/human_T_alpha/V_gene_CDR3_anchors.csv'
+alpha_J_anchor_pos_file = util.path_to_olga + 'default_models/human_T_alpha/J_gene_CDR3_anchors.csv'
+
+mus_beta_params_file_name = util.path_to_olga + 'default_models/mouse_T_beta/model_params.txt'
+mus_beta_marginals_file_name = util.path_to_olga + 'default_models/mouse_T_beta/model_marginals.txt'
+mus_beta_V_anchor_pos_file = util.path_to_olga + 'default_models/mouse_T_beta/V_gene_CDR3_anchors.csv'
+mus_beta_J_anchor_pos_file = util.path_to_olga + 'default_models/mouse_T_beta/J_gene_CDR3_anchors.csv'
+
+humanIg_params_file_name = util.path_to_olga + 'default_models/human_B_heavy/model_params.txt'
+humanIg_marginals_file_name = util.path_to_olga + 'default_models/human_B_heavy/model_marginals.txt'
+humanIg_V_anchor_pos_file = util.path_to_olga + 'default_models/human_B_heavy/V_gene_CDR3_anchors.csv'
+humanIg_J_anchor_pos_file = util.path_to_olga + 'default_models/human_B_heavy/J_gene_CDR3_anchors.csv'
+
+#Load models
+beta_genomic_data = load_model.GenomicDataVDJ()
+beta_genomic_data.load_igor_genomic_data(beta_params_file_name, beta_V_anchor_pos_file, beta_J_anchor_pos_file)
+beta_generative_model = load_model.GenerativeModelVDJ()
+beta_generative_model.load_and_process_igor_model(beta_marginals_file_name)
+
+#alpha_genomic_data = load_model.GenomicDataVDJ()
+#alpha_genomic_data.load_igor_genomic_data(alpha_params_file_name, alpha_V_anchor_pos_file, alpha_J_anchor_pos_file)
+#alpha_generative_model = load_model.GenerativeModelVDJ()
+#alpha_generative_model.load_and_process_igor_model(alpha_marginals_file_name)
+
+mus_beta_genomic_data = load_model.GenomicDataVDJ()
+mus_beta_genomic_data.load_igor_genomic_data(mus_beta_params_file_name, mus_beta_V_anchor_pos_file, mus_beta_J_anchor_pos_file)
+mus_beta_generative_model = load_model.GenerativeModelVDJ()
+mus_beta_generative_model.load_and_process_igor_model(mus_beta_marginals_file_name)
+
+humanIg_genomic_data = load_model.GenomicDataVDJ()
+humanIg_genomic_data.load_igor_genomic_data(humanIg_params_file_name, humanIg_V_anchor_pos_file, humanIg_J_anchor_pos_file)
+humanIg_generative_model = load_model.GenerativeModelVDJ()
+humanIg_generative_model.load_and_process_igor_model(humanIg_marginals_file_name)
+
+#Process model/data for pgen computation by instantiating GenerationProbabilityVDJ
+beta_pgen_model = pgen.GenerationProbabilityVDJ(beta_generative_model, beta_genomic_data)
+#alpha_pgen_model = pgen.GenerationProbabilityVDJ(alpha_generative_model, alpha_genomic_data)
+mus_beta_pgen_model = pgen.GenerationProbabilityVDJ(mus_beta_generative_model, mus_beta_genomic_data)
+humanIg_pgen_model = pgen.GenerationProbabilityVDJ(humanIg_generative_model, humanIg_genomic_data)
+
+## end olga load
 
 def read_cd8_score_params():
     # setup the scoring params
@@ -260,6 +316,75 @@ def property_score_tcr(tcr, score_name, score_mode, alpha_weight=1.0, beta_weigh
              beta_weight  * property_score_cdr3(tcr[1][2], score_name, score_mode ) )
 
 
+def olga_pgen(tcr, organism, chain):
+
+    # alpha or light chains are not currently calculated
+
+    atcr, btcr = tcr
+
+    cols = [2,0,1]
+
+    if organism == 'human':
+
+        if chain == 'alpha':
+
+            alpha_q = [ atcr[i].split('*')[0]  for i in cols ]
+            #aprob = alpha_pgen_model.compute_aa_CDR3_pgen( str(alpha_q[0]) , str(alpha_q[1]) , str(alpha_q[2]) , print_warnings = False)
+            aprob = 1e-6
+            return float(aprob)
+
+        elif chain == 'beta':
+
+            beta_q = [ btcr[i].split('*')[0] for i in cols ]
+            bprob = beta_pgen_model.compute_aa_CDR3_pgen( str(beta_q[0]) , str(beta_q[1]) , str(beta_q[2]), print_warnings = False)
+
+            pgen_array = np.log10( np.array(bprob) )
+            pgen_array_fix =  np.nan_to_num( pgen_array , neginf = -5 ) # 0 to high pgen for now
+   
+            return pgen_array_fix
+
+    elif organism == 'human_ig':
+
+        if chain == 'alpha':
+      
+            alpha_q = [ atcr[i].split('*')[0]  for i in cols ]
+            aprob = 1e-6
+            return float(aprob)
+        
+        elif chain == 'beta':
+
+            beta_q = [ btcr[i].split('*')[0] for i in cols ]
+            bprob = humanIg_pgen_model.compute_aa_CDR3_pgen( str(beta_q[0]) , str(beta_q[1]) , str(beta_q[2]), print_warnings = False)
+
+            pgen_array = np.log10( np.array(bprob) )
+            pgen_array_fix =  np.nan_to_num( pgen_array , neginf = -5 ) # 0 to high pgen for now
+
+            return pgen_array_fix
+
+    elif organism == 'mouse':
+
+        if chain == 'alpha':
+      
+            alpha_q = [ atcr[i].split('*')[0]  for i in cols ]
+            aprob = 1e-6
+            return float(aprob)
+        
+        elif chain == 'beta':
+
+            beta_q = [ btcr[i].split('*')[0] for i in cols ]
+            bprob = mus_beta_pgen_model.compute_aa_CDR3_pgen( str(beta_q[0]) , str(beta_q[1]) , str(beta_q[2]), print_warnings = False)
+
+            pgen_array = np.log10( np.array(bprob) )
+            pgen_array_fix =  np.nan_to_num( pgen_array , neginf = -5 ) # 0 to high pgen for now
+
+            return pgen_array_fix
+
+    else:
+        print('unrecognized organism:', organism)
+        exit()
+        return 0.
+
+
 def make_tcr_score_table(adata, scorenames):
     ''' Returns an array of the tcr scores of shape: (adata.shape[0], len(scorenames))
     '''
@@ -285,6 +410,12 @@ def make_tcr_score_table(adata, scorenames):
         elif name == 'inkt':
             organism = adata.uns['organism']
             cols.append( [ inkt_score_tcr(x, organism) for x in tcrs ])
+        #elif name == 'olga_alpha':
+        #    organism = adata.uns['organism']
+        #    cols.append( [ olga_pgen(x, organism, 'alpha') for x in tcrs ])
+        elif name == 'pgen':
+            organism = adata.uns['organism']
+            cols.append( [ olga_pgen(x, organism, 'beta') for x in tcrs ])
         elif name == 'nndists_tcr':
             if 'nndists_tcr' not in adata.obs_keys():
                 print('WARNING nndists_tcr score requested but not present in adata.obs!!!!')

@@ -43,9 +43,15 @@ Stefan's conga_env
 ```
 conda create -n conga_env python=3.6
 conda activate conga_env
+
+#in some cases we've found it's important to install tbb prior to installing numba to enable TBB threading
+
+conda install tbb
 conda install seaborn scikit-learn statsmodels numba pytables ipython 
-conda install -c conda-forge python-igraph leidenalg notebook louvain spyder
-pip install scanpy loompy anndata2ri
+conda install -c conda-forge python-igraph leidenalg 
+conda install jupyterlab
+pip install scanpy loompy louvain
+
 ```
 anndata2ri and loompy dependencies are only needed if converting from Seurat to h5ad or loom formats as CoNGA inputs. Anndata2ri requires R on the PATH or assigned to R_HOME for installation.
 

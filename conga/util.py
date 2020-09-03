@@ -15,6 +15,9 @@ path_to_conga += '/'
 path_to_data = path_to_conga+'data/'
 assert os.path.isdir( path_to_data )
 
+path_to_olga = path_to_conga+'olga/'
+assert os.path.isdir( path_to_olga )
+
 
 def run_command( cmd, verbose=False ):
     if verbose:
