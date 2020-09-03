@@ -119,7 +119,7 @@ def read_tcr_data(
             continue
 
         chain = l.chain
- 		ab = get_ab_from_10x_chain(chain, organism)
+        ab = get_ab_from_10x_chain(chain, organism)
         if ab is None:
             continue
 
@@ -272,7 +272,7 @@ def read_tcr_data_batch(
             continue
 
         chain = l.chain
- 		ab = get_ab_from_10x_chain(chain, organism)
+        ab = get_ab_from_10x_chain(chain, organism)
         if ab is None:
             continue
 
