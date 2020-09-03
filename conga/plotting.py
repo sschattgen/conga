@@ -28,13 +28,27 @@ default_logo_genes = {
               'CCL5','ZNF683','KLRB1','NKG7','HLA-DRB1' ],
     'mouse': ['Cd4', 'Cd8a', 'Cd8b1', 'Ccr7', 'Sell',
               'Itgal', 'Prf1', 'Gzma', 'Il2rb', 'Gzmk', 'Ifng',
-              'Ccl5', 'Cxcr3', 'Zbtb16', 'Nkg7', 'Klrd1']
+              'Ccl5', 'Cxcr3', 'Zbtb16', 'Nkg7', 'Klrd1'],
+    # should probably specialize these
+    'human_gd': ['CD4','CD8A','CD8B','CCR7','SELL',
+                 'GNLY','PRF1','GZMA','IL7R','IKZF2','KLRD1',
+                 'CCL5','ZNF683','KLRB1','NKG7','HLA-DRB1' ],
+    'mouse_gd': ['Cd4', 'Cd8a', 'Cd8b1', 'Ccr7', 'Sell',
+                 'Itgal', 'Prf1', 'Gzma', 'Il2rb', 'Gzmk', 'Ifng',
+                 'Ccl5', 'Cxcr3', 'Zbtb16', 'Nkg7', 'Klrd1'],
+    # b cells
+    'human_ig': ['IL4R','TCL1A','SELL','IGKC','CD27',
+                 'LAIR1','HLA-C','HLA-DRB1','COTL1','JCHAIN','XBP1',
+                 'EGR1','IGHM','IGHD','IGHA1','IGHA2']
 }
 
 
 default_gex_header_genes = {
     'human': ['clone_sizes','CD4','CD8A','CD8B','SELL','GNLY','GZMA','CCL5','ZNF683','IKZF2','PDCD1','KLRB1'],
-    'mouse': ['clone_sizes','Cd4', 'Cd8a', 'Cd8b1', 'Sell', 'Itgal', 'Gzma', 'Ccl5', 'Il2rb', 'Ikzf2', 'Pdcd1', 'Zbtb16']
+    'mouse': ['clone_sizes','Cd4', 'Cd8a', 'Cd8b1', 'Sell', 'Itgal', 'Gzma', 'Ccl5', 'Il2rb', 'Ikzf2', 'Pdcd1', 'Zbtb16'],
+    'human_gd': ['clone_sizes','CD4','CD8A','CD8B','SELL','GNLY','GZMA','CCL5','ZNF683','IKZF2','PDCD1','KLRB1'],
+    'mouse_gd': ['clone_sizes','Cd4', 'Cd8a', 'Cd8b1', 'Sell', 'Itgal', 'Gzma', 'Ccl5', 'Il2rb', 'Ikzf2', 'Pdcd1', 'Zbtb16'],
+    'human_ig': ['clone_sizes','IL4R','TCL1A','SELL','IGKC','HLA-DRB1','CD27','JCHAIN','XBP1','COTL1','EGR1','IGHM'],
 }
 
 
@@ -78,12 +92,13 @@ def make_rank_genes_logo_stack( ranks, upper_left, logo_width, max_logo_height,
     ''' ranks is a list of (gene,l2r,pval)
     '''
 
-    def pval_factor( pval, min_pval=top_pval_for_max_height ):
-        return math.sqrt( max(1e-3, -1 * math.log10( max(min_pval,pval) ) ))
+    def pval_factor( pval, min_pval ):
+        return math.sqrt( max(1e-6, -1 * math.log10( max(min_pval, pval) ) ))
         #return -1 * math.log10( max(min_pval,pval) )
 
     top_pval = ranks[0][2]
-    logo_height = max_logo_height * pval_factor(top_pval) / pval_factor(top_pval_for_max_height)
+    logo_height = max_logo_height * ( pval_factor(top_pval, top_pval_for_max_height) /
+                                      pval_factor(top_pval_for_max_height, top_pval_for_max_height) )
 
     if logo_height<1e-3:
         return []
@@ -97,7 +112,7 @@ def make_rank_genes_logo_stack( ranks, upper_left, logo_width, max_logo_height,
 
     cmds = []
     for gene,l2r,pval in ranks[:num_genes_to_show]:
-        height = height_scale * pval_factor(pval,min_pval_for_scaling)
+        height = height_scale * pval_factor(pval, min_pval_for_scaling)
         if height<0.01:
             continue
         x1 = x0 + logo_width
@@ -205,13 +220,14 @@ def make_logo_plots(
         include_alphadist_in_tcr_feature_logos=False,
         max_expn_for_gene_logo = 2.5, # or max over the clps, whichever is larger
         show_pmhc_info_in_logos = False,
+        nocleanup = False, # dont delete temporary image files (useful for debugging)
 
         ## controls for the gene expression thumbnails that come before the actual logos:
         gex_header_genes=None,
         make_gex_header=True,
         make_gex_header_raw=True,
         make_gex_header_nbrZ=True,
-        gex_header_tcr_score_names = ['mhci2', 'cdr3len', 'cd8', 'nndists_tcr'], # was alphadist
+        gex_header_tcr_score_names = ['imhc', 'cdr3len', 'cd8', 'nndists_tcr'], # was alphadist
         include_full_tcr_cluster_names_in_logo_lines=False,
 
 ):
@@ -775,7 +791,7 @@ def make_logo_plots(
 
         plt.xlim((1.03,0.0))
         plt.axis('off')
-        plt.text(0.0,0.0, 'Biclusters (size>{:d})'.format(min_cluster_size-1),
+        plt.text(0.0,0.0, 'Clusters (size>{:d})'.format(min_cluster_size-1),
                  ha='left', va='top', transform=plt.gca().transAxes)
         leaves = R['leaves'][:] #list( hierarchy.leaves_list( Z ) )
         leaves.reverse() # since we are drawing them downward, but the leaf-order increases upward
@@ -981,13 +997,13 @@ def make_logo_plots(
 
     plt.savefig(logo_pngfile, dpi=300)
 
-
-    for tmpfile in tmpfiles:
-        if exists(tmpfile):
-            os.remove(tmpfile)
-        svgfile = tmpfile[:-3]+'svg'
-        if exists(svgfile):
-            os.remove(svgfile)
+    if not nocleanup:
+        for tmpfile in tmpfiles:
+            if exists(tmpfile):
+                os.remove(tmpfile)
+            svgfile = tmpfile[:-3]+'svg'
+            if exists(svgfile):
+                os.remove(svgfile)
 
 
 
@@ -1244,10 +1260,9 @@ def make_summary_figure(
 
         ## now a plot of the nbrhood gene/score enrichments
         if xy_tag == 'tcr':
-            exclude_strings = ['5830405F06Rik'] # bad mouse gene, actually a tcr v gene
             plot_ranked_strings_on_cells(adata, tcr_genes_results, 'X_tcr_2d', 'clone_index',
                                          'mwu_pvalue_adj', pval_threshold_for_tcr_genes_results, 'feature',
-                                         exclude_strings=exclude_strings, ax=axs[irow,2] )
+                                         ax=axs[irow,2] )
             plt.sca(axs[irow,2])
             plt.title("Differential gene expression in TCR nbrhoods")
             plt.xlabel('{} UMAP1'.format(XY_TAG))
@@ -1277,7 +1292,7 @@ def make_summary_figure(
 
 
 
-def make_clone_plots(adata, num_clones_to_plot, pngfile):
+def make_clone_plots(adata, num_clones_to_plot, pngfile, dpi=200):
     ''' This is called before we've condensed to a single cell per clone
     So we don't have PCA or UMAP yet
     '''
@@ -1315,7 +1330,7 @@ def make_clone_plots(adata, num_clones_to_plot, pngfile):
         plt.text(0, 0, '{} cells'.format(clone_size), ha='left', va='bottom', transform=plt.gca().transAxes)
     plt.tight_layout()
     print('making:', pngfile)
-    plt.savefig(pngfile)
+    plt.savefig(pngfile, dpi=dpi)
 
 
 
@@ -1340,6 +1355,8 @@ def make_feature_panel_plots(
     # first let's figure out how many panels we could have
     # sort the results by pvalue
     df = results_df.sort_values('mwu_pvalue_adj')# makes a copy
+
+    nbr_frac_for_cluster_results = max(all_nbrs.keys()) if use_nbr_frac is None else use_nbr_frac
 
     clp_counts = Counter()
     seen = set()
@@ -1381,6 +1398,13 @@ def make_feature_panel_plots(
             feature_to_raw_values[f] = np.array(adata.obs[f])
             if f=='clone_sizes':
                 feature_to_raw_values[f] = np.log1p(feature_to_raw_values[f])
+        elif f=='nndists_gex_rank':
+            if 'nndists_gex' in adata.obs_keys():
+                nndists_gex = np.array(adata.obs['nndists_gex'])
+            else:
+                print('WARNING nndists_gex not in adata.obs!')
+                nndists_gex = np.zeros(num_clones)
+            feature_to_raw_values[f] = np.log1p(np.argsort(-1*nndists_gex))
         else:
             feature_score_table = tcr_scoring.make_tcr_score_table(adata, [f])
             feature_to_raw_values[f] = feature_score_table[:,0]
@@ -1396,17 +1420,17 @@ def make_feature_panel_plots(
 
         scores = feature_to_raw_values[feature]
 
-        if use_nbr_frac is None:
-            nbrs = all_nbrs[row.nbr_frac][0] if xy_tag=='gex' else all_nbrs[row.nbr_frac][1]
-        else:
-            nbrs = all_nbrs[use_nbr_frac][0] if xy_tag=='gex' else all_nbrs[use_nbr_frac][1]
+        row_nbr_frac = use_nbr_frac if use_nbr_frac is not None else nbr_frac_for_cluster_results if row.nbr_frac==0.0 \
+                       else row.nbr_frac
+        nbrs = all_nbrs[row_nbr_frac][0] if xy_tag=='gex' else all_nbrs[row_nbr_frac][1]
         assert nbrs.shape[0] == adata.shape[0]
         num_neighbors = nbrs.shape[1] # this will not work for ragged nbr arrays (but we could change it to work)
 
         nbr_averaged_scores = ( scores + scores[ nbrs ].sum(axis=1) )/(num_neighbors+1)
 
         plt.scatter(xy[:,0], xy[:,1], c=nbr_averaged_scores, cmap='coolwarm', s=15)
-        plt.title('{} ({},{}) {:.1e}'.format(feature, row.gex_cluster, row.tcr_cluster, row.mwu_pvalue_adj))
+        plt.title('{} ({:d},{:d}) {:.1e}'.format(feature, int(row.gex_cluster+.1), int(row.tcr_cluster+.1),
+                                                 row.mwu_pvalue_adj))
         plt.xticks([],[])
         plt.yticks([],[])
         if (plotno-1)//ncols == nrows-1:

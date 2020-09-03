@@ -7,6 +7,9 @@ from sys import stderr, exit
 #
 PATH_TO_INKSCAPE='/Applications/Inkscape.app/Contents/Resources/bin/inkscape'
 
+#MONOSPACE_FONT_FAMILY = 'monospace'
+#MONOSPACE_FONT_FAMILY = 'courier'
+MONOSPACE_FONT_FAMILY = 'DejaVu Sans Mono'
 
 ## you could modify this function if you have a different cmdline tool for converting svg to png
 ## like cairosvg
@@ -79,6 +82,18 @@ def convert_svg_to_png(
         return
     else:
         print(f'conga.convert_svg_to_png: 3rd try failed, command="{cmd}"')
+
+    ## another possibility
+    cmd = 'magick convert {} {}'.format( svgfile, pngfile )
+    if verbose:
+        print(cmd)
+    system(cmd)
+
+    if isfile( pngfile ):
+        ## success
+        return
+    else:
+        print(f'conga.convert_svg_to_png: 4th try failed, command="{cmd}"')
 
 
     ## this might also occur if the svgfile were empty...

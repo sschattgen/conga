@@ -44,12 +44,31 @@ def fixup_gene_name( gene, gene_suffix, expected_gene_names ):
 
     return gene # may still not be in expected_gene_names, will check for that later
 
-
+def get_ab_from_10x_chain(chain, organism):
+    ''' Returns None if the chain is not valid for this 'organism'
+    '''
+    if organism in ['human', 'mouse']:
+        if chain in ['TRA','TRB']:
+            return chain[2]
+        else:
+            return None
+    elif organism in ['human_gd','mouse_gd']:
+        if chain in ['TRA','TRG','TRD']:
+            return 'A' if chain=='TRG' else 'B'
+        else:
+            return None
+    elif organism in ['human_ig','mouse_ig']:
+        if chain in ['IGH', 'IGK', 'IGL']:
+            return 'B' if chain=='IGH' else 'A'
+        else:
+            return None
+    else:
+        print('unrecognized organism in get_ab_from_10x_chain:', organism)
+        sys.exit()
 
 def read_tcr_data(
         organism,
         contig_annotations_csvfile,
-        include_gammadelta = False,
         allow_unknown_genes = False,
         verbose = False
 ):
@@ -100,9 +119,10 @@ def read_tcr_data(
             continue
 
         chain = l.chain
-        if chain not in ['TRA','TRB']:
+ 		ab = get_ab_from_10x_chain(chain, organism)
+        if ab is None:
             continue
-        ab = chain[2]
+
         if clonotype not in clonotype2tcrs_backup:
             clonotype2tcrs_backup[ clonotype ] = {'A':Counter(), 'B':Counter() }
         # stolen from below
@@ -142,7 +162,6 @@ def read_tcr_data_batch(
         organism,
         metadata_file,
         barcode_filter=None,
-        include_gammadelta = False,
         allow_unknown_genes = False,
         verbose = False     
 ):
@@ -253,9 +272,10 @@ def read_tcr_data_batch(
             continue
 
         chain = l.chain
-        if chain not in ['TRA','TRB']:
+ 		ab = get_ab_from_10x_chain(chain, organism)
+        if ab is None:
             continue
-        ab = chain[2]
+
         if clonotype not in clonotype2tcrs_backup:
             clonotype2tcrs_backup[ clonotype ] = {'A':Counter(), 'B':Counter() }
         # stolen from below
@@ -417,7 +437,7 @@ def setup_filtered_clonotype_dicts(
     ab_counts = Counter() # for diagnostics
     for (clone_size, cid) in reversed( sorted( (len(y), x) for x,y in clonotype2barcodes.items() ) ):
         if cid not in clonotype2tcrs:
-            print('WHOAH missing tcrs for clonotype', clone_size, cid, clonotype2barcodes[cid])
+            #print('WHOAH missing tcrs for clonotype', clone_size, cid, clonotype2barcodes[cid])
             continue
         tcrs = clonotype2tcrs[cid]
         was_good_clone = len(tcrs['A']) >= 1 and len(tcrs['B']) >= 1
@@ -560,15 +580,14 @@ def make_10x_clones_file(
         stringent = True, # dont believe the 10x clonotypes; reduce 'duplicated' and 'fake' clones
 ):
 
-    assert organism in ['human','mouse','human_gd','mouse_gd']
-
-    clonotype2tcrs, clonotype2barcodes = read_tcr_data( organism, filtered_contig_annotations_csvfile)
+    clonotype2tcrs, clonotype2barcodes = read_tcr_data( organism, filtered_contig_annotations_csvfile )
 
     if stringent:
         clonotype2tcrs, clonotype2barcodes = setup_filtered_clonotype_dicts( clonotype2tcrs, clonotype2barcodes )
 
 
     _make_clones_file( organism, clones_file, clonotype2tcrs, clonotype2barcodes )
+
 
 def make_10x_clones_file_batch(
         metadata_file,
@@ -577,17 +596,14 @@ def make_10x_clones_file_batch(
         stringent = True, # dont believe the 10x clonotypes; reduce 'duplicated' and 'fake' clones
         barcode_filter = None,
         multiple_donors = False, # ongoing
-        include_gammadelta = False
-        
 ):
 
-    assert organism in ['human','mouse', 'human_gd', 'mouse_gd']
-
-    clonotype2tcrs, clonotype2barcodes = read_tcr_data_batch( organism, metadata_file, barcode_filter, include_gammadelta)
+    clonotype2tcrs, clonotype2barcodes = read_tcr_data_batch( organism, metadata_file, barcode_filter)
 
     if stringent:
-            clonotype2tcrs, clonotype2barcodes = setup_filtered_clonotype_dicts( clonotype2tcrs, clonotype2barcodes, include_gammadelta )
+            clonotype2tcrs, clonotype2barcodes = setup_filtered_clonotype_dicts( clonotype2tcrs, clonotype2barcodes )
 
 
     _make_clones_file( organism, clones_file, clonotype2tcrs, clonotype2barcodes )
+
 

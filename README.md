@@ -1,8 +1,10 @@
-# Clonotype Neighbor Graph Analysis (CoNGA) -- developmental
+# Clonotype Neighbor Graph Analysis (CoNGA) -- pre-beta
 
-This repository contains the developmental `conga` python package and associated scripts
-and workflows that may or may not be stable. Please see the main repo at phbradley/conga for the latest stable version.
-Questions and requests can be directed to `pbradley` at `fredhutch` dot `org`.
+This repository contains the `conga` python package and associated scripts
+and workflows. `conga` was developed to detect correlation between
+T cell gene expression profile and TCR sequence in single-cell datasets.
+`conga` is in active development right now so the interface may change in
+the next few months. Questions and requests can be directed to `pbradley` at `fredhutch` dot `org`.
 
 # Running
 
@@ -11,6 +13,11 @@ Python scripts are provided in the `scripts/` directory but analysis steps can a
 in jupyter notebooks (for example, [a simple pipeline](simple_conga_pipeline.ipynb) and
 [Seurat to conga](Seurat_to_Conga.ipynb) in the top directory of this repo)
 or in your own python scripts through the interface in the `conga` python package.
+The examples below and in the jupyter notebooks feature publicly available data from 10X Genomics,
+which can be downloaded
+using these links: [GEX data](https://support.10xgenomics.com/single-cell-vdj/datasets/2.2.0/vdj_v1_hs_pbmc_5gex) and
+[TCR data](https://support.10xgenomics.com/single-cell-vdj/datasets/2.2.0/vdj_v1_hs_pbmc_t).
+
 
 1. **SETUP**: The TCR data is converted to a form that can be read by `conga` and then
 a matrix of `TCRdist` distances is computed. KernelPCA is applied to this distance
@@ -38,22 +45,46 @@ python conga/scripts/run_conga.py --restart tmp_hs_pbmc_final.h5ad --graph_vs_tc
 
 
 # Installation
-Create conga environment. We prefer using Anaconda.
-Stefan's conga_env
-```
-conda create -n conga_env python=3.6
-conda activate conga_env
 
-#in some cases we've found it's important to install tbb prior to installing numba to enable TBB threading
-
-conda install tbb
-conda install seaborn scikit-learn statsmodels numba pytables ipython 
-conda install -c conda-forge python-igraph leidenalg 
-conda install jupyterlab
-pip install scanpy loompy louvain
+`conga` relies heavily on the wonderful `scanpy` python package for single-cell analysis. See the `scanpy`
+instructions for installation: <https://scanpy.readthedocs.io/en/stable/installation.html>.
+We highly recommend using anaconda/miniconda for managing python environments. The calculations in the
+`conga` manuscript were conducted with the following package versions:
 
 ```
-anndata2ri and loompy dependencies are only needed if converting from Seurat to h5ad or loom formats as CoNGA inputs. Anndata2ri requires R on the PATH or assigned to R_HOME for installation.
+scanpy==1.4.3 anndata==0.6.18 umap==0.3.9 numpy==1.16.2 scipy==1.2.1 pandas==0.24.1 scikit-learn==0.20.2 statsmodels==0.9.0 python-igraph==0.7.1 louvain==0.6.1
+```
+
+which might possibly be installed with the following `conda` command:
+```
+conda create -n conga_classic_env ipython python=3.6 scanpy=1.4.3 umap-learn=0.3.9
+```
+
+
+We've also been able to re-run everything, albeit with some numerical changes, with a current (2020-05-25) scanpy
+installation and these package versions:
+```
+scanpy==1.5.1 anndata==0.7.3 umap==0.4.3 numpy==1.17.5 scipy==1.4.1 pandas==1.0.3 scikit-learn==0.23.1 statsmodels==0.11.1 python-igraph==0.8.2 louvain==0.6.1 leidenalg==0.8.0
+```
+
+Which was installed with the following `conda` commands (following the `scanpy` docs):
+```
+conda create -n conga_new_env ipython python=3.6
+conda activate conga_new_env   (or source activate conga_new_env)
+conda install seaborn scikit-learn statsmodels numba pytables
+conda install -c conda-forge python-igraph leidenalg
+conda install -c conda-forge louvain
+pip install scanpy
+pip install olga
+```
+
+(And consider also adding `conda install -c conda-forge notebook` for Jupyter notebook stuff.)
+
+Preliminary results suggest that, at least with default clustering parameters, the older `louvain`
+clustering algorithm seems to give slightly 'better' results than the newer `leiden` algorithm,
+ie finds a few more GEX/TCR associations, probably because there seem to be fewer, larger clusters.
+If the `louvain` package is installed `conga` will use that. 
+
 
 # svg to png
 The `conga` image-making pipeline requires an svg to png conversion. There seem to be a variety of
@@ -61,3 +92,6 @@ options for doing this, with the best choice being somewhat platform dependent. 
 ImageMagick `convert` (on linux) and Inkscape (on mac). The conversion is handled in the file
 `conga/convert_svg_to_png.py`, so you can modify that file if things are not working and you have
 a tool installed; `conga` may not be looking in the right place. 
+
+If you are having trouble and are using anaconda/miniconda, you could try
+`conda install -c conda-forge imagemagick` in the relevant conda environment.

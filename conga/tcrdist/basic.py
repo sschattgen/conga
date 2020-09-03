@@ -9,11 +9,15 @@ from math import floor,sqrt
 from sys import stderr,argv,exit
 import random
 
-from ..convert_svg_to_png import convert_svg_to_png
+from ..convert_svg_to_png import convert_svg_to_png, MONOSPACE_FONT_FAMILY
 
-# yes, hardcoding for alpha beta right now
-db_file = 'combo_db.tsv'
+# combo dbs for tr and ig
+db_file = 'combo_xcr.tsv'
+#db_file = 'combo_db.tsv'
+#db_file = 'alphabeta_db.tsv'
 
+# should we use the crazy complicated tcr-dist scheme for picking a 'representative' gene for counting?
+CLASSIC_COUNTREPS = False
 
 ## naming scheme for the gene segment types, occasionally useful for iterating
 segtypes_uppercase = ['VA','JA','VB','JB']

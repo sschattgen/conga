@@ -15,12 +15,10 @@ from . import util
 from . import pmhc_scoring
 from . import plotting
 from .tcrdist.tcr_distances import TcrDistCalculator
-import loompy
 
 # silly hack
 all_sexlinked_genes = frozenset('XIST DDX3Y EIF1AY KDM5D LINC00278 NLGN4Y RPS4Y1 TTTY14 TTTY15 USP9Y UTY ZFY'.split())
 
-FUNNY_MOUSE_V_GENE = '5830405F06Rik' # actually seems to be a tcr v gene transcript or correlate with one
 
 def check_if_raw_matrix_is_logged( adata ):
     return adata.uns.get( 'raw_matrix_is_logged', False )
@@ -38,9 +36,10 @@ def add_mait_info_to_adata_obs( adata, key_added = 'is_mait' ):
         return
     tcrs = retrieve_tcrs_from_adata(adata)
     organism = 'human' if 'organism' not in adata.uns_keys() else adata.uns['organism']
-    if organism == 'human':
+    if 'human' in organism:
         is_mait = [ tcr_scoring.is_human_mait_alpha_chain(x[0]) for x in tcrs ]
     else:
+        assert 'mouse' in organism
         is_mait = [ tcr_scoring.is_mouse_inkt_alpha_chain(x[0]) for x in tcrs ]
     adata.obs['is_mait'] = is_mait
 
@@ -126,6 +125,7 @@ def setup_X_igex( adata ):
                     'TRBC1','EPHB6','SLC4A10','DAD1','ITGB1', 'KLRC1','CD45RA_TotalSeqC','CD45RO_TotalSeqC',
                     'ZNF683','KLRD1','NCR3','KIR3DL1','NCAM1','ITGAM','KLRC2','KLRC3','GNLY',
                     'CCR7_TotalSeqC','CD3_TotalSeqC','IgG1_TotalSeqC','PD-1_TotalSeqC','CD5' ]
+    b_cell_genes = ['IGHM', 'IGHD', 'JCHAIN', 'CD19', 'MS4A1', 'CD80', 'CD86', 'CD274', 'CD74','CD79A','HLA-DRA1', 'HLA-DRB1', 'CIITA','REL','NFKBIA','CD69', 'CD44', 'CD38', 'CXCR4', 'CD27']               
 
     all_genes = sorted( set( [x[:-1] for x in open(all_genes_file,'r')] + extra_genes + kir_genes ) )
 
@@ -133,9 +133,7 @@ def setup_X_igex( adata ):
     if 'organism' in adata.uns_keys():
         organism = adata.uns['organism']
 
-    assert organism in ['mouse','human']
-
-    if organism=='mouse': # this is a temporary hack -- could actually load a mapping between mouse and human genes
+    if 'mouse' in organism: # this is a temporary hack -- could actually load a mapping between mouse and human genes
         all_genes = [x.capitalize() for x in all_genes]
 
     for g in plotting.default_logo_genes[organism] + plotting.default_gex_header_genes[organism]:
@@ -291,18 +289,12 @@ def filter_normalize_and_hvg(
         antibody = False,
         hvg_min_disp=0.5,
         exclude_TR_genes = True,
+        also_exclude_TR_constant_region_genes = True, ## this is NEW and not the default for the old TCR analysis!!!!
         exclude_sexlinked = False,
 ):
     '''Filters cells and genes to find highly variable genes'''
 
-    ## notes:
-    ## * AGTB specific things that we removed
-    ##   - exclude "antibody" features before normalizing
-    ##   - "qcheck" thingy
-
-    global all_sexlinked_genes
-
-    #sets some default parameter for qc if unspecified
+    organism = adata.uns['organism']
 
     if min_genes is None:
         min_genes=200
@@ -315,6 +307,13 @@ def filter_normalize_and_hvg(
     if percent_mito is None:
         percent_mito=0.1
         print('percent_mito not set. Using default ' + str(percent_mito) )
+
+    ## notes:
+    ## * AGTB specific things that we removed
+    ##   - exclude "antibody" features before normalizing
+    ##   - "qcheck" thingy
+
+    global all_sexlinked_genes
 
     #filters out cells with less than given number of genes expressed (200)
     #filters out genes present in less than given number of cells (3)
@@ -373,9 +372,8 @@ def filter_normalize_and_hvg(
     if exclude_TR_genes:
         is_tr = []
         for gene in adata.var.index:
-            is_tr.append( gene.lower().startswith('trav') or gene.lower().startswith('trbv') or \
-                          gene.lower().startswith('traj') or gene.lower().startswith('trbj') or \
-                          gene == FUNNY_MOUSE_V_GENE )
+            is_tr.append( util.is_vdj_gene(gene, organism,
+                                           include_constant_regions=also_exclude_TR_constant_region_genes))
         print('excluding {} TR genes ({} variable)'.format(sum(is_tr), sum(hvg_mask[is_tr])))
         hvg_mask[is_tr] = False
         assert sum( hvg_mask[is_tr] )==0 # sanity check
@@ -470,8 +468,8 @@ def cluster_and_tsne_and_umap(
         adata.obsm['X_{}_2d'.format(tag)] = adata.obsm['X_umap_'+tag]
 
 
-    adata.obsm['X_umap'] = adata.obsm['X_umap_gex']
-    adata.obsm['X_pca'] = adata.obsm['X_pca_gex']
+    del adata.obsm['X_umap']
+    del adata.obsm['X_pca']
 
     return adata
 
@@ -736,7 +734,8 @@ def calc_nbrs(
 
 
 def get_vfam(vgene):
-    assert vgene.startswith('TR') and vgene[3]=='V'
+    #assert vgene.startswith('TR') and vgene[3]=='V'
+    assert vgene[3]=='V'
     pos = 4
     while pos<len(vgene) and vgene[pos].isdigit():
         pos += 1
@@ -795,8 +794,6 @@ def make_tcrdist_kernel_pcs_file_from_clones_file(
 ):
     if outfile is None: # this is the name expected by read_dataset above (with n_components_in==50)
         outfile = '{}_AB.dist_{}_kpcs'.format(clones_file[:-4], n_components_in)
-
-    assert organism in ['mouse', 'human']
 
     tcrdist_calculator = TcrDistCalculator(organism)
 
