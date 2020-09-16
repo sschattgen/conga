@@ -193,7 +193,7 @@ def read_tcr_data_batch(
         dfx = pd.read_csv( md.loc[ x , 'file'] ) #read contig_df
     
         suffix = md.loc[ x , 'suffix'] # new suffix
-        sample = md.loc[ x , 'sample'] # sample_id
+        #sample = md.loc[ x , 'sample'] # sample_id
         barcodes = dfx['barcode'].str.split('-').str.get(0)
     
         #hacky 
@@ -206,7 +206,7 @@ def read_tcr_data_batch(
         dfx['raw_clonotype_id'] = dfx['raw_clonotype_id'] + '_' + suffix
         dfx['raw_consensus_id'] = dfx['raw_consensus_id'] + '_' + suffix
         
-        dfx['sample'] = sample
+        #dfx['sample'] = sample
 
         contig_list.append(dfx)
 
