@@ -48,9 +48,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Performance optimization
+# Performance optimization (CPU)
 performance = [
     "faiss-cpu>=1.7.4",
+    "fastcluster>=1.2.0",
+]
+
+# Performance optimization (GPU)
+performance-gpu = [
+    "faiss-gpu>=1.7.4",
     "fastcluster>=1.2.0",
 ]
 
@@ -76,9 +82,14 @@ dev = [
     "jupyter>=1.0.0",
 ]
 
-# All optional dependencies
+# All optional dependencies (CPU performance)
 all = [
     "conga[performance,batch,scvi,dev]",
+]
+
+# All optional dependencies (GPU performance)
+all-gpu = [
+    "conga[performance-gpu,batch,scvi,dev]",
 ]
 
 [project.urls]

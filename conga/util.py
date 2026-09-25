@@ -15,10 +15,8 @@ from . import tags
 
 # convenience paths
 path_to_conga = Path(__file__).parent
-assert os.path.isdir( path_to_conga )
 
 path_to_data = Path.joinpath( path_to_conga, 'data')
-assert os.path.isdir( path_to_data )
 
 # tcrdist_cpp paths - pure Path arithmetic, existence checked at runtime by tcrdist_cpp_available()
 path_to_tcrdist_cpp = Path.joinpath( path_to_conga.parents[0] ,'tcrdist_cpp')

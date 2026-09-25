@@ -35,7 +35,7 @@ dependencies:
   - joblib>=1.3
   
   # Optional performance boost
-  - faiss-cpu>=1.7.4
+  - faiss-cpu>=1.7.4  # Fast similarity search (CPU version, for GPU see installation docs)
   - fastcluster>=1.2
   
   # Batch integration (optional)

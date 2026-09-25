@@ -445,12 +445,32 @@ def aa_embedding(config: EncodingConfig) -> np.ndarray:
 
 
 def _validate_organism(organism: str) -> None:
-    """Validate organism is supported by vectorizer."""
+    """Validate organism is supported by vectorizer.
+    
+    Parameters
+    ----------
+    organism : str
+        Organism identifier to validate
+        
+    Raises
+    ------
+    ValueError
+        If organism is not in SUPPORTED_ORGANISMS set, with clear message
+        listing alternatives for unsupported receptor types
+    """
     if organism not in SUPPORTED_ORGANISMS:
+        # Get specific error message for common unsupported types
+        if organism in {'human_gd', 'mouse_gd', 'rhesus_gd'}:
+            receptor_type = "gamma-delta TCRs"
+        elif organism in {'human_ig', 'mouse_ig'}:
+            receptor_type = "B cell receptors (Ig)"
+        else:
+            receptor_type = "this receptor type"
+            
         raise ValueError(
             f"Organism '{organism}' not supported by vectorizer. "
-            f"Supported: {sorted(SUPPORTED_ORGANISMS)}. "
-            f"Use KernelPCA representation (X_pca_tcr) or exact TCRdist path instead."
+            f"Supported organisms: {sorted(SUPPORTED_ORGANISMS)} (alpha-beta TCRs only). "
+            f"For {receptor_type}, use KernelPCA representation (X_pca_tcr) or exact TCRdist path instead."
         )
 
 
@@ -807,8 +827,8 @@ def _validate_input(
     Performs comprehensive validation of V genes and CDR3 sequences.
     All validation completes before any encoding arrays are allocated.
     
-    Parameters:
-    -----------
+    Parameters
+    ----------
     va, vb : Sequence[str]
         V gene identifiers for alpha/beta chains
     cdr3a, cdr3b : Sequence[str]  
@@ -818,10 +838,11 @@ def _validate_input(
     config : EncodingConfig
         Encoding configuration
         
-    Raises:
-    -------
+    Raises
+    ------
     ValueError
-        For invalid V genes, CDR3 content, or length constraints
+        For invalid V genes, CDR3 content, length constraints, or organism/chain
+        combinations with no V gene records in the database
     """
     # Lazy import gene database
     from .all_genes import all_genes
@@ -832,31 +853,57 @@ def _validate_input(
     if not (len(cdr3a) == len(vb) == len(cdr3b) == n_clonotypes):
         raise ValueError("All input sequences must have same length")
     
-    # Get valid V gene sets for this organism
+    # Validate organism is supported
+    _validate_organism(organism)
+    
+    # Get organism gene database
     if organism not in all_genes:
         raise ValueError(f"Organism '{organism}' not found in gene database")
     
     genes_dict = all_genes[organism]
     valid_genes = {}
+    
+    # Validate that organism has V gene records for each required chain
     for chain in ['A', 'B']:
+        chain_name = 'alpha' if chain == 'A' else 'beta'
         genes = [g.id for g in genes_dict.values() 
                 if g.chain == chain and g.region == 'V']
+        
+        if not genes:
+            raise ValueError(
+                f"No V gene records found in gene database for organism '{organism}' "
+                f"chain {chain} ({chain_name}). Cannot encode {chain_name} chain."
+            )
+        
         valid_genes[chain] = set(genes)
+        logger.debug(f"Found {len(genes)} V genes for {organism} chain {chain}")
     
-    # Validate V genes
+    # Validate V genes against database
     for chain_label, v_genes in [('A', va), ('B', vb)]:
+        chain_name = 'alpha' if chain_label == 'A' else 'beta'
         invalid_genes = []
-        for v_gene in v_genes:
+        affected_indices = []
+        
+        for i, v_gene in enumerate(v_genes):
             if v_gene not in valid_genes[chain_label]:
                 invalid_genes.append(v_gene)
+                affected_indices.append(i)
         
         if invalid_genes:
-            # Count affected clonotypes
-            affected_count = len([v for v in v_genes if v in invalid_genes])
+            # Report detailed information about missing genes
             unique_invalid = sorted(set(invalid_genes))
+            affected_count = len(affected_indices)
+            
+            # Show available alternatives for first few missing genes
+            available_sample = sorted(list(valid_genes[chain_label]))[:5]
+            available_msg = f"Available genes include: {available_sample}"
+            if len(valid_genes[chain_label]) > 5:
+                available_msg += f" (and {len(valid_genes[chain_label]) - 5} more)"
+            
             raise ValueError(
-                f"V gene(s) not found in gene database for {organism} chain {chain_label}: "
-                f"{unique_invalid}. Affects {affected_count} clonotypes."
+                f"V gene(s) not found in gene database for {organism} {chain_name} chain: "
+                f"{unique_invalid}. Affects {affected_count} clonotypes. "
+                f"{available_msg}."
             )
     
     # Validate CDR3 sequences
@@ -865,17 +912,22 @@ def _validate_input(
     long_cdr3_count = 0
     
     for cdr3_list, chain_name in [(cdr3a, 'alpha'), (cdr3b, 'beta')]:
-        for cdr3 in cdr3_list:
+        for i, cdr3 in enumerate(cdr3_list):
             # Check amino acid content
             invalid_chars = [c for c in cdr3 if c not in valid_amino_acids]
             if invalid_chars:
-                raise ValueError(f"CDR3 '{cdr3}' contains invalid characters: {set(invalid_chars)}")
+                unique_invalid = sorted(set(invalid_chars))
+                raise ValueError(
+                    f"CDR3 '{cdr3}' (clonotype {i}, {chain_name} chain) contains invalid characters: "
+                    f"{unique_invalid}. Valid amino acids: {sorted(valid_amino_acids)}."
+                )
             
-            # Check minimum length
+            # Check minimum length after trimming
             if len(cdr3) < min_length:
                 raise ValueError(
-                    f"CDR3 '{cdr3}' too short: len={len(cdr3)} < "
-                    f"n_trim={config.n_trim} + c_trim={config.c_trim} + 1"
+                    f"CDR3 '{cdr3}' (clonotype {i}, {chain_name} chain) too short: "
+                    f"length {len(cdr3)} < minimum required {min_length} "
+                    f"(n_trim={config.n_trim} + c_trim={config.c_trim} + 1)."
                 )
             
             # Count long CDR3s (warning, not error)
@@ -883,11 +935,15 @@ def _validate_input(
             if len(cdr3) > encodable_length:
                 long_cdr3_count += 1
     
-    # Log warning for long CDR3s
+    # Log warning for long CDR3s that will have interior residues dropped
     if long_cdr3_count > 0:
-        logger.warning(f"{long_cdr3_count} CDR3 sequences longer than encodable length "
-                      f"(num_pos_cdr3={config.num_pos_cdr3} + trims). "
-                      f"Interior residues will be dropped.")
+        max_encodable = config.num_pos_cdr3 + config.n_trim + config.c_trim
+        logger.warning(
+            f"{long_cdr3_count} CDR3 sequences longer than encodable length "
+            f"({max_encodable} = num_pos_cdr3={config.num_pos_cdr3} + "
+            f"n_trim={config.n_trim} + c_trim={config.c_trim}). "
+            f"Interior residues will be dropped during encoding."
+        )
 
 
 def encode_tcrs(

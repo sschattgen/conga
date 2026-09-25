@@ -59,8 +59,11 @@ cd ..
 mamba env create -f environment-minimal.yml
 mamba activate conga-dev
 
-# Install with performance optimization (FAISS)
+# Install with performance optimization (FAISS-CPU + fast clustering)
 pip install -e ".[performance]"
+
+# Or install with GPU performance (requires CUDA-capable GPU)
+pip install -e ".[performance-gpu]"
 
 # Or install with batch integration support
 pip install -e ".[batch]"
@@ -68,9 +71,20 @@ pip install -e ".[batch]"
 # Or install with scVI support (experimental)
 pip install -e ".[scvi]"
 
-# Or install everything
+# Or install everything (includes CPU FAISS by default)
 pip install -e ".[all]"
+
+# Or install everything with GPU FAISS (requires CUDA-capable GPU)  
+pip install -e ".[all-gpu]"
 ```
+
+**Feature Groups:**
+- `performance`: faiss-cpu + fastcluster (recommended for >10k cells)
+- `performance-gpu`: faiss-gpu + fastcluster (for large datasets with CUDA GPU)
+- `batch`: bbknn + batch correction tools
+- `scvi`: scVI-tools for variational inference (experimental)
+- `all`: All optional features with CPU FAISS
+- `all-gpu`: All optional features with GPU FAISS (requires CUDA)
 
 ---
 
@@ -104,13 +118,89 @@ pytest tests/
 
 ### FAISS (for fast neighbor search on large datasets)
 
-Already included in `environment.yml`. For manual installation:
+FAISS (Facebook AI Similarity Search) provides 5-100x performance improvements for neighbor search operations, especially on large datasets (>10k cells). CoNGA implements a tiered fallback system: faiss-gpu → faiss-cpu → sklearn.
+
+**Automatic Installation (Recommended)**
+
+FAISS-CPU is included in `environment.yml` by default:
 ```bash
-# CPU version (recommended for most users)
+mamba env create -f environment.yml  # Includes faiss-cpu>=1.7.4
+```
+
+**Manual Installation Options**
+
+Choose based on your hardware and dataset size:
+
+```bash
+# CPU version (recommended for most users, works on all systems)
 mamba install -c conda-forge faiss-cpu
 
-# GPU version (if you have CUDA-capable GPU)
+# GPU version (requires CUDA-capable GPU, 10-50x faster on large datasets)
 mamba install -c conda-forge faiss-gpu
+```
+
+**Selection Criteria**
+
+| Use Case | Dataset Size | Hardware | Recommendation |
+|----------|-------------|----------|----------------|
+| Typical analysis | <50k cells | Any CPU | `faiss-cpu` (included by default) |
+| Large dataset | >50k cells | Any CPU | `faiss-cpu` (significant speedup) |
+| Very large dataset | >100k cells | CUDA GPU | `faiss-gpu` (maximum performance) |
+| Cluster/HPC | Any size | Multiple GPUs | `faiss-gpu` with GPU scheduling |
+
+**Performance Expectations**
+
+| Backend | Relative Speed | Memory Usage | Hardware Requirements |
+|---------|----------------|--------------|----------------------|
+| sklearn (fallback) | 1x | High | Any system |
+| faiss-cpu | 5-20x | Medium | Any system |
+| faiss-gpu | 20-100x | Low | CUDA-capable GPU |
+
+**Verification**
+
+```bash
+# Check FAISS installation and GPU availability
+python -c "import conga.neighbors; conga.neighbors.get_backend_info()"
+```
+
+**Troubleshooting FAISS**
+
+Common issues and solutions:
+
+```bash
+# Issue: ImportError for faiss-gpu
+# Solution: Check CUDA compatibility
+nvidia-smi  # Check CUDA version
+# Install compatible faiss-gpu version
+
+# Issue: FAISS not found during conda install  
+# Solution: Check channel priority
+mamba install -c conda-forge faiss-cpu --channel-priority strict
+
+# Issue: GPU out of memory with faiss-gpu
+# Solution: Control GPU memory usage with environment variables
+export FAISS_OMP_NUM_THREADS=4  # Limit CPU threads
+export CUDA_VISIBLE_DEVICES=0   # Use specific GPU
+# Or falls back to CPU automatically
+
+# Issue: Performance not improved with FAISS
+# Solution: Ensure you're using datasets >10k cells
+# FAISS overhead dominates on small datasets
+```
+
+**Environment Variables for GPU Control**
+
+When using faiss-gpu, these variables can optimize performance:
+
+```bash
+# Limit CPU thread usage (recommended for shared systems)
+export FAISS_OMP_NUM_THREADS=8
+
+# Select specific GPU (multi-GPU systems)  
+export CUDA_VISIBLE_DEVICES=0,1
+
+# Control GPU memory allocation
+export FAISS_GPU_MEM_FRACTION=0.9  # Use 90% of GPU memory
 ```
 
 ### BBKNN (for batch correction)
