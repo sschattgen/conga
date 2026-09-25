@@ -291,10 +291,19 @@ def read_dataset(
                 sys.exit()
         # what about 'X_pca_tcr' ie the kernel PCs??
         # should we worry about those now?
-        if 'X_pca_tcr' not in adata.obsm_keys():
-            print('WARNING:: reading dataset without clones file',
-                  'kernel PCs will not be set ie X_pca_tcr array',
-                  'will be missing from adata.obsm!!!!!!!!!!!!!', sep='\n')
+        if 'X_pca_tcr' not in adata.obsm:
+            # Check if we're using a different TCR representation
+            active_tcr_rep = get_active_tcr_representation(adata)
+            if active_tcr_rep == util.OBSM_KEY_VEC_TCR:
+                # Vectorized representation is being used, no warning needed
+                pass
+            elif active_tcr_rep == util.ACTIVE_REP_EXACT:
+                # Exact TCRdist path is being used, no warning needed
+                pass
+            else:
+                print('WARNING:: reading dataset without clones file',
+                      'kernel PCs will not be set ie X_pca_tcr array',
+                      'will be missing from adata.obsm!!!!!!!!!!!!!', sep='\n')
         adata.uns['conga_stats']['num_cells_w_tcr'] = adata.shape[0]
         return adata ########################################## EARLY RETURN
 
@@ -730,18 +739,43 @@ def cluster_and_tsne_and_umap(
             # or if we are using exact TCRdist neighbors instead of kernel PCs
             continue
 
-        if tag == 'tcr' and 'X_pca_tcr' not in adata.obsm_keys():
-            print('preprocess.cluster_and_tsne_and_umap:: X_pca_tcr is'
-                  ' not present in adata.obsm; using exact tcrdist nbrs'
-                  ' for umap and clustering')
-            calc_tcrdist_nbrs_umap_clusters_cpp(
-                adata, n_neighbors, make_1d_umaps=make_1d_umaps,
-                clustering_method=clustering_method,
-                clustering_resolution=clustering_resolution,
-            )
-            continue
+        if tag == 'tcr':
+            # Branch based on the active TCR representation
+            active_tcr_rep = get_active_tcr_representation(adata)
+            
+            if active_tcr_rep == util.ACTIVE_REP_EXACT:
+                print('preprocess.cluster_and_tsne_and_umap:: Using exact TCRdist'
+                      ' for umap and clustering (active representation: exact_tcrdist)')
+                calc_tcrdist_nbrs_umap_clusters_cpp(
+                    adata, n_neighbors, make_1d_umaps=make_1d_umaps,
+                    clustering_method=clustering_method,
+                    clustering_resolution=clustering_resolution,
+                )
+                continue
+            elif active_tcr_rep in [util.OBSM_KEY_VEC_TCR, util.OBSM_KEY_PCA_TCR]:
+                # Use the appropriate obsm representation
+                if active_tcr_rep not in adata.obsm:
+                    print(f'ERROR: Active TCR representation {active_tcr_rep} not found in obsm')
+                    print('Available obsm keys:', list(adata.obsm.keys()))
+                    continue
+                obsm_key = active_tcr_rep
+            else:
+                # Fallback to old behavior for backward compatibility
+                if 'X_pca_tcr' not in adata.obsm_keys():
+                    print('preprocess.cluster_and_tsne_and_umap:: X_pca_tcr is'
+                          ' not present in adata.obsm; using exact tcrdist nbrs'
+                          ' for umap and clustering')
+                    calc_tcrdist_nbrs_umap_clusters_cpp(
+                        adata, n_neighbors, make_1d_umaps=make_1d_umaps,
+                        clustering_method=clustering_method,
+                        clustering_resolution=clustering_resolution,
+                    )
+                    continue
+                obsm_key = 'X_pca_tcr'
+        else:
+            obsm_key = 'X_pca_' + tag
 
-        adata.obsm['X_pca'] = adata.obsm['X_pca_'+tag]
+        adata.obsm['X_pca'] = adata.obsm[obsm_key]
         n_pcs = adata.obsm['X_pca'].shape[1]
         #n_pcs = n_gex_pcs_for_neighbors if tag=='gex' else n_tcr_pcs_for_neighbors
         sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs)
@@ -2398,4 +2432,342 @@ def retrieve_nbr_info_from_adata(
 #     indices = [ var_names.index(x) for x in good_genes ]
 #     X_igex = adata.raw[:,indices].X.toarray()
 #     return X_igex, good_genes
+
+
+##############################################################################
+# TCR Representation Selection and AnnData Storage
+##############################################################################
+
+from dataclasses import dataclass
+from typing import Collection
+
+@dataclass(frozen=True)
+class TcrRepresentation:
+    """Result of TCR representation path selection.
+    
+    Attributes:
+    -----------
+    active : str
+        The active representation: OBSM_KEY_VEC_TCR, OBSM_KEY_PCA_TCR, or ACTIVE_REP_EXACT
+    obsm_tag_tcr : str | None  
+        Key to pass to calc_nbrs (None for exact path)
+    use_exact_tcrdist_nbrs : bool
+        Flag to pass to calc_nbrs
+    build_vectorized : bool
+        Whether to encode vectorized representation now
+    build_kpca : bool  
+        Whether to compute KernelPCA representation now
+    reason : str
+        Human-readable explanation of why this path was chosen
+    """
+    active: str
+    obsm_tag_tcr: str | None
+    use_exact_tcrdist_nbrs: bool
+    build_vectorized: bool
+    build_kpca: bool
+    reason: str
+
+
+def resolve_tcr_representation(
+    *,
+    organism: str,
+    num_obs: int,
+    request_kpca: bool = False,
+    request_exact_nbrs: bool = False,
+    kpca_reduction_limit: int | None = None,
+    stored_obsm_keys: Collection[str] = (),
+) -> TcrRepresentation:
+    """Resolve which TCR representation path to use.
+    
+    Implements the three-way selection table from the design:
+    1. Vectorized (default for supported organisms)  
+    2. KernelPCA (for unsupported organisms below limit, or by override)
+    3. Exact TCRdist (for unsupported organisms above limit, or by override)
+    
+    Parameters:
+    -----------
+    organism : str
+        Organism string to check support
+    num_obs : int
+        Number of observations in dataset
+    request_kpca : bool
+        Whether --use_kpca_tcrdist was specified
+    request_exact_nbrs : bool
+        Whether --no_kpca or --use_exact_tcrdist_nbrs was specified  
+    kpca_reduction_limit : int | None
+        Limit for KernelPCA (uses default if None)
+    stored_obsm_keys : Collection[str]
+        Keys already present in adata.obsm (for restart logic)
+        
+    Returns:
+    --------
+    TcrRepresentation
+        Complete specification of the path to use
+        
+    Raises:
+    -------
+    ValueError
+        For conflicting overrides or KernelPCA above limit
+    """
+    # Lazy import to avoid circular dependencies
+    from .tcrdist.vectorized import SUPPORTED_ORGANISMS
+    
+    if kpca_reduction_limit is None:
+        kpca_reduction_limit = util.KPCA_REDUCTION_LIMIT
+    
+    # Check for conflicting overrides
+    if request_kpca and request_exact_nbrs:
+        raise ValueError(
+            "Conflicting TCR representation overrides: both KernelPCA and exact neighbors requested"
+        )
+    
+    # Check if organism is supported by vectorizer
+    organism_supported = organism in SUPPORTED_ORGANISMS
+    above_limit = num_obs >= kpca_reduction_limit
+    
+    # Handle explicit overrides first
+    if request_exact_nbrs:
+        return TcrRepresentation(
+            active=util.ACTIVE_REP_EXACT,
+            obsm_tag_tcr=None,
+            use_exact_tcrdist_nbrs=True,
+            build_vectorized=False,
+            build_kpca=False,
+            reason=f"Exact TCRdist requested by override"
+        )
+    
+    if request_kpca:
+        if above_limit:
+            raise ValueError(
+                f"KernelPCA override requested but observation count {num_obs} >= "
+                f"limit {kpca_reduction_limit}. Use --kpca_reduction_limit to raise limit "
+                f"or --no_kpca for exact TCRdist path."
+            )
+        return TcrRepresentation(
+            active=util.OBSM_KEY_PCA_TCR,
+            obsm_tag_tcr=util.OBSM_KEY_PCA_TCR,
+            use_exact_tcrdist_nbrs=False,
+            build_vectorized=False,
+            build_kpca=True,
+            reason=f"KernelPCA requested by override (N={num_obs} < limit {kpca_reduction_limit})"
+        )
+    
+    # Handle restart logic (stored representations take precedence)
+    if stored_obsm_keys:
+        if util.OBSM_KEY_VEC_TCR in stored_obsm_keys and util.OBSM_KEY_PCA_TCR in stored_obsm_keys:
+            # Both present: prefer vectorized (newer default)
+            return TcrRepresentation(
+                active=util.OBSM_KEY_VEC_TCR,
+                obsm_tag_tcr=util.OBSM_KEY_VEC_TCR,
+                use_exact_tcrdist_nbrs=False,
+                build_vectorized=False,
+                build_kpca=False,
+                reason=f"Reusing stored vectorized representation (both present)"
+            )
+        elif util.OBSM_KEY_VEC_TCR in stored_obsm_keys:
+            return TcrRepresentation(
+                active=util.OBSM_KEY_VEC_TCR,
+                obsm_tag_tcr=util.OBSM_KEY_VEC_TCR,
+                use_exact_tcrdist_nbrs=False,
+                build_vectorized=False,
+                build_kpca=False,
+                reason=f"Reusing stored vectorized representation"
+            )
+        elif util.OBSM_KEY_PCA_TCR in stored_obsm_keys:
+            # Check if stored KernelPCA exceeds current limit
+            if above_limit:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    f"Stored KernelPCA representation has {num_obs} rows, which exceeds "
+                    f"current limit {kpca_reduction_limit}. Reusing anyway."
+                )
+            return TcrRepresentation(
+                active=util.OBSM_KEY_PCA_TCR,
+                obsm_tag_tcr=util.OBSM_KEY_PCA_TCR,
+                use_exact_tcrdist_nbrs=False,
+                build_vectorized=False,
+                build_kpca=False,
+                reason=f"Reusing stored KernelPCA representation"
+            )
+        # If neither stored, fall through to automatic selection
+    
+    # Automatic selection based on organism support and observation count
+    if organism_supported:
+        # Default to vectorized for supported organisms
+        return TcrRepresentation(
+            active=util.OBSM_KEY_VEC_TCR,
+            obsm_tag_tcr=util.OBSM_KEY_VEC_TCR,
+            use_exact_tcrdist_nbrs=False,
+            build_vectorized=True,
+            build_kpca=False,
+            reason=f"Vectorized encoding (default for {organism})"
+        )
+    else:
+        # Unsupported organism: KernelPCA below limit, exact above limit
+        if above_limit:
+            return TcrRepresentation(
+                active=util.ACTIVE_REP_EXACT,
+                obsm_tag_tcr=None,
+                use_exact_tcrdist_nbrs=True,
+                build_vectorized=False,
+                build_kpca=False,
+                reason=f"Exact TCRdist (organism {organism} unsupported, N={num_obs} >= limit {kpca_reduction_limit})"
+            )
+        else:
+            return TcrRepresentation(
+                active=util.OBSM_KEY_PCA_TCR,
+                obsm_tag_tcr=util.OBSM_KEY_PCA_TCR,
+                use_exact_tcrdist_nbrs=False,
+                build_vectorized=False,
+                build_kpca=True,
+                reason=f"KernelPCA (organism {organism} unsupported, N={num_obs} < limit {kpca_reduction_limit})"
+            )
+
+
+##############################################################################
+# AnnData Storage Functions for Vectorized TCRdist
+##############################################################################
+
+def store_tcr_vectors_in_adata(
+    adata: AnnData,
+    config=None,
+    obsm_key: str = util.OBSM_KEY_VEC_TCR,
+) -> np.ndarray:
+    """Store vectorized TCR representations in AnnData obsm.
+    
+    Encodes TCR clonotypes using the vectorized TCRdist algorithm and stores
+    the resulting matrix in adata.obsm. Also stores the encoding configuration
+    and metadata in adata.uns for reproducibility.
+    
+    Parameters:
+    -----------
+    adata : AnnData
+        AnnData object containing TCR information in obs
+    config : EncodingConfig | None
+        Encoding configuration. Uses defaults if None.
+    obsm_key : str
+        Key for storing vectors in adata.obsm (default: 'X_vec_tcr')
+        
+    Returns:
+    --------
+    np.ndarray
+        The (N, L) float32 matrix that was stored in adata.obsm[obsm_key]
+        
+    Raises:
+    -------
+    ValueError
+        If organism not supported by vectorizer or TCR data invalid
+        
+    Notes:
+    ------
+    - Rows are stored in the same order as adata.obs
+    - If obsm_key already exists, it will be overwritten with a warning
+    - Configuration and metadata are stored in adata.uns[UNS_KEY_VEC_TCR_CONFIG]
+    """
+    # Lazy import to avoid circular dependencies
+    from .tcrdist.vectorized import encode_tcrs, EncodingConfig
+    
+    if config is None:
+        config = EncodingConfig()
+    
+    # Get organism from AnnData
+    organism = adata.uns.get('organism', 'human')
+    
+    # Warn if overwriting existing vectorized representation
+    if obsm_key in adata.obsm:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Overwriting existing {obsm_key} in adata.obsm")
+    
+    # Extract TCR data from AnnData in the format expected by encode_tcrs
+    tcrs = retrieve_tcrs_from_adata(adata)
+    
+    # Encode TCRs to fixed-length vectors
+    vector_matrix = encode_tcrs(tcrs, organism, config)
+    
+    # Verify row order matches adata.obs
+    if vector_matrix.shape[0] != adata.n_obs:
+        raise ValueError(f"Vector matrix has {vector_matrix.shape[0]} rows but "
+                        f"adata has {adata.n_obs} observations")
+    
+    # Store in obsm
+    adata.obsm[obsm_key] = vector_matrix
+    
+    # Store configuration and metadata in uns
+    config_dict = config.as_uns_dict()
+    config_dict['organism'] = organism
+    adata.uns[util.UNS_KEY_VEC_TCR_CONFIG] = config_dict
+    
+    print(f"Stored vectorized TCR representation {vector_matrix.shape} in adata.obsm['{obsm_key}']")
+    
+    return vector_matrix
+
+
+def record_active_tcr_representation(
+    adata: AnnData,
+    active_representation: str,
+) -> None:
+    """Record which TCR representation path was used for this analysis.
+    
+    Stores the active TCR representation identifier in adata.uns so that
+    downstream analysis and saved files can track which path was used.
+    
+    Parameters:
+    -----------
+    adata : AnnData
+        AnnData object to modify
+    active_representation : str
+        One of: util.OBSM_KEY_VEC_TCR, util.OBSM_KEY_PCA_TCR, or util.ACTIVE_REP_EXACT
+        
+    Raises:
+    -------
+    ValueError
+        If active_representation is not one of the three valid values
+    """
+    valid_representations = {
+        util.OBSM_KEY_VEC_TCR,
+        util.OBSM_KEY_PCA_TCR, 
+        util.ACTIVE_REP_EXACT
+    }
+    
+    if active_representation not in valid_representations:
+        raise ValueError(
+            f"active_representation must be one of {valid_representations}, "
+            f"got '{active_representation}'"
+        )
+    
+    adata.uns[util.UNS_KEY_ACTIVE_TCR_REP] = active_representation
+    
+    print(f"Recorded active TCR representation: {active_representation}")
+
+
+def get_active_tcr_representation(adata: AnnData) -> str:
+    """Get the active TCR representation path from AnnData.
+    
+    Parameters:
+    -----------
+    adata : AnnData
+        AnnData object to read from
+        
+    Returns:
+    --------
+    str
+        Active representation: util.OBSM_KEY_VEC_TCR, util.OBSM_KEY_PCA_TCR, 
+        or util.ACTIVE_REP_EXACT. Returns util.OBSM_KEY_PCA_TCR if not recorded
+        (for backward compatibility).
+    """
+    # Check if explicitly recorded
+    if util.UNS_KEY_ACTIVE_TCR_REP in adata.uns:
+        return adata.uns[util.UNS_KEY_ACTIVE_TCR_REP]
+    
+    # Fall back to presence-based detection for backward compatibility
+    if util.OBSM_KEY_VEC_TCR in adata.obsm:
+        return util.OBSM_KEY_VEC_TCR
+    elif util.OBSM_KEY_PCA_TCR in adata.obsm:
+        return util.OBSM_KEY_PCA_TCR
+    else:
+        # Default to KernelPCA for backward compatibility
+        # This matches the historical behavior where X_pca_tcr was the only option
+        return util.OBSM_KEY_PCA_TCR
 

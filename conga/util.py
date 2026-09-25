@@ -20,10 +20,10 @@ assert os.path.isdir( path_to_conga )
 path_to_data = Path.joinpath( path_to_conga, 'data')
 assert os.path.isdir( path_to_data )
 
+# tcrdist_cpp paths - pure Path arithmetic, existence checked at runtime by tcrdist_cpp_available()
 path_to_tcrdist_cpp = Path.joinpath( path_to_conga.parents[0] ,'tcrdist_cpp')
 path_to_tcrdist_cpp_bin = Path.joinpath( path_to_tcrdist_cpp ,'bin')
 path_to_tcrdist_cpp_db = Path.joinpath( path_to_tcrdist_cpp ,'db')
-assert os.path.isdir( path_to_tcrdist_cpp_bin ) and os.path.isdir( path_to_tcrdist_cpp_db )
 
 
 def tcrdist_cpp_available():
@@ -84,6 +84,21 @@ organism2vdj_type = {
     'rhesus':TCR_AB_VDJ_TYPE,
     'rhesus_gd':TCR_GD_VDJ_TYPE,
 }
+
+# Shared constants for vectorized TCRdist implementation
+# These are read by all three CLI scripts for consistent defaults
+DEFAULT_RANDOM_SEED: int = 42
+
+KPCA_REDUCTION_LIMIT: int = 20000        # Observation count at or above which KernelPCA is not performed
+
+# AnnData obsm keys for TCR representations  
+OBSM_KEY_VEC_TCR: str = 'X_vec_tcr'      # Vectorized TCRdist representation
+OBSM_KEY_PCA_TCR: str = 'X_pca_tcr'      # KernelPCA TCRdist representation
+ACTIVE_REP_EXACT: str = 'exact_tcrdist'  # Sentinel for exact TCRdist path (no obsm key)
+
+# AnnData uns keys for TCR representation metadata
+UNS_KEY_ACTIVE_TCR_REP: str = 'active_tcr_representation'
+UNS_KEY_VEC_TCR_CONFIG: str = 'vec_tcr_config'
 
 def is_vdj_gene( gene_upper, organism, include_constant_regions=False ):
     # for filtering out TR or IG gene names from GEX prior to processing

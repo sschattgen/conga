@@ -191,6 +191,28 @@ parser.add_argument('--use_exact_tcrdist_nbrs', action='store_true',
 parser.add_argument('--use_tcrdist_umap', action='store_true')
 parser.add_argument('--use_tcrdist_clusters', action='store_true')
 
+# TCR representation selection flags
+parser.add_argument('--use_kpca_tcrdist', action='store_true',
+                    help='Force use of KernelPCA TCR representation (X_pca_tcr)'
+                    ' instead of vectorized representation for supported organisms')
+parser.add_argument('--kpca_reduction_limit', type=int, default=None,
+                    help='Observation count at or above which the KernelPCA '
+                    'reduction is not performed (default: 20000)')
+
+# Vectorized encoding configuration flags  
+parser.add_argument('--aa_mds_dim', type=int, default=None,
+                    help='Dimensionality of amino acid embedding space'
+                    ' for vectorized TCR encoding (default: 16)')
+parser.add_argument('--num_pos_cdr3', type=int, default=None,
+                    help='Fixed number of positions in encoded CDR3'
+                    ' for vectorized TCR encoding (default: 16)')
+parser.add_argument('--cdr3_weight', type=float, default=None,
+                    help='Weight applied to CDR3 region in vectorized encoding'
+                    ' (default: 3.0)')  
+parser.add_argument('--random_seed', type=int, default=None,
+                    help='Random seed for deterministic vectorized encoding'
+                    ' (default: 42)')
+
 
 # some random deprecated/under-development arguments
 parser.add_argument('--intra_cluster_tcr_clumping', action='store_true')
@@ -268,6 +290,7 @@ matplotlib.use('Agg') # for remote calcs
 import matplotlib.pyplot as plt
 import conga
 from conga import util
+from conga.preprocess import resolve_tcr_representation, TcrRepresentation
 import scanpy as sc
 import scanpy.neighbors
 from sklearn.metrics import pairwise_distances
@@ -276,6 +299,61 @@ import pandas as pd
 from pathlib import Path
 
 start_time = time.time()
+
+# Resolve default values from constants now that we've imported
+if args.kpca_reduction_limit is None:
+    args.kpca_reduction_limit = util.KPCA_REDUCTION_LIMIT
+if args.random_seed is None:
+    args.random_seed = util.DEFAULT_RANDOM_SEED
+
+# Flag conflict detection
+encoding_flags_set = [
+    args.aa_mds_dim is not None,
+    args.num_pos_cdr3 is not None, 
+    args.cdr3_weight is not None,
+    args.random_seed != util.DEFAULT_RANDOM_SEED
+]
+has_encoding_flags = any(encoding_flags_set)
+
+# Error: conflicting TCR representation flags
+if args.use_kpca_tcrdist and args.no_kpca:
+    print('ERROR: --use_kpca_tcrdist conflicts with --no_kpca')
+    sys.exit(1)
+    
+if args.use_kpca_tcrdist and args.use_exact_tcrdist_nbrs:
+    print('ERROR: --use_kpca_tcrdist conflicts with --use_exact_tcrdist_nbrs')
+    sys.exit(1)
+
+# Error: encoding flags with KernelPCA override
+if args.use_kpca_tcrdist and has_encoding_flags:
+    conflicting = []
+    if args.aa_mds_dim is not None:
+        conflicting.append('--aa_mds_dim')
+    if args.num_pos_cdr3 is not None:
+        conflicting.append('--num_pos_cdr3') 
+    if args.cdr3_weight is not None:
+        conflicting.append('--cdr3_weight')
+    if args.random_seed != util.DEFAULT_RANDOM_SEED:
+        conflicting.append('--random_seed')
+    print(f'ERROR: --use_kpca_tcrdist conflicts with encoding flags: {conflicting}')
+    sys.exit(1)
+
+# Error: encoding flags with exact TCR paths  
+if (args.no_kpca or args.use_exact_tcrdist_nbrs) and has_encoding_flags:
+    conflicting = []
+    if args.aa_mds_dim is not None:
+        conflicting.append('--aa_mds_dim')
+    if args.num_pos_cdr3 is not None:
+        conflicting.append('--num_pos_cdr3')
+    if args.cdr3_weight is not None:
+        conflicting.append('--cdr3_weight')
+    if args.random_seed != util.DEFAULT_RANDOM_SEED:
+        conflicting.append('--random_seed')
+    base_flag = '--no_kpca' if args.no_kpca else '--use_exact_tcrdist_nbrs'
+    print(f'ERROR: {base_flag} conflicts with encoding flags: {conflicting}')
+    sys.exit(1)
+
+# Error: encoding flags with unsupported organism (will check after organism is known)
 
 
 #############################################################################
@@ -349,9 +427,12 @@ outlog.write('hostname: {}\n'.format(hostname))
 
 if args.restart is None: ################################## load GEX/TCR data
     allow_missing_kpca_file = (
-        args.use_exact_tcrdist_nbrs and
-        args.use_tcrdist_umap and
-        args.use_tcrdist_clusters
+        # Allow missing KernelPCA file for vectorized path (supported organisms)
+        (args.organism in {"human", "mouse", "rhesus"} and not args.use_kpca_tcrdist) or
+        # Original logic for exact path
+        (args.use_exact_tcrdist_nbrs and
+         args.use_tcrdist_umap and
+         args.use_tcrdist_clusters)
         )
 
     assert exists(args.gex_data)
@@ -420,6 +501,31 @@ if args.restart is None: ################################## load GEX/TCR data
     assert args.organism
     adata.uns['organism'] = args.organism
     assert 'organism' in adata.uns_keys()
+    
+    # Additional flag validation now that organism is known
+    from conga.tcrdist.vectorized import SUPPORTED_ORGANISMS
+    
+    # Error: encoding flags with unsupported organism
+    if has_encoding_flags and args.organism not in SUPPORTED_ORGANISMS:
+        conflicting = []
+        if args.aa_mds_dim is not None:
+            conflicting.append('--aa_mds_dim')
+        if args.num_pos_cdr3 is not None:
+            conflicting.append('--num_pos_cdr3')
+        if args.cdr3_weight is not None:
+            conflicting.append('--cdr3_weight')
+        if args.random_seed != util.DEFAULT_RANDOM_SEED:
+            conflicting.append('--random_seed')
+        print(f'ERROR: Organism "{args.organism}" not supported by vectorizer. '
+              f'Encoding flags not allowed: {conflicting}')
+        sys.exit(1)
+    
+    # Error: KernelPCA override with dataset above limit
+    if args.use_kpca_tcrdist and adata.shape[0] >= args.kpca_reduction_limit:
+        print(f'ERROR: --use_kpca_tcrdist requested but dataset size {adata.shape[0]} >= '
+              f'limit {args.kpca_reduction_limit}. '
+              f'Use --kpca_reduction_limit to raise limit or --no_kpca for exact path.')
+        sys.exit(1)
     if args.batch_keys:
         adata.uns['batch_keys'] = args.batch_keys
     elif 'batch_keys' in adata.uns:
@@ -497,8 +603,19 @@ if args.restart is None: ################################## load GEX/TCR data
                   args.bad_barcodes_file)
 
 
-    # is the tcr-dist kPCA info present?
-    assert allow_missing_kpca_file or 'X_pca_tcr' in adata.obsm_keys()
+    # Check TCR representation is available after data loading
+    # Allow missing when using exact path or when vectorized will be built
+    allow_missing_kpca_file_extended = (
+        allow_missing_kpca_file or  # Original condition (exact path selected)
+        args.use_kpca_tcrdist or    # KernelPCA will be built/loaded
+        (adata.uns['organism'] in {'human', 'mouse', 'rhesus'} and 
+         not args.use_kpca_tcrdist)  # Vectorized will be default for supported organisms
+    )
+    
+    # Only assert kPCA presence if we're not building vectorized and not using exact
+    if not allow_missing_kpca_file_extended:
+        assert 'X_pca_tcr' in adata.obsm_keys(), "X_pca_tcr required but not found"
+    
     assert 'cdr3a' in adata.obs # tcr sequence (VDJ) info (plus other obs keys)
 
     print(adata)
@@ -581,12 +698,30 @@ if args.restart is None: ################################## load GEX/TCR data
             adata, compare_distance_distributions=True)
 
     if args.shuffle_tcr_kpcs:
-        X_pca_tcr = adata.obsm['X_pca_tcr']
-        assert X_pca_tcr.shape[0] == adata.shape[0]
-        reorder = np.random.permutation(X_pca_tcr.shape[0])
-        adata.obsm['X_pca_tcr'] = X_pca_tcr[reorder,:]
-        outlog.write('randomly permuting X_pca_tcr {}\n'\
-                     .format(X_pca_tcr.shape))
+        # Check if we have a TCR representation to shuffle
+        active_rep = util.get_active_tcr_representation(adata) if hasattr(util, 'get_active_tcr_representation') else None
+        
+        if active_rep == util.ACTIVE_REP_EXACT:
+            print('ERROR: --shuffle_tcr_kpcs requires a stored TCR representation, '
+                  'but exact TCRdist path stores no per-observation array')
+            sys.exit(1)
+        
+        # Determine which obsm key to shuffle
+        tcr_obsm_key = None
+        if util.OBSM_KEY_VEC_TCR in adata.obsm_keys():
+            tcr_obsm_key = util.OBSM_KEY_VEC_TCR
+        elif util.OBSM_KEY_PCA_TCR in adata.obsm_keys():
+            tcr_obsm_key = util.OBSM_KEY_PCA_TCR
+        else:
+            print('ERROR: --shuffle_tcr_kpcs requires X_vec_tcr or X_pca_tcr in obsm')
+            sys.exit(1)
+            
+        X_tcr = adata.obsm[tcr_obsm_key]
+        assert X_tcr.shape[0] == adata.shape[0]
+        reorder = np.random.permutation(X_tcr.shape[0])
+        adata.obsm[tcr_obsm_key] = X_tcr[reorder,:]
+        outlog.write('randomly permuting {} {}\n'\
+                     .format(tcr_obsm_key, X_tcr.shape))
 
     clustering_resolution = (2.0 if (args.subset_to_CD8 or args.subset_to_CD4)
                              else args.clustering_resolution)
@@ -607,6 +742,31 @@ else: ### restarting from a previous conga run
     if 'organism' not in adata.uns_keys():
         assert args.organism
         adata.uns['organism'] = args.organism
+        
+    # Additional flag validation for restart case
+    from conga.tcrdist.vectorized import SUPPORTED_ORGANISMS
+    
+    # Error: encoding flags with unsupported organism
+    if has_encoding_flags and adata.uns['organism'] not in SUPPORTED_ORGANISMS:
+        conflicting = []
+        if args.aa_mds_dim is not None:
+            conflicting.append('--aa_mds_dim')
+        if args.num_pos_cdr3 is not None:
+            conflicting.append('--num_pos_cdr3')
+        if args.cdr3_weight is not None:
+            conflicting.append('--cdr3_weight')
+        if args.random_seed != util.DEFAULT_RANDOM_SEED:
+            conflicting.append('--random_seed')
+        print(f'ERROR: Organism "{adata.uns["organism"]}" not supported by vectorizer. '
+              f'Encoding flags not allowed: {conflicting}')
+        sys.exit(1)
+    
+    # Error: KernelPCA override with dataset above limit  
+    if args.use_kpca_tcrdist and adata.shape[0] >= args.kpca_reduction_limit:
+        print(f'ERROR: --use_kpca_tcrdist requested but dataset size {adata.shape[0]} >= '
+              f'limit {args.kpca_reduction_limit}. '
+              f'Use --kpca_reduction_limit to raise limit or --no_kpca for exact path.')
+        sys.exit(1)
 
     util.setup_uns_dicts(adata)
 
@@ -641,15 +801,34 @@ else: ### restarting from a previous conga run
         #  to GvG (this is just for testing)
         # NOTE: we need to add shuffling of the neighbors if we are going
         #  to recover nbr info rather than recomputing...
-        X_pca_tcr = adata.obsm['X_pca_tcr']
-        assert X_pca_tcr.shape[0] == adata.shape[0]
-        reorder = np.random.permutation(X_pca_tcr.shape[0])
-        adata.obsm['X_pca_tcr'] = X_pca_tcr[reorder,:]
+        
+        # Check if we have a TCR representation to shuffle
+        active_rep = conga.preprocess.get_active_tcr_representation(adata)
+        
+        if active_rep == util.ACTIVE_REP_EXACT:
+            print('ERROR: --shuffle_tcr_kpcs requires a stored TCR representation, '
+                  'but exact TCRdist path stores no per-observation array')
+            sys.exit(1)
+        
+        # Determine which obsm key to shuffle
+        tcr_obsm_key = None
+        if util.OBSM_KEY_VEC_TCR in adata.obsm_keys():
+            tcr_obsm_key = util.OBSM_KEY_VEC_TCR
+        elif util.OBSM_KEY_PCA_TCR in adata.obsm_keys():
+            tcr_obsm_key = util.OBSM_KEY_PCA_TCR
+        else:
+            print('ERROR: --shuffle_tcr_kpcs requires X_vec_tcr or X_pca_tcr in obsm')
+            sys.exit(1)
+        
+        X_tcr = adata.obsm[tcr_obsm_key]
+        assert X_tcr.shape[0] == adata.shape[0]
+        reorder = np.random.permutation(X_tcr.shape[0])
+        adata.obsm[tcr_obsm_key] = X_tcr[reorder,:]
         adata.obs['clusters_tcr'] = np.array(adata.obs['clusters_tcr'])[reorder]
         adata.obsm['X_tcr_2d'] = np.array(adata.obsm['X_tcr_2d'])[reorder,:]
-        print('shuffle_tcr_kpcs:: shuffled X_pca_tcr, clusters_tcr, and'
+        print(f'shuffle_tcr_kpcs:: shuffled {tcr_obsm_key}, clusters_tcr, and'
               ' X_tcr_2d')
-        outlog.write(f'randomly permuting X_pca_tcr {X_pca_tcr.shape}\n')
+        outlog.write(f'randomly permuting {tcr_obsm_key} {X_tcr.shape}\n')
 
 
 if 'batch_keys' in adata.uns_keys():
@@ -707,17 +886,16 @@ if args.subset_to_CD4 or args.subset_to_CD8:
         adata, clustering_method=args.clustering_method,
         clustering_resolution=args.clustering_resolution)
 
-# this will probably not happen anymore, since we are computing these
-# inside preprocess.cluster_and_tsne_and_umap if X_pca_tcr is missing.
-# Special case is if we have the kernel PCS but we still want to use
-# UMAP/clusters based on exact tcrdists...
+# Check if we need to compute TCR UMAP/clusters based on active representation
+active_tcr_rep = conga.preprocess.get_active_tcr_representation(adata)
+
 need_to_compute_tcrdist_umap = (
-    'X_tcr_2d' not in adata.obsm_keys() or # missing
-    (args.use_tcrdist_umap and 'X_pca_tcr' in adata.obsm_keys())) #recompute
+    'X_tcr_2d' not in adata.obsm_keys() or  # missing
+    (args.use_tcrdist_umap and active_tcr_rep != util.ACTIVE_REP_EXACT))  # recompute unless using exact path
 
 need_to_compute_tcrdist_clusters = (
-    'clusters_tcr' not in adata.obs_keys() or # missing
-    (args.use_tcrdist_clusters and 'X_pca_tcr' in adata.obsm_keys())) #recompute
+    'clusters_tcr' not in adata.obs_keys() or  # missing  
+    (args.use_tcrdist_clusters and active_tcr_rep != util.ACTIVE_REP_EXACT))  # recompute unless using exact path
 
 if need_to_compute_tcrdist_umap or need_to_compute_tcrdist_clusters:
     umap_key_added = 'X_tcr_2d' if need_to_compute_tcrdist_umap else \
@@ -761,14 +939,73 @@ nbr_frac_for_nndists = min( x for x in args.nbr_fracs
 outlog.write(f'nbr_frac_for_nndists: {nbr_frac_for_nndists}\n')
 adata.uns['conga_stats']['nbr_frac_for_nndists'] = nbr_frac_for_nndists
 
-obsm_tag_tcr = None if args.use_exact_tcrdist_nbrs else 'X_pca_tcr'
+# Resolve TCR representation using three-way selection
+tcr_representation = resolve_tcr_representation(
+    organism=adata.uns['organism'],
+    num_obs=adata.shape[0],
+    request_kpca=args.use_kpca_tcrdist,
+    request_exact_nbrs=args.use_exact_tcrdist_nbrs or args.no_kpca,
+    kpca_reduction_limit=args.kpca_reduction_limit,
+    stored_obsm_keys=list(adata.obsm.keys()),
+)
+
+# Log the selected representation and reason
+print(f'TCR representation: {tcr_representation.active} - {tcr_representation.reason}')
+outlog.write(f'TCR representation: {tcr_representation.active} - {tcr_representation.reason}\n')
+
+# Build vectorized representation if needed
+encoding_config = None
+if tcr_representation.build_vectorized:
+    # Build EncodingConfig from command line arguments
+    from conga.tcrdist.vectorized import EncodingConfig
+    
+    # Use provided values or defaults
+    encoding_config = EncodingConfig(
+        aa_mds_dim=args.aa_mds_dim or 16,
+        num_pos_cdr3=args.num_pos_cdr3 or 16,
+        cdr3_weight=args.cdr3_weight or 3.0,
+        n_trim=3,  # Use default 
+        c_trim=2,  # Use default
+        random_seed=args.random_seed
+    )
+    
+    print(f'Building vectorized TCR representation with config: {encoding_config}')
+    outlog.write(f'Vectorized encoding config: {encoding_config}\n')
+    
+    # Store the vectors in adata
+    conga.preprocess.store_tcr_vectors_in_adata(adata, encoding_config)
+
+# Record the active representation
+conga.preprocess.record_active_tcr_representation(adata, tcr_representation.active)
+
+# Record run statistics based on which path was used
+adata.uns['conga_stats']['active_tcr_representation'] = tcr_representation.active
+adata.uns['conga_stats']['tcr_selection_reason'] = tcr_representation.reason
+adata.uns['conga_stats']['kpca_reduction_limit'] = args.kpca_reduction_limit
+adata.uns['conga_stats']['num_observations'] = adata.shape[0]
+
+if tcr_representation.active == util.OBSM_KEY_VEC_TCR:
+    # Vectorized representation statistics
+    if encoding_config is not None:
+        adata.uns['conga_stats']['encoding_config'] = encoding_config.as_uns_dict()
+elif tcr_representation.active == util.OBSM_KEY_PCA_TCR:
+    # KernelPCA representation statistics  
+    adata.uns['conga_stats']['used_kpca_representation'] = True
+elif tcr_representation.active == util.ACTIVE_REP_EXACT:
+    # Exact TCRdist path statistics
+    adata.uns['conga_stats']['used_exact_tcrdist'] = True
+    adata.uns['conga_stats']['tcrdist_cpp_available'] = util.tcrdist_cpp_available()
+    adata.uns['conga_stats']['exact_path_by_override'] = (
+        args.use_exact_tcrdist_nbrs or args.no_kpca
+    )
+
 all_nbrs, nndists_gex, nndists_tcr = conga.preprocess.calc_nbrs(
     adata,
     args.nbr_fracs,
     also_calc_nndists = True,
     nbr_frac_for_nndists = nbr_frac_for_nndists,
-    obsm_tag_tcr = obsm_tag_tcr,
-    use_exact_tcrdist_nbrs = args.use_exact_tcrdist_nbrs,
+    obsm_tag_tcr = tcr_representation.obsm_tag_tcr,
+    use_exact_tcrdist_nbrs = tcr_representation.use_exact_tcrdist_nbrs,
 )
 
 conga.preprocess.add_mait_info_to_adata_obs(adata) # generally useful
