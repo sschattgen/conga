@@ -411,10 +411,8 @@ if args.restart: # these are incompatible with restarting
 logfile = args.outfile_prefix+'_log.txt'
 outlog = open(logfile, 'w')
 outlog.write('sys.argv: {}\n'.format(' '.join(sys.argv)))
-try: # scanpy changed and this doesn't seem to work anymore
-    sc.logging.print_versions()
-except:
-    sc.logging.print_header()
+# Use modern scanpy API (print_versions deprecated since 1.11.0)
+sc.logging.print_header()
 hostname = os.popen('hostname').readlines()[0][:-1]
 outlog.write('hostname: {}\n'.format(hostname))
 
@@ -500,7 +498,7 @@ if args.restart is None: ################################## load GEX/TCR data
 
     assert args.organism
     adata.uns['organism'] = args.organism
-    assert 'organism' in adata.uns_keys()
+    assert 'organism' in adata.uns
     
     # Additional flag validation now that organism is known
     from conga.tcrdist.vectorized import SUPPORTED_ORGANISMS
@@ -530,11 +528,11 @@ if args.restart is None: ################################## load GEX/TCR data
         adata.uns['batch_keys'] = args.batch_keys
     elif 'batch_keys' in adata.uns:
         old_batch_keys = list(adata.uns['batch_keys'])
-        if not all(x in adata.obs_keys() for x in old_batch_keys):
+        if not all(x in adata.obs.columns for x in old_batch_keys):
             print('warning: dropping some of the batch_keys not present',
                   'in adata.obs, old_batch_keys=', old_batch_keys,
-                  'obs_keys=', adata.obs_keys())
-        new_batch_keys = [x for x in old_batch_keys if x in adata.obs_keys()]
+                  'obs_keys=', adata.obs.columns)
+        new_batch_keys = [x for x in old_batch_keys if x in adata.obs.columns]
         if new_batch_keys:
             adata.uns['batch_keys'] = new_batch_keys
         else:
@@ -542,7 +540,7 @@ if args.restart is None: ################################## load GEX/TCR data
 
     if 'batch_keys' in adata.uns: # may have just been put there...
         for k in adata.uns['batch_keys']:
-            assert k in adata.obs_keys()
+            assert k in adata.obs.columns
             # confirm integer-value
             vals = np.array(adata.obs[k]).astype(int)
             counts = Counter(vals)
@@ -614,7 +612,7 @@ if args.restart is None: ################################## load GEX/TCR data
     
     # Only assert kPCA presence if we're not building vectorized and not using exact
     if not allow_missing_kpca_file_extended:
-        assert 'X_pca_tcr' in adata.obsm_keys(), "X_pca_tcr required but not found"
+        assert 'X_pca_tcr' in adata.obsm, "X_pca_tcr required but not found"
     
     assert 'cdr3a' in adata.obs # tcr sequence (VDJ) info (plus other obs keys)
 
@@ -708,9 +706,9 @@ if args.restart is None: ################################## load GEX/TCR data
         
         # Determine which obsm key to shuffle
         tcr_obsm_key = None
-        if util.OBSM_KEY_VEC_TCR in adata.obsm_keys():
+        if util.OBSM_KEY_VEC_TCR in adata.obsm.keys():
             tcr_obsm_key = util.OBSM_KEY_VEC_TCR
-        elif util.OBSM_KEY_PCA_TCR in adata.obsm_keys():
+        elif util.OBSM_KEY_PCA_TCR in adata.obsm.keys():
             tcr_obsm_key = util.OBSM_KEY_PCA_TCR
         else:
             print('ERROR: --shuffle_tcr_kpcs requires X_vec_tcr or X_pca_tcr in obsm')
@@ -739,7 +737,7 @@ else: ### restarting from a previous conga run
     adata = sc.read_h5ad(args.restart)
     print('recover from h5ad file:', args.restart, adata )
 
-    if 'organism' not in adata.uns_keys():
+    if 'organism' not in adata.uns.keys():
         assert args.organism
         adata.uns['organism'] = args.organism
         
@@ -812,9 +810,9 @@ else: ### restarting from a previous conga run
         
         # Determine which obsm key to shuffle
         tcr_obsm_key = None
-        if util.OBSM_KEY_VEC_TCR in adata.obsm_keys():
+        if util.OBSM_KEY_VEC_TCR in adata.obsm.keys():
             tcr_obsm_key = util.OBSM_KEY_VEC_TCR
-        elif util.OBSM_KEY_PCA_TCR in adata.obsm_keys():
+        elif util.OBSM_KEY_PCA_TCR in adata.obsm.keys():
             tcr_obsm_key = util.OBSM_KEY_PCA_TCR
         else:
             print('ERROR: --shuffle_tcr_kpcs requires X_vec_tcr or X_pca_tcr in obsm')
@@ -831,12 +829,12 @@ else: ### restarting from a previous conga run
         outlog.write(f'randomly permuting {tcr_obsm_key} {X_tcr.shape}\n')
 
 
-if 'batch_keys' in adata.uns_keys():
+if 'batch_keys' in adata.uns:
     # sometimes if there's a single batch key the type changes from a list to
     # just the single string when we save h5ad and then reload
     batch_keys = adata.uns['batch_keys']
-    if ( batch_keys[0] not in adata.obsm_keys() and
-         batch_keys in adata.obsm_keys()):
+    if ( batch_keys[0] not in adata.obsm.keys() and
+         batch_keys in adata.obsm.keys()):
         print('update adata.uns["batch_keys"] from str to list')
         adata.uns['batch_keys'] = [adata.uns['batch_keys']]
 
@@ -890,11 +888,11 @@ if args.subset_to_CD4 or args.subset_to_CD8:
 active_tcr_rep = conga.preprocess.get_active_tcr_representation(adata)
 
 need_to_compute_tcrdist_umap = (
-    'X_tcr_2d' not in adata.obsm_keys() or  # missing
+    'X_tcr_2d' not in adata.obsm.keys() or  # missing
     (args.use_tcrdist_umap and active_tcr_rep != util.ACTIVE_REP_EXACT))  # recompute unless using exact path
 
 need_to_compute_tcrdist_clusters = (
-    'clusters_tcr' not in adata.obs_keys() or  # missing  
+    'clusters_tcr' not in adata.obs.columns or  # missing  
     (args.use_tcrdist_clusters and active_tcr_rep != util.ACTIVE_REP_EXACT))  # recompute unless using exact path
 
 if need_to_compute_tcrdist_umap or need_to_compute_tcrdist_clusters:
@@ -1300,7 +1298,7 @@ if args.find_batch_biases: #####################################################
 
 ## make summary plots of top clones and their batch distributions
 ## also make umaps colored by batch assignment of rep cell
-if 'batch_keys' in adata.uns_keys():
+if 'batch_keys' in adata.uns:
     conga.plotting.make_batch_colored_umaps(
         adata, args.outfile_prefix)
 

@@ -383,7 +383,7 @@ def make_logo_plots(
 
     # show the distribution of the clones among the different batches
     if make_batch_bars is None:
-        make_batch_bars = 'batch_keys' in adata.uns_keys()
+        make_batch_bars = 'batch_keys' in adata.uns
     if make_batch_bars and batch_keys is None:
         batch_keys = adata.uns['batch_keys']
 
@@ -421,16 +421,16 @@ def make_logo_plots(
     organism = adata.uns['organism']
 
     if show_pmhc_info_in_logos:
-        if 'X_pmhc' not in adata.obsm_keys():
+        if 'X_pmhc' not in adata.obsm.keys():
             print('ERROR: include_pmhc_info_in_dendrogram=True but',
-                  'no X_pmhc info in adata.obsm_keys()')
+                  'no X_pmhc info in adata.obsm.keys()')
             sys.exit()
         pmhc_var_names = adata.uns['pmhc_var_names']
         X_pmhc = adata.obsm['X_pmhc']
         assert X_pmhc.shape == ( adata.shape[0], len(pmhc_var_names))
 
     if (lit_matches is None and
-        'conga_results' in adata.uns_keys() and
+        'conga_results' in adata.uns and
         TCR_DB_MATCH in adata.uns['conga_results']):
         lit_matches = adata.uns['conga_results'][TCR_DB_MATCH]
 
@@ -528,7 +528,7 @@ or arguments to the conga.plotting.make_logo_plots function.
         X_igex_genes.append('clone_sizes')
         assert X_igex.shape == (num_clones, len(X_igex_genes))
     if 'nndists_gex' in header2_genes:
-        if 'nndists_gex' in adata.obs_keys():
+        if 'nndists_gex' in adata.obs:
             X_igex = np.hstack(
                 [X_igex, np.array(adata.obs['nndists_gex'])[:,np.newaxis]])
             X_igex_genes.append('nndists_gex')
@@ -1176,7 +1176,7 @@ or arguments to the conga.plotting.make_logo_plots function.
         num_nodes, fracs, means = all_scores[clp]
         nodes = cluspair2nodes[clp]
         assert len(nodes) == num_nodes
-        num_cells = sum( clone_sizes[x] for x in nodes )
+        num_cells = sum( clone_sizes.iloc[x] for x in nodes )
 
         # make the title logo
         left = (margin+dendro_width)/fig_width
@@ -1972,7 +1972,7 @@ def make_clone_batch_clustermaps(
         return
 
     if batch_keys is None:
-        if 'batch_keys' not in adata.uns_keys():
+        if 'batch_keys' not in adata.uns.keys():
             print('make_clone_batch_clustermaps: no batch_keys in adata.uns')
             return
         batch_keys = adata.uns['batch_keys']
@@ -2082,7 +2082,7 @@ def make_clone_batch_clustermaps(
             cdr3a, cdr3b = tcrs[ii][0][2], tcrs[ii][1][2]
 
             clone_labels.append('{:3d}  {:{}s} {:{}s} {:18s} {:{}s} {:{}s} {:18s}'\
-                                .format(clone_sizes[ii],
+                                .format(clone_sizes.iloc[ii],
                                         va, max_valen, ja, max_jalen, cdr3a,
                                         vb, max_vblen, jb, max_jblen, cdr3b))
 
@@ -2198,7 +2198,7 @@ def make_feature_panel_plots(
             if f=='clone_sizes':
                 feature_to_raw_values[f] = np.log1p(feature_to_raw_values[f])
         elif f=='nndists_gex_rank':
-            if 'nndists_gex' in adata.obs_keys():
+            if 'nndists_gex' in adata.obs:
                 nndists_gex = np.array(adata.obs['nndists_gex'])
             else:
                 print('WARNING nndists_gex not in adata.obs!')
@@ -2296,7 +2296,7 @@ def get_raw_feature_scores( feature, adata, feature_type):
     elif feature.startswith('tcr_cluster'):
         return (np.array(adata.obs['clusters_tcr'])==int(feature[11:])).astype(float)
     elif feature == 'nndists_gex_rank':
-        if 'nndists_gex' in adata.obs_keys():
+        if 'nndists_gex' in adata.obs:
             nndists_gex = np.array(adata.obs['nndists_gex'])
         else:
             print('WARNING nndists_gex not in adata.obs!')
@@ -2363,7 +2363,7 @@ def make_raw_feature_scores_table(
     for ind,(feature,is_special) in enumerate(zip(features,is_special_feature)):
         if is_special:
             if feature == 'nndists_gex_rank':
-                if 'nndists_gex' in adata.obs_keys():
+                if 'nndists_gex' in adata.obs:
                     nndists_gex = np.array(adata.obs['nndists_gex'])
                 else:
                     print('WARNING nndists_gex not in adata.obs!')
@@ -2641,10 +2641,10 @@ def plot_interesting_features_vs_clustermap(
 
     if use_1d_landscape_for_cell_order:
         landscape_tag = f'X_{dist_tag}_1d'
-        if landscape_tag not in adata.obsm_keys():
+        if landscape_tag not in adata.obsm.keys():
             print('ERROR plot_interesting_features_vs_clustermap:',
                   'use_1d_landscape_for_cell_order=True but',landscape_tag,
-                  'missing from adata.obsm_keys()')
+                  'missing from adata.obsm.keys()')
             return
         X_1d = adata.obsm[landscape_tag][:,0]
         cells_order = np.argsort(X_1d)
@@ -2979,7 +2979,7 @@ def plot_interesting_features_vs_clustermap(
     individual clonotypes. Columns are ordered by hierarchical clustering
     (if a dendrogram is present above the heatmap) or by a 1D UMAP projection
     (used for very large datasets or if 'X_pca_{dist_tag}' is not present in
-    adata.obsm_keys()). Rows are ordered by hierarchical clustering with
+    adata.obsm.keys()). Rows are ordered by hierarchical clustering with
     a correlation metric.
 
     The row colors to the left of the heatmap show the feature type
@@ -3178,7 +3178,7 @@ def make_tcr_clumping_plots(
     fake_clusters_tcr = np.zeros((num_clones,)).astype(int)
     clumping_pvals = np.full( (num_clones,), num_clones).astype(float)
 
-    if ('conga_results' not in adata.uns_keys() or
+    if ('conga_results' not in adata.uns.keys() or
         TCR_CLUMPING not in adata.uns['conga_results']):
         print('make_tcr_clumping_plots:: no results in adata',
               'did you call assess_tcr_clumping first?')
@@ -3266,7 +3266,7 @@ def make_tcrdist_trees(
     tcrs = preprocess.retrieve_tcrs_from_adata(adata)
 
     num_clones = adata.shape[0]
-    if 'conga_scores' in adata.obs_keys():
+    if 'conga_scores' in adata.obs:
         conga_scores = np.maximum(1e-100, np.array(adata.obs['conga_scores']))
         scores = np.sqrt(
             np.maximum(0.0, -1*np.log10(100*conga_scores/num_clones)))
@@ -3350,7 +3350,7 @@ def make_tcrdist_tree_for_conga_score_threshold(
     ''' Make a tcrdist tree for clonotypes with conga_scores below a threshold
     '''
 
-    if 'conga_scores' not in adata.obs_keys():
+    if 'conga_scores' not in adata.obs.columns:
         print('ERROR make_tcrdist_tree_for_conga_hits:',
               'conga_scores is not in adata.obs')
         return
@@ -3624,11 +3624,11 @@ def make_graph_vs_features_plots(
             # dist_tag is the similarity measure being used for column ordering
 
             use_dendrogram_for_clustermap_cell_order = (
-                f'X_pca_{dist_tag}' in adata.obsm_keys() and
+                f'X_pca_{dist_tag}' in adata.obsm and
                 adata.shape[0] <= max_clones_for_dendrograms)
 
             use_1d_landscape_for_clustermap_cell_order = (
-                f'X_{dist_tag}_1d' in adata.obsm_keys() and
+                f'X_{dist_tag}_1d' in adata.obsm and
                 not use_dendrogram_for_clustermap_cell_order)
 
             if not (use_dendrogram_for_clustermap_cell_order or
@@ -3830,11 +3830,11 @@ def make_hotspot_plots(
                     continue # clustermap not interesting...
 
                 use_dendrogram_for_clustermap_cell_order = (
-                    f'X_pca_{plot_tag}' in adata.obsm_keys() and
+                    f'X_pca_{plot_tag}' in adata.obsm and
                     adata.shape[0] <= max_clones_for_dendrograms)
 
                 use_1d_landscape_for_clustermap_cell_order = (
-                    f'X_{plot_tag}_1d' in adata.obsm_keys() and
+                    f'X_{plot_tag}_1d' in adata.obsm and
                     not use_dendrogram_for_clustermap_cell_order)
 
                 if not (use_1d_landscape_for_clustermap_cell_order or
@@ -3989,7 +3989,7 @@ def make_html_summary(
     {command_section}
     """)
 
-    if 'conga_stats' in adata.uns_keys():
+    if 'conga_stats' in adata.uns:
         #write out the stats
         out.write('<h1>Stats</h1>\n')
         for tag,val in adata.uns['conga_stats'].items():

@@ -206,7 +206,7 @@ def find_batch_biases(
     groups using single-linkage clustering, stored in the 'cluster_group' column
 
     '''
-    if 'batch_keys' not in adata.uns_keys():
+    if 'batch_keys' not in adata.uns.keys():
         print('find_batch_biases:: no batch_keys in adata.uns!!!')
         return
 
@@ -1280,8 +1280,8 @@ def analyze_proteins(
         adata.obsm['X_umap_'+tag] = adata.obsm['X_umap']
         cluster_key_added = 'louvain_'+tag
         resolution = 1.0
-        print('louvain:', tag)
-        sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added)
+        print('leiden:', tag)  # Updated to use modern clustering
+        sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added)
         adata.obs['clusters_'+tag] = np.copy(adata.obs[cluster_key_added]).astype(int)
         adata.obsm['X_{}_2d'.format(tag)] = adata.obsm['X_umap_'+tag]
 
@@ -1293,7 +1293,7 @@ def analyze_proteins(
     trbv = 'TRBV12-5'
     genes = ['CD45RA_p']+special_genes+['min_special',trbv]
 
-    if 'group' in adata.obs_keys():
+    if 'group' in adata.obs:
         other = ['CD4','CD8','group_0','group_1','group_2','group_3']
 
         group_counts = adata.obsm['group'].astype(float)
@@ -1312,7 +1312,7 @@ def analyze_proteins(
 
         # calculate nbrs for averaging
         obsm_tag = f'X_pca_{xy_tag}'
-        assert obsm_tag in adata.obsm_keys()
+        assert obsm_tag in adata.obsm.keys()
         num_nbrs = max(1, min(num_clones//10, max(20, num_clones//500)))
         nbr_frac = (num_nbrs+0.1)/num_clones
         all_nbrs = preprocess.calc_nbrs(adata, [nbr_frac], obsm_tag_gex=obsm_tag, obsm_tag_tcr=None)
@@ -1393,8 +1393,8 @@ def analyze_special_genes(
     #from sklearn.metrics import pairwise_distances
     from scipy.stats import linregress, mannwhitneyu
 
-    assert obsm_tag_xy in adata.obsm_keys()
-    assert obsm_tag_nbrs in adata.obsm_keys()
+    assert obsm_tag_xy in adata.obsm.keys()
+    assert obsm_tag_nbrs in adata.obsm.keys()
 
     num_clones = adata.shape[0]
 
@@ -2240,7 +2240,7 @@ def assign_cd4_and_cd8_by_clusters(
     assert adata.uns['organism'] in ['human', 'mouse']
 
     # run pca if necessary
-    if 'X_pca_gex' not in adata.obsm_keys():
+    if 'X_pca_gex' not in adata.obsm.keys():
         n_gex_pcs = min(adata.shape[0]-1, n_gex_pcs)
         sc.tl.pca(adata, svd_solver='arpack', n_comps=n_gex_pcs)
         adata.obsm['X_pca_gex'] = adata.obsm['X_pca']
@@ -2518,21 +2518,24 @@ def run_umap_and_clustering_from_indices_distances(
 
     resolution = 1.0 if clustering_resolution is None else clustering_resolution
     if clustering_method=='louvain':
+        import warnings
+        warnings.warn("Louvain clustering is deprecated since scanpy 1.12.0. Consider using 'leiden' instead.", 
+                     DeprecationWarning, stacklevel=2)
         sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added)
         print('ran louvain clustering:', resolution, cluster_key_added)
     elif clustering_method=='leiden':
         sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added)
         print('ran leiden clustering:', resolution, cluster_key_added)
-    else: # try both (hacky)
+    else: # try both, prefer modern leiden first
         try:
             sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added)
             print('ran leiden clustering:', resolution, cluster_key_added)
-        except ImportError: # hacky
+        except ImportError: # fallback to louvain if leiden unavailable
             sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added)
             print('ran louvain clustering:', resolution, cluster_key_added)
 
     adata.obs[cluster_key_added] = np.copy(adata.obs[cluster_key_added]).astype(int)
-    print('DONE running louvain', cluster_key_added)
+    print('DONE running clustering', cluster_key_added)  # Updated message
 
     del adata.obsm['X_pca'] # delete the fake pcas
     del adata.obsm['X_umap'] # delete the extra umap copy

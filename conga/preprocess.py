@@ -50,7 +50,7 @@ def add_mait_info_to_adata_obs( adata, key_added = 'is_invariant' ):
         #print('adata.obs already has mait info')
         return
     tcrs = retrieve_tcrs_from_adata(adata)
-    organism = 'human' if 'organism' not in adata.uns_keys() else \
+    organism = 'human' if 'organism' not in adata.uns.keys() else \
                adata.uns['organism']
     if 'human' or 'rhesus' in organism:
         is_mait = [ tcr_scoring.is_human_mait_alpha_chain(x[0]) for x in tcrs ]
@@ -189,7 +189,7 @@ def retrieve_tcrs_from_adata(adata, include_subject_id_if_present=False):
     '''
     global tcr_keys
     tcrs = []
-    if include_subject_id_if_present and util.SUBJECT_ID_OBS_KEY in adata.obs_keys():
+    if include_subject_id_if_present and util.SUBJECT_ID_OBS_KEY in adata.obs.columns:
         print(f'retrieve_tcrs_from_adata: include_subject_id_if_present is True and {util.SUBJECT_ID_OBS_KEY} present')
         arrays = [ adata.obs[x] for x in tcr_keys+[util.SUBJECT_ID_OBS_KEY] ]
         for va, ja, cdr3a, cdr3a_nucseq, vb, jb, cdr3b, cdr3b_nucseq, subject_id in zip( *arrays):
@@ -230,7 +230,7 @@ def read_adata(
               "should be one of ['h5ad', '10x_mtx', '10x_h5', 'loom']")
         exit()
 
-    if adata.isview: # ran into trouble with AnnData views vs copies
+    if adata.is_view: # ran into trouble with AnnData views vs copies
         adata = adata.copy()
     return adata
 
@@ -285,7 +285,7 @@ def read_dataset(
         # adata should already contain the tcr information
         colnames = 'va ja cdr3a cdr3a_nucseq vb jb cdr3b cdr3b_nucseq'.split()
         for colname in colnames:
-            if colname not in adata.obs_keys():
+            if colname not in adata.obs.columns:
                 print('ERROR read_dataset: clones_file = None',
                       'but adata doesnt already contain', colname)
                 sys.exit()
@@ -546,8 +546,8 @@ def filter_normalize_and_hvg(
                   .format(np.sum(mask), feature_types_colname ))
             assert removed_at_end # want to make this assumption somewhere else
 
-    #normalize and log data
-    sc.pp.normalize_per_cell(adata, counts_per_cell_after=1e4)
+    # Normalize and log data using modern scanpy API
+    sc.pp.normalize_total(adata, target_sum=1e4)  # normalize_per_cell deprecated since 1.3.7
     sc.pp.log1p(adata)
 
     #find and filter by highly variable genes
@@ -721,7 +721,7 @@ def cluster_and_tsne_and_umap(
 
     ncells = adata.shape[0]
 
-    if 'X_pca_gex' not in adata.obsm_keys() or recompute_pca_gex:
+    if 'X_pca_gex' not in adata.obsm.keys() or recompute_pca_gex:
         # switch to arpack for better reproducibility
         # re-run now that we have reduced to a single cell per clone
         print('computing X_pca_gex using sc.tl.pca')
@@ -729,9 +729,9 @@ def cluster_and_tsne_and_umap(
         sc.tl.pca(adata, svd_solver='arpack', n_comps=n_gex_pcs)
         adata.obsm['X_pca_gex'] = adata.obsm['X_pca']
 
-    assert 'X_pca_gex' in adata.obsm_keys()
+    assert 'X_pca_gex' in adata.obsm
     # if not skip_tcr:
-    #     assert 'X_pca_tcr' in adata.obsm_keys()
+    #     assert 'X_pca_tcr' in adata.obsm
 
     for tag in ['gex','tcr']:
         if skip_tcr and tag=='tcr':
@@ -761,7 +761,7 @@ def cluster_and_tsne_and_umap(
                 obsm_key = active_tcr_rep
             else:
                 # Fallback to old behavior for backward compatibility
-                if 'X_pca_tcr' not in adata.obsm_keys():
+                if 'X_pca_tcr' not in adata.obsm.keys():
                     print('preprocess.cluster_and_tsne_and_umap:: X_pca_tcr is'
                           ' not present in adata.obsm; using exact tcrdist nbrs'
                           ' for umap and clustering')
@@ -794,6 +794,9 @@ def cluster_and_tsne_and_umap(
 
         resolution = 1.0 if clustering_resolution is None else clustering_resolution
         if clustering_method=='louvain':
+            import warnings
+            warnings.warn("Louvain clustering is deprecated since scanpy 1.12.0. Consider using 'leiden' instead.", 
+                         DeprecationWarning, stacklevel=2)
             cluster_key_added = 'louvain_'+tag
             sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added)
             print('ran louvain clustering:', cluster_key_added)
@@ -801,13 +804,13 @@ def cluster_and_tsne_and_umap(
             cluster_key_added = 'leiden_'+tag
             sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added)
             print('ran leiden clustering:', cluster_key_added)
-        else: # try both, first louvain, then leiden
+        else: # try both, prefer modern leiden first
             try:
-                cluster_key_added = 'louvain_'+tag
-                sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added)
-                print('ran louvain clustering:', cluster_key_added)
-            except ImportError: # hacky
                 cluster_key_added = 'leiden_'+tag
+                sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added)
+                print('ran leiden clustering:', cluster_key_added)
+            except ImportError: # fallback to louvain if leiden unavailable
+                cluster_key_added = 'louvain_'+tag
                 sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added)
                 print('ran leiden clustering:', cluster_key_added)
 
@@ -817,9 +820,9 @@ def cluster_and_tsne_and_umap(
         adata.obsm['X_{}_2d'.format(tag)] = adata.obsm['X_umap_'+tag]
 
 
-    if 'X_umap' in adata.obsm_keys():
+    if 'X_umap' in adata.obsm:
         del adata.obsm['X_umap']
-    if 'X_pca' in adata.obsm_keys():
+    if 'X_pca' in adata.obsm:
         del adata.obsm['X_pca']
 
     return adata
@@ -906,19 +909,19 @@ def reduce_to_single_cell_per_clone(
     adata = normalize_and_log_the_raw_matrix(adata) # just in case
 
 
-    if 'pmhc_var_names' in adata.uns_keys():
+    if 'pmhc_var_names' in adata.uns:
         pmhc_var_names = adata.uns['pmhc_var_names']
         X_pmhc = pmhc_scoring._get_X_pmhc(adata, pmhc_var_names)
         new_X_pmhc = []
     else:
         pmhc_var_names = None
 
-    if 'batch_keys' in adata.uns_keys():
+    if 'batch_keys' in adata.uns:
         clone_batch_counts = {}
         num_batch_key_choices = {}
         batch_keys = adata.uns['batch_keys']
         for k in batch_keys:
-            assert k in adata.obs_keys()
+            assert k in adata.obs.columns
             clone_batch_counts[k] = []
             assert np.min(adata.obs[k]) >= 0
             max_val = np.max(adata.obs[k])
@@ -1111,7 +1114,7 @@ def calc_nbrs_batched(
     if use_exact_tcrdist_nbrs:
         obsm_tag_tcr = None # dont do the standard calculation
 
-    if obsm_tag_tcr is not None and obsm_tag_tcr not in adata.obsm_keys():
+    if obsm_tag_tcr is not None and obsm_tag_tcr not in adata.obsm.keys():
         print('calc_nbrs: obsm_tag_tcr not present in adata.obsm so'
               ' calculating exact tcrdist nbrs')
         obsm_tag_tcr = None
@@ -1230,7 +1233,7 @@ def calc_nbrs(
     if use_exact_tcrdist_nbrs:
         obsm_tag_tcr = None # dont do the standard calculation
 
-    if obsm_tag_tcr is not None and obsm_tag_tcr not in adata.obsm_keys():
+    if obsm_tag_tcr is not None and obsm_tag_tcr not in adata.obsm.keys():
         print('calc_nbrs: obsm_tag_tcr not present in adata.obsm'
               ' calculating exact tcrdist nbrs')
         obsm_tag_tcr = None
@@ -1962,18 +1965,21 @@ def calc_tcrdist_nbrs_umap_clusters_cpp(
 
     resolution = 1.0 if clustering_resolution is None else clustering_resolution
     if clustering_method=='louvain':
+        import warnings
+        warnings.warn("Louvain clustering is deprecated since scanpy 1.12.0. Consider using 'leiden' instead.", 
+                     DeprecationWarning, stacklevel=2)
         sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added)
         print('ran louvain clustering:', resolution, cluster_key_added)
     elif clustering_method=='leiden':
         sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added)
         print('ran leiden clustering:', resolution, cluster_key_added)
-    else: # try both (hacky)
+    else: # try both, prefer modern leiden first
         try:
-            sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added)
-            print('ran louvain clustering:', resolution, cluster_key_added)
-        except ImportError: # hacky
             sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added)
             print('ran leiden clustering:', resolution, cluster_key_added)
+        except ImportError: # fallback to louvain if leiden unavailable
+            sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added)
+            print('ran louvain clustering:', resolution, cluster_key_added)
 
     adata.obs[cluster_key_added] = np.copy(adata.obs[cluster_key_added]).astype(int)
     print('DONE running louvain', cluster_key_added)
@@ -2381,7 +2387,7 @@ def retrieve_nbr_info_from_adata(
     '''
 
     all_nbrs = {}
-    for k in adata.obsm_keys():
+    for k in adata.obsm.keys():
         if k[:5] == 'nbrs_' and k.count('_')==2:
             tagl = k.split('_')
             _, tag, nbr_frac = k.split('_')
@@ -2414,7 +2420,7 @@ def retrieve_nbr_info_from_adata(
 #     all_genes = sorted( set( [x[:-1] for x in open(all_genes_file,'r')] + extra_genes + kir_genes ) )
 
 #     organism = 'human'
-#     if 'organism' in adata.uns_keys():
+#     if 'organism' in adata.uns:
 #         organism = adata.uns['organism']
 
 #     if 'mouse' in organism: # this is a temporary hack -- could actually load a mapping between mouse and human genes

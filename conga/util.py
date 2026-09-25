@@ -180,10 +180,10 @@ def get_feature_types_varname( adata ):
 
 
 def setup_uns_dicts(adata):
-    if 'conga_results' not in adata.uns_keys():
+    if 'conga_results' not in adata.uns.keys():
         adata.uns['conga_results'] = {}
 
-    if 'conga_stats' not in adata.uns_keys():
+    if 'conga_stats' not in adata.uns.keys():
         adata.uns['conga_stats'] = {}
 
 

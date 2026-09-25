@@ -108,7 +108,7 @@ def _find_neighbor_neighbor_interactions(
                             num_neighbors_tcr=num_neighbors_tcr,
                             overlap=overlap,
                             overlap_corrected=overlap_corrected,
-                            mait_fraction=np.sum(is_mait[double_nbrs])/overlap,
+                            mait_fraction=np.sum(is_mait.iloc[double_nbrs])/overlap,
                             clone_index=ii ))#double_nbrs ] )
 
     adjusted_pvalues = np.maximum(np.array(adjusted_pvalues), MIN_CONGA_SCORE)
@@ -186,7 +186,7 @@ def _find_neighbor_cluster_interactions(
                 if nbr_pval > pval_threshold:
                     continue
 
-        mait_fraction=np.sum(is_mait[same_cluster_nbrs])/overlap
+        mait_fraction=np.sum(is_mait.iloc[same_cluster_nbrs])/overlap
         nbr_pval = max(nbr_pval, MIN_CONGA_SCORE) # no 0s
         results.append(dict(conga_score=nbr_pval,
                             num_neighbors=num_neighbors,
@@ -643,7 +643,7 @@ def run_graph_vs_graph(
         results_df['gex_cluster'] = list(clusters_gex[indices])
         results_df['tcr_cluster'] = list(clusters_tcr[indices])
         for tag in 'va ja cdr3a vb jb cdr3b'.split():
-            results_df[tag] = list(adata.obs[tag][indices])
+            results_df[tag] = list(adata.obs[tag].iloc[indices])
         results_df.sort_values('conga_score', inplace=True)
 
     else:
@@ -954,7 +954,7 @@ def gex_nbrhood_rank_tcr_scores(
                 if nbrhood_clusters_gex is None: # lazy
                     nbrhood_clusters_gex = clusters_gex[nbrhood_mask]
                     nbrhood_clusters_tcr = clusters_tcr[nbrhood_mask]
-                    nbrhood_is_mait = is_mait[nbrhood_mask]
+                    nbrhood_is_mait = is_mait.iloc[nbrhood_mask]
 
                 # get info about the clones most contributing to this skewed
                 #  score
@@ -974,7 +974,7 @@ def gex_nbrhood_rank_tcr_scores(
                               .most_common(1)[0][0]
                 tcr_cluster = Counter( nbrhood_clusters_tcr[ top_indices ])\
                               .most_common(1)[0][0]
-                mait_fraction = np.sum(nbrhood_is_mait[ top_indices ] )\
+                mait_fraction = np.sum(nbrhood_is_mait.iloc[top_indices] )\
                                 /len(top_indices)
 
                 if verbose and mwu_pval_adj <= pval_threshold:
@@ -1102,7 +1102,7 @@ def tcr_nbrhood_rank_genes_fast(
     mean_sq = X_sq.mean(axis=0)
 
     ## add some extra fake genes
-    if 'nndists_gex' in adata.obs_keys():
+    if 'nndists_gex' in adata.obs:
         nndists_gex = np.array(adata.obs['nndists_gex'])
     else:
         print('WARNING nndists_gex not in adata.obs!')
@@ -1221,7 +1221,7 @@ def tcr_nbrhood_rank_genes_fast(
                 if nbrhood_clusters_gex is None: # lazy
                     nbrhood_clusters_gex = clusters_gex[nbrhood_mask]
                     nbrhood_clusters_tcr = clusters_tcr[nbrhood_mask]
-                    nbrhood_is_mait = is_mait[nbrhood_mask]
+                    nbrhood_is_mait = is_mait.iloc[nbrhood_mask]
 
                 # better annotation of the enriched tcrs...
                 num_top = num_fg//4
@@ -1241,7 +1241,7 @@ def tcr_nbrhood_rank_genes_fast(
                     nbrhood_clusters_gex[ top_indices ]).most_common(1)[0][0]
                 tcr_cluster = Counter(
                     nbrhood_clusters_tcr[ top_indices ]).most_common(1)[0][0]
-                mait_fraction = (np.sum(nbrhood_is_mait[top_indices]) /
+                mait_fraction = (np.sum(nbrhood_is_mait.iloc[top_indices]) /
                                  len(top_indices))
 
                 if verbose and mwu_pval_adj<=pval_threshold:
