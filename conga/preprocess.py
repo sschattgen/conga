@@ -1740,13 +1740,12 @@ def calc_nbrs(
         backend_selection = 'auto',
         disable_faiss_acceleration = False,
         faiss_adaptive_parameters = True,
-        store_backend_config = True,
-):
-):
-    ''' returns dict mapping from nbr_frac to [nbrs_gex, nbrs_tcr]
+        store_backend_config = True):
+    """Returns dict mapping from nbr_frac to [nbrs_gex, nbrs_tcr]
 
     nbrs exclude self and any clones in same atcr group or btcr group
-    '''
+    """
+  
     if adata.shape[0] > 1.25*target_N_for_batching and not sort_nbrs: ## EARLY RETURN
         return calc_nbrs_batched(
             adata, nbr_fracs, obsm_tag_gex, obsm_tag_tcr, also_calc_nndists,

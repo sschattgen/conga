@@ -17,6 +17,9 @@ tables>=3.9.0
 [all]
 conga[batch,dev,performance,scvi]
 
+[all-gpu]
+conga[batch,dev,performance-gpu,scvi]
+
 [batch]
 bbknn>=1.6.0
 
@@ -32,6 +35,10 @@ jupyter>=1.0.0
 
 [performance]
 faiss-cpu>=1.7.4
+fastcluster>=1.2.0
+
+[performance-gpu]
+faiss-gpu>=1.7.4
 fastcluster>=1.2.0
 
 [scvi]

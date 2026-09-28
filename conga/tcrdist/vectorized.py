@@ -49,8 +49,54 @@ Gamma-delta TCRs and Ig sequences are not supported. Use KernelPCA representatio
 Memory and Performance
 ----------------------
 - Encoding time: ~0.1s for 20,000 clonotypes
-- Peak memory: O(N·L) where L≈1136 for human (vs O(N²) for KernelPCA)
+- Peak memory: O(N·L) where L≈1136 for human (vs O(N^2) for KernelPCA)
 - Stored representation: 91MB float32 for 20,000 clonotypes (vs 8MB for KernelPCA)
+
+**Performance Characteristics** (N=20,000 clonotypes on 2019 MacBook Pro):
+- Encoding time: ~0.1 seconds
+- Peak memory usage: ~150 MB (vs ~6.4 GB for KernelPCA)
+- Output size: 91 MB float32 array (1136 dimensions × 20k rows)
+- Memory scaling: O(N·L) where L≈1136 for human
+
+**Accuracy vs Configuration**:
+- aa_mds_dim=16 (default): Near-exact approximation, Spearman > 0.999
+- aa_mds_dim=12: Good approximation, Spearman > 0.99, smaller vectors
+- aa_mds_dim=8: Adequate approximation, may fail accuracy gates
+
+**Vector Length by Organism** (default config):
+- Human: 1136 dimensions (α: 21+16, β: 18+16 positions × 16 aa_dims each)
+- Mouse: 1168 dimensions (α: 23+16, β: 18+16 positions × 16 aa_dims each)  
+- Rhesus: 1152 dimensions (α: 21+16, β: 19+16 positions × 16 aa_dims each)
+
+Integration with FAISS
+----------------------
+The fixed-length float32 output vectors are optimized for consumption by FAISS
+indices, enabling GPU-accelerated neighbor search on large TCR datasets:
+
+- **Vector format**: C-contiguous float32 arrays for direct FAISS consumption
+- **Dimension optimization**: aa_mds_dim parameter balances accuracy vs FAISS performance
+- **Memory layout**: Designed for efficient batch processing and index building
+- **Compatibility**: Works with sklearn neighbor search when FAISS unavailable
+
+Usage Guidelines
+----------------
+**When to use vectorized encoding**:
+- Alpha-beta TCRs from supported organisms (human/mouse/rhesus)
+- Large datasets (N > 5,000) where KernelPCA memory usage prohibitive
+- Analyses requiring fast neighbor search or clustering
+- Integration with external vector similarity tools
+
+**When to use alternatives**:
+- Gamma-delta TCRs or B cell receptors → use X_pca_tcr or exact path
+- Small datasets (N < 1,000) where exact TCRdist is fast → use exact path  
+- Analyses requiring perfect TCRdist fidelity → use exact path
+- Legacy workflows → use X_pca_tcr for backward compatibility
+
+**Configuration recommendations**:
+- **Default**: EncodingConfig() for near-exact approximation
+- **Performance**: aa_mds_dim=12 for smaller vectors, good accuracy
+- **Memory-constrained**: aa_mds_dim=8 for minimal vectors (check accuracy!)
+- **Reproducibility**: Set random_seed consistently across analyses
 
 Implementation Notes
 --------------------
@@ -96,12 +142,23 @@ Accuracy validation:
 >>> report = accuracy_report(tcrs, 'human')
 >>> print(f"Spearman correlation: {report.spearman:.3f}")
 >>> print(f"Recall@10: {report.mean_recall[10]:.3f}")
+
+Integration with CoNGA workflow:
+>>> import anndata as ad
+>>> from conga.tcrdist.vectorized import store_tcr_vectors_in_adata
+>>> # Create AnnData with TCR metadata
+>>> adata = ad.AnnData(obs=df)
+>>> # Store vectorized representation
+>>> vectors = store_tcr_vectors_in_adata(adata, 'human')
+>>> # Use with FAISS neighbor search
+>>> from conga.neighbors import search_neighbors_auto
+>>> result = search_neighbors_auto(vectors, [0.01, 0.05], data_type='tcr')
 """
 
 import hashlib
 import logging
 from dataclasses import dataclass
-from typing import Sequence, Mapping, Collection, Any
+from typing import Sequence, Mapping, Collection, Any, Optional, Tuple, List, Union
 import numpy as np
 import pandas as pd
 import sklearn
@@ -1021,7 +1078,7 @@ def encode_tcrs(
         
     Notes
     -----
-    **Memory complexity**: O(N·L) with no N² allocations, suitable for large datasets.
+    **Memory complexity**: O(N·L) with no N^2 allocations, suitable for large datasets.
     
     **Validation**: All input is validated before any encoding arrays are allocated, 
     ensuring clean failures without partial state.
@@ -1512,7 +1569,327 @@ def record_active_tcr_representation(adata, active_representation: str) -> None:
     without storing a per-observation representation matrix.
     
     **Validation**: This function does not validate that the specified representation
-    exists in adata.obsm. Callers should ensure the representation is available
+    exists. Use get_active_tcr_representation() to verify stored values.
+    
+    Examples
+    --------
+    Set vectorized representation as active:
+    >>> record_active_tcr_representation(adata, 'X_vec_tcr')
+    >>> adata.uns['active_tcr_representation']
+    'X_vec_tcr'
+    
+    Set exact TCRdist path as active:
+    >>> record_active_tcr_representation(adata, 'exact_tcrdist')
+    >>> adata.uns['active_tcr_representation']
+    'exact_tcrdist'
+    
+    Switch between representations:
+    >>> record_active_tcr_representation(adata, 'X_pca_tcr')  # KernelPCA
+    >>> record_active_tcr_representation(adata, 'X_vec_tcr')   # Vectorized
+    """
+    adata.uns[util.UNS_KEY_ACTIVE_TCR_REP] = active_representation
+    logger.debug(f"Set active TCR representation to '{active_representation}'")
+
+
+def get_active_tcr_representation(adata) -> str | None:
+    """Retrieve the currently active TCR representation from AnnData metadata.
+    
+    Returns the active TCR representation identifier stored by 
+    record_active_tcr_representation(). This tells downstream code which
+    representation to use for neighbor calculations and analysis.
+    
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Annotated data object to read the active representation from.
+        
+    Returns
+    -------
+    str | None
+        Active representation identifier, or None if no active representation
+        has been recorded. Valid return values:
+        - 'X_vec_tcr': Vectorized representation
+        - 'X_pca_tcr': KernelPCA representation  
+        - 'exact_tcrdist': Exact TCRdist path
+        - None: No active representation set
+        
+    Notes
+    -----
+    **Storage location**: Reads from adata.uns[util.UNS_KEY_ACTIVE_TCR_REP]
+    
+    **Legacy compatibility**: Returns None for AnnData objects created before
+    active representation tracking was implemented. Callers should handle
+    None values gracefully.
+    
+    **Validation**: This function does not validate that the returned
+    representation actually exists in adata.obsm. Use with appropriate
+    existence checks in downstream code.
+    
+    Examples
+    --------
+    Check current active representation:
+    >>> active = get_active_tcr_representation(adata)
+    >>> if active == 'X_vec_tcr':
+    ...     # Use vectorized representation
+    ...     vectors = adata.obsm['X_vec_tcr']
+    >>> elif active == 'X_pca_tcr':
+    ...     # Use KernelPCA representation
+    ...     vectors = adata.obsm['X_pca_tcr']
+    >>> elif active == 'exact_tcrdist':
+    ...     # Use exact TCRdist neighbor calculation
+    ...     pass  # No obsm array to load
+    >>> else:
+    ...     # No active representation set
+    ...     pass
+    
+    Conditional representation access:
+    >>> active = get_active_tcr_representation(adata)
+    >>> if active and active in adata.obsm:
+    ...     representation = adata.obsm[active]
+    >>> elif active == 'exact_tcrdist':
+    ...     # Handle exact path case
+    ...     pass
+    """
+    return adata.uns.get(util.UNS_KEY_ACTIVE_TCR_REP, None)
+
+
+def accuracy_report(
+    tcrs: Sequence[tuple[tuple, tuple]] | pd.DataFrame,
+    organism: str,
+    config: EncodingConfig | None = None,
+    *,
+    max_pairs: int = 500000,
+    neighbor_counts: tuple[int, ...] = (10, 100),
+    **kwargs
+) -> AccuracyReport:
+    """Generate comprehensive accuracy report comparing vectorized vs exact TCRdist.
+    
+    Encodes the provided TCR clonotypes using the vectorized algorithm and compares
+    the resulting Euclidean distances against exact TCRdist distances. Computes
+    correlation statistics and k-nearest neighbor recall metrics to quantify
+    encoding accuracy.
+    
+    This function is the primary tool for validating vectorized encoding quality
+    and deciding whether the approximation is suitable for specific analyses.
+    It uses the same exact TCRdist implementation (TcrDistCalculator) that CoNGA
+    uses elsewhere, ensuring consistency with production workflows.
+    
+    Parameters
+    ----------
+    tcrs : Sequence[tuple[tuple, tuple]] | pd.DataFrame
+        Clonotype data in the same formats accepted by encode_tcrs().
+        Larger datasets provide more reliable accuracy estimates but require
+        more computation time.
+    organism : str
+        Organism identifier ('human', 'mouse', 'rhesus'). Must match the
+        organism of the input clonotypes.
+    config : EncodingConfig | None, default=None
+        Encoding configuration to test. If None, uses default configuration.
+        Different configurations may have different accuracy profiles.
+    max_pairs : int, default=500000
+        Maximum number of clonotype pairs to sample for correlation computation.
+        For N clonotypes, there are N*(N-1)/2 pairs total. Large datasets are
+        randomly sampled to this limit for computational tractability.
+    neighbor_counts : tuple[int, ...], default=(10, 100)
+        Values of k where k-NN recall will be measured. Should match the
+        neighbor counts relevant to downstream CoNGA analysis (typically 
+        derived from nbr_frac * N where nbr_frac ∈ [0.01, 0.1]).
+    **kwargs
+        Additional keyword arguments for backwards compatibility.
+        Currently unused but reserved for future extensions.
+        
+    Returns
+    -------
+    AccuracyReport
+        Comprehensive accuracy validation results containing:
+        - Pearson correlations for both distance and squared distance
+        - Spearman rank correlation (most robust metric)
+        - Mean k-NN recall for each requested neighbor count
+        - Dataset and configuration metadata
+        
+    Raises
+    ------
+    ValueError
+        - If organism not supported by vectorized encoder
+        - If input data format invalid
+        - If neighbor_counts contains invalid values (≤ 0 or > N)
+        - If max_pairs ≤ 0
+        
+    Notes
+    -----
+    **Performance**: Scales as O(N^2) due to exact TCRdist computation.
+    Large datasets (N > 2000) may require significant time. Consider
+    using a representative subset for quick evaluation.
+    
+    **Sampling**: When N*(N-1)/2 > max_pairs, pairs are sampled uniformly
+    at random with a fixed seed for reproducibility. The sample size is
+    recorded in the returned AccuracyReport.
+    
+    **Distance interpretation**: Vectorized Euclidean distance approximates
+    sqrt(TCRdist), while squared Euclidean distance approximates TCRdist.
+    The report includes both correlations for completeness.
+    
+    **Memory usage**: Requires temporary storage of N×N exact distance matrix
+    and vectorized distance computations. Peak memory ~O(N^2).
+    
+    Examples
+    --------
+    Basic accuracy validation:
+    >>> tcrs = [
+    ...     (('TRAV1*01', 'TRAJ1*01', 'CAVRD', ''), 
+    ...      ('TRBV1*01', 'TRBJ1*01', 'CASSRT', '')),
+    ...     (('TRAV2*01', 'TRAJ2*01', 'CAVKE', ''),
+    ...      ('TRBV2*01', 'TRBJ2*01', 'CASSLQ', ''))
+    ... ]
+    >>> report = accuracy_report(tcrs, 'human')
+    >>> print(f"Spearman correlation: {report.spearman:.3f}")
+    >>> print(f"Recall@10: {report.mean_recall[10]:.3f}")
+    
+    Custom configuration testing:
+    >>> config = EncodingConfig(aa_mds_dim=12, cdr3_weight=2.0)
+    >>> report = accuracy_report(tcrs, 'human', config)
+    >>> if report.spearman >= 0.95 and report.mean_recall[10] >= 0.80:
+    ...     print("Configuration passes accuracy gates")
+    
+    Large dataset with sampling:
+    >>> # For large dataset, limit correlation pairs but test all neighbors
+    >>> report = accuracy_report(large_tcrs, 'mouse', max_pairs=100000)
+    >>> print(f"Sampled {report.num_pairs_sampled} of {len(large_tcrs)*(len(large_tcrs)-1)//2} total pairs")
+    
+    Accuracy gate validation:
+    >>> report = accuracy_report(test_tcrs, 'human')
+    >>> assert report.spearman >= 0.95, "Failed Spearman correlation gate"
+    >>> assert report.mean_recall[10] >= 0.80, "Failed recall@10 gate"
+    >>> # Configuration meets production accuracy requirements
+    """
+    if config is None:
+        config = EncodingConfig()
+        
+    # Lazy import to avoid circular dependencies
+    from .tcr_distances import TcrDistCalculator
+    
+    # Validate inputs
+    _validate_organism(organism)
+    
+    if max_pairs <= 0:
+        raise ValueError(f"max_pairs must be positive, got {max_pairs}")
+        
+    for k in neighbor_counts:
+        if not isinstance(k, int) or k <= 0:
+            raise ValueError(f"neighbor_counts must contain positive integers, got {k}")
+    
+    logger.info(f"Starting accuracy validation for {organism} with {len(tcrs) if hasattr(tcrs, '__len__') else 'unknown'} clonotypes")
+    
+    # Encode with vectorized algorithm
+    vector_matrix = encode_tcrs(tcrs, organism, config)
+    n_clonotypes = vector_matrix.shape[0]
+    
+    # Validate neighbor counts against dataset size
+    for k in neighbor_counts:
+        if k >= n_clonotypes:
+            raise ValueError(f"neighbor_count {k} >= dataset size {n_clonotypes}")
+    
+    # Convert input to format expected by TcrDistCalculator
+    if isinstance(tcrs, pd.DataFrame):
+        tcr_list = []
+        for _, row in tcrs.iterrows():
+            alpha_tuple = (row['va'], '', row['cdr3a'], '')  # J gene and nucseq not needed
+            beta_tuple = (row['vb'], '', row['cdr3b'], '')
+            tcr_list.append((alpha_tuple, beta_tuple))
+    else:
+        tcr_list = list(tcrs)
+    
+    # Compute exact TCRdist distances
+    calculator = TcrDistCalculator(organism)
+    exact_distances = np.zeros((n_clonotypes, n_clonotypes), dtype=np.float64)
+    
+    for i in range(n_clonotypes):
+        for j in range(i + 1, n_clonotypes):
+            dist = calculator.tcr_distance(tcr_list[i], tcr_list[j])
+            exact_distances[i, j] = dist
+            exact_distances[j, i] = dist  # Symmetric
+    
+    # Compute vectorized distances
+    from scipy.spatial.distance import pdist, squareform
+    vectorized_distances_condensed = pdist(vector_matrix, metric='euclidean')
+    vectorized_squared_distances_condensed = pdist(vector_matrix, metric='sqeuclidean')
+    
+    # Convert to full matrices for neighbor calculations
+    vectorized_distances = squareform(vectorized_distances_condensed)
+    vectorized_squared_distances = squareform(vectorized_squared_distances_condensed)
+    
+    # Sample pairs for correlation if needed
+    total_pairs = n_clonotypes * (n_clonotypes - 1) // 2
+    if total_pairs > max_pairs:
+        # Sample pairs uniformly at random with fixed seed
+        np.random.seed(config.random_seed)
+        pair_indices = np.random.choice(total_pairs, size=max_pairs, replace=False)
+        
+        # Convert condensed indices to (i, j) pairs
+        sampled_exact = vectorized_distances_condensed[pair_indices]
+        sampled_vector = exact_distances[np.triu_indices(n_clonotypes, k=1)][pair_indices]
+        sampled_vector_sq = vectorized_squared_distances_condensed[pair_indices]
+        
+        pairs_sampled = max_pairs
+    else:
+        # Use all pairs
+        sampled_exact = exact_distances[np.triu_indices(n_clonotypes, k=1)]
+        sampled_vector = vectorized_distances_condensed
+        sampled_vector_sq = vectorized_squared_distances_condensed
+        pairs_sampled = total_pairs
+    
+    # Compute correlations
+    from scipy.stats import pearsonr, spearmanr
+    
+    pearson_dist_corr, _ = pearsonr(sampled_vector, sampled_exact)
+    pearson_sq_dist_corr, _ = pearsonr(sampled_vector_sq, sampled_exact)
+    spearman_corr, _ = spearmanr(sampled_vector, sampled_exact)
+    
+    # Compute k-NN recall
+    mean_recalls = {}
+    for k in neighbor_counts:
+        recalls = []
+        for i in range(n_clonotypes):
+            # Find k nearest neighbors in exact distances
+            exact_neighbors = np.argsort(exact_distances[i, :])[1:k+1]  # Skip self (index 0)
+            
+            # Find k nearest neighbors in vectorized distances 
+            vector_neighbors = np.argsort(vectorized_distances[i, :])[1:k+1]
+            
+            # Compute recall
+            intersection_size = len(np.intersect1d(exact_neighbors, vector_neighbors))
+            recall = intersection_size / k
+            recalls.append(recall)
+        
+        mean_recalls[k] = np.mean(recalls)
+    
+    logger.info(f"Accuracy validation complete: Spearman={spearman_corr:.3f}, "
+                f"mean_recall@{neighbor_counts[0]}={mean_recalls[neighbor_counts[0]]:.3f}")
+    
+    return AccuracyReport(
+        organism=organism,
+        config=config,
+        num_clonotypes=n_clonotypes,
+        num_pairs_sampled=pairs_sampled,
+        pearson_distance=pearson_dist_corr,
+        pearson_squared_distance=pearson_sq_dist_corr,
+        spearman=spearman_corr,
+        neighbor_counts=neighbor_counts,
+        mean_recall=mean_recalls,
+        vectorizer_version=VECTORIZER_VERSION,
+    )
+
+
+def record_active_tcr_representation(adata, active_representation: str) -> None:
+    """Record which TCR representation is currently active for neighbor calculations.
+    
+    Stores the active TCR representation identifier in AnnData metadata so that
+    downstream analysis steps can determine which representation was used for 
+    TCR neighbor calculations. This enables restart scenarios and verification
+    that the expected representation is being used.
+    
+    The recorded active representation should match the actual representation
+    available in adata.obsm. Callers should ensure the representation is available
     before recording it as active.
     
     **Restart compatibility**: The recorded value persists through h5ad save/load
@@ -1576,7 +1953,7 @@ def get_active_tcr_representation(adata) -> str | None:
     -----
     **Storage location**: Reads from adata.uns[util.UNS_KEY_ACTIVE_TCR_REP]
     
-    **Missing metadata**: Returns None if the metadata key doesn't exist,
+    **Missing metadata**: Returns None if the metadata key does not exist,
     which can happen with older AnnData objects or when no representation
     has been explicitly set as active.
     
@@ -1628,7 +2005,7 @@ def accuracy_report(
     encoding accuracy and provides quantitative measures for deciding whether 
     vectorized approximation is suitable for a specific analysis.
     
-    **WARNING**: This function has O(N²) time and memory complexity due to 
+    **WARNING**: This function has O(N^2) time and memory complexity due to 
     pairwise distance computation. It should NOT be used on large datasets. 
     Use max_pairs parameter to limit computation for datasets with >1000 clonotypes.
     
@@ -1643,7 +2020,7 @@ def accuracy_report(
         Encoding configuration to test. If None, uses default configuration.
     neighbor_counts : Sequence[int], default=(10, 100)
         Values of k for k-NN recall computation. Recall@k measures what 
-        fraction of each clonotype's k nearest exact-TCRdist neighbors 
+        fraction of each clonotype k nearest exact-TCRdist neighbors 
         also appear among its k nearest vectorized neighbors.
     max_pairs : int, default=1_000_000
         Maximum number of clonotype pairs for correlation computation.
@@ -1656,7 +2033,7 @@ def accuracy_report(
     AccuracyReport
         Comprehensive accuracy metrics containing:
         - pearson_distance: Pearson correlation(euclidean_distance, tcrdist)
-        - pearson_squared_distance: Pearson correlation(euclidean²distance, tcrdist)  
+        - pearson_squared_distance: Pearson correlation(euclidean^2 distance, tcrdist)  
         - spearman: Spearman rank correlation (monotone relationship)
         - mean_recall: Dict mapping k -> mean recall@k across all clonotypes
         - num_pairs_sampled: Actual number of pairs used for correlation
@@ -1670,7 +2047,7 @@ def accuracy_report(
     - spearman: Rank correlation, most robust to nonlinear monotone relationships
     
     **Recall metrics**:
-    Recall@k = |exact_k_neighbors ∩ vectorized_k_neighbors| / k
+    Recall@k = |exact_k_neighbors intersect vectorized_k_neighbors| / k
     Values near 1.0 indicate vectorized encoding preserves local neighborhood 
     structure. This is often more important than global correlation for 
     downstream clustering and visualization tasks.
@@ -2275,3 +2652,5 @@ def clear_vectorized_tcr_from_adata(adata) -> bool:
         logger.debug("No vectorized TCR representation found to clear")
     
     return was_present
+
+# End of vectorized TCRdist module

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "conga"
 version = "0.2.0"
-description = "Clonotype Neighbor Graph Analysis (CoNGA) for single-cell TCR/BCR-seq and RNA-seq data"
+description = "Clonotype Neighbor Graph Analysis (CoNGA) for single-cell TCR/BCR-seq and RNA-seq data with vectorized TCRdist and FAISS acceleration"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
@@ -16,7 +16,7 @@ maintainers = [
     {name = "Phil Bradley", email = "pbradley@fredhutch.org"},
     {name = "Stefan Schattgen", email = "stefan.schattgen@stjude.org"},
 ]
-keywords = ["single-cell", "tcr-seq", "bcr-seq", "immunology", "bioinformatics"]
+keywords = ["single-cell", "tcr-seq", "bcr-seq", "immunology", "bioinformatics", "vectorized-tcrdist", "faiss", "performance", "neighbor-search"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "License :: OSI Approved :: MIT License",
@@ -96,6 +96,7 @@ all-gpu = [
 Homepage = "https://github.com/phbradley/conga"
 Repository = "https://github.com/phbradley/conga"
 Documentation = "https://github.com/phbradley/conga/blob/master/README.md"
+Changelog = "https://github.com/phbradley/conga/blob/master/CHANGELOG.md"
 "Bug Tracker" = "https://github.com/phbradley/conga/issues"
 Publication = "https://www.nature.com/articles/s41587-021-00989-2"
 
@@ -109,11 +110,14 @@ include-package-data = true
 [tool.setuptools.package-data]
 conga = [
     "data/*.txt",
-    "data/*.tsv",
+    "data/*.tsv", 
     "data/prediction_models/*.sav",
     "data/metaconga/*.tsv",
     "tcrdist/db/*.tsv",
     "tcrdist/db/*.txt",
+    "tcrdist_cpp/bin/*",
+    "tcrdist_cpp/include/*.h",
+    "tcrdist_cpp/src/*.cc",
 ]
 
 # Black formatting

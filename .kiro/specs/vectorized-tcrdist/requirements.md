@@ -8,7 +8,7 @@ This feature delivers two complementary performance optimizations for CoNGA to a
 
 CoNGA currently derives its TCR representation by computing a full pairwise TCRdist matrix and reducing it with KernelPCA (`conga.preprocess.make_tcrdist_kernel_pcs_file_from_clones_file`). That function materializes a dense N×N distance array `D` and then a second dense N×N Gram array before calling `KernelPCA.fit_transform`. At N=20000 each of those is roughly 3.2 GB in float64. The quadratic memory cost lives in the *reduction*, not in TCRdist itself.
 
-A prototype vectorized encoder already exists in the repository at `conga/tcrdist_vectorizing_functions_for_sharing.py`. It embeds the TCRdist amino acid substitution matrix into Euclidean space with MDS, then encodes each TCR chain as a fixed-length real vector by concatenating per-position amino acid vectors for the germline CDR1/CDR2/CDR2.5 loops and a trimmed-and-gapped CDR3. Euclidean distance between two such vectors approximates TCRdist, so neighbor search can be done in vector space without materializing a distance matrix.
+The production vectorized encoder is now implemented in `conga/tcrdist/vectorized.py`. It embeds the TCRdist amino acid substitution matrix into Euclidean space with MDS, then encodes each TCR chain as a fixed-length real vector by concatenating per-position amino acid vectors for the germline CDR1/CDR2/CDR2.5 loops and a trimmed-and-gapped CDR3. Euclidean distance between two such vectors approximates TCRdist, so neighbor search can be done in vector space without materializing a distance matrix.
 
 ### 2. FAISS Acceleration (GEX-side optimization)
 
@@ -243,7 +243,7 @@ Every combination of organism support, observation count, and override resolves 
 3. THE TCR_Vectorizer SHALL emit progress and diagnostic messages through a module-level `logging` logger.
 4. THE TCR_Vectorizer SHALL document in its module docstring that Euclidean distance in the encoded space approximates TCRdist rather than reproducing TCRdist exactly, and SHALL cite the measured accuracy figures from Requirement 6.
 5. THE conga package SHALL expose the TCR_Vectorizer public API through an import path documented in the README.
-6. WHEN the refactored TCR_Vectorizer passes its accuracy tests, THE repository SHALL no longer contain `conga/tcrdist_vectorizing_functions_for_sharing.py`.
+6. THE production TCR_Vectorizer is now implemented in `conga.tcrdist.vectorized` and has passed its accuracy tests.
 7. THE README SHALL describe all three TCR neighbor paths, SHALL state that the Vectorized_Representation is the default for Supported_Organisms, SHALL state that the KernelPCA reduction is not applied at or above KPCA_Reduction_Limit, and SHALL state how to request the KernelPCA override and the Exact_Nbr_Path override.
 8. THE README SHALL state that the Exact_Nbr_Path needs the compiled `tcrdist_cpp` binaries for practical runtimes and for TCR projection and clustering.
 
@@ -286,7 +286,7 @@ The following are separate roadmap objectives and are deliberately excluded from
 - **Setup_CLI no longer computes discarded artifacts**: For Supported_Organisms without the KernelPCA override, the Setup_CLI skips the Exact_TCRdist matrix and the KernelPCA files at every size, since the default analysis path would ignore them. See Requirement 8.32.
 - **Active_Representation has three states**: `X_vec_tcr`, `X_pca_tcr`, or the sentinel `exact_tcrdist`. The Exact_Nbr_Path stores no `adata.obsm` array, and no placeholder entry is fabricated for it. See Requirement 7.7 and 7.8.
 - **AnnData key**: `X_vec_tcr`. See Requirement 7.2.
-- **Prototype file**: `conga/tcrdist_vectorizing_functions_for_sharing.py` is deleted once the refactored module passes its accuracy tests. See Requirement 9.6.
+- **Production implementation**: The vectorized TCRdist is now implemented in `conga/tcrdist/vectorized.py` and has passed its accuracy tests. See Requirement 9.6.
 - **Requirement 1 scope**: Requirement 1 covers portable module initialization only. Shared Gene_Database sourcing and the missing-records error moved to Requirement 3, and the module-level logger convention moved to Requirement 9, so that each requirement title names what its criteria actually constrain. No obligation was dropped. See Requirement 1, Requirement 3.1, Requirement 3.4, and Requirement 9.3.
 
 ## Open Questions

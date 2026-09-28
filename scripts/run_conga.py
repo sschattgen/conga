@@ -1044,7 +1044,6 @@ all_nbrs, nndists_gex, nndists_tcr = conga.preprocess.calc_nbrs(
     nbr_frac_for_nndists = nbr_frac_for_nndists,
     obsm_tag_tcr = tcr_representation.obsm_tag_tcr,
     use_exact_tcrdist_nbrs = tcr_representation.use_exact_tcrdist_nbrs,
-    use_exact_tcrdist_nbrs = tcr_representation.use_exact_tcrdist_nbrs,
     backend_selection = args.backend_selection,
     disable_faiss_acceleration = args.disable_faiss_acceleration,
     faiss_adaptive_parameters = args.faiss_adaptive_parameters,

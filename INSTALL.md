@@ -2,7 +2,13 @@
 
 ## Quick Start (Recommended)
 
+CoNGA v0.2.0 uses modern Python packaging with optional performance enhancements. Choose the installation method that best fits your needs.
+
 ### Prerequisites
+
+- **Python 3.12+** (required for compatibility with pandas 3.0 and numpy 2.0)
+- **C++ compiler** (optional, for maximum performance)
+- **CUDA-capable GPU** (optional, for FAISS-GPU acceleration)
 
 Install [Mamba](https://mamba.readthedocs.io/) (faster conda alternative):
 ```bash
@@ -13,41 +19,64 @@ conda install -n base -c conda-forge mamba
 # https://github.com/conda-forge/miniforge
 ```
 
-### Option 1: Full Development Environment (with all optional features)
+## Installation Options
 
+### ⚡ What's New in v0.2.0
+
+CoNGA v0.2.0 introduces major performance improvements:
+- **Vectorized TCRdist**: Default for α/β TCRs, eliminating quadratic memory scaling
+- **FAISS Acceleration**: 10-100x speedup with automatic GPU/CPU selection
+- **Python 3.12+ Required**: For modern performance and pandas 3.0/numpy 2.0 compatibility
+
+### Option 1: Performance-Optimized (Recommended)
+
+For best performance with CPU acceleration:
 ```bash
-# Create environment from environment.yml
-mamba env create -f environment.yml
+# Create clean environment
+mamba create -n conga python=3.12
+mamba activate conga
 
-# Activate the environment
-mamba activate conga-dev
+# Install with FAISS CPU acceleration 
+pip install "conga[performance]"
 
-# Install conga in editable mode
-pip install -e .
-
-# Compile C++ TCRdist components (highly recommended for performance)
-cd tcrdist_cpp
-make
-cd ..
-
-# Verify installation
-python -c "import conga; print(conga.__version__)"
+# Optional: compile C++ components for exact TCRdist
+git clone https://github.com/phbradley/conga.git
+cd conga/conga/tcrdist_cpp && make && cd ../../..
 ```
 
-### Option 2: Minimal Environment (core features only)
+### Option 2: GPU-Accelerated (Maximum Performance)
+
+For maximum performance with GPU acceleration:
+```bash
+# Create environment with CUDA support
+mamba create -n conga python=3.12
+mamba activate conga
+
+# Install with FAISS GPU acceleration (requires CUDA)
+pip install "conga[performance-gpu]"
+
+# Optional: compile C++ components
+git clone https://github.com/phbradley/conga.git  
+cd conga/conga/tcrdist_cpp && make && cd ../../..
+```
+
+### Option 3: Full Development Environment
 
 ```bash
-# Create minimal environment
-mamba env create -f environment-minimal.yml
+# Clone repository
+git clone https://github.com/phbradley/conga.git
+cd conga
 
-# Activate the environment
+# Create environment from environment.yml
+mamba env create -f environment.yml
 mamba activate conga-dev
 
-# Install conga in editable mode
-pip install -e .
+# Install in editable mode with all features
+pip install -e ".[all]"
 
 # Compile C++ components
-cd tcrdist_cpp
+cd conga/tcrdist_cpp && make && cd ../..
+```
 make
 cd ..
 ```

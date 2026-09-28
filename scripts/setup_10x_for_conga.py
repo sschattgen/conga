@@ -36,6 +36,35 @@ parser.add_argument('--condense_clonotypes_by_tcrdist', action='store_true')
 parser.add_argument('--tcrdist_threshold_for_condensing', type=float, default=50. )
 parser.add_argument('--verbose', action='store_true')
 
+# Vectorized encoding configuration flags (matching run_conga.py)
+parser.add_argument('--aa_mds_dim', type=int, default=None,
+                    help='Dimensionality of amino acid embedding space'
+                    ' for vectorized TCR encoding (default: 16)')
+parser.add_argument('--num_pos_cdr3', type=int, default=None,
+                    help='Fixed number of positions in encoded CDR3'
+                    ' for vectorized TCR encoding (default: 16)')
+parser.add_argument('--cdr3_weight', type=float, default=None,
+                    help='Weight applied to CDR3 region in vectorized encoding'
+                    ' (default: 3.0)')  
+parser.add_argument('--random_seed', type=int, default=None,
+                    help='Random seed for deterministic vectorized encoding'
+                    ' (default: 42)')
+
+# FAISS backend selection flags (matching run_conga.py)
+parser.add_argument('--backend_selection', type=str, default='auto',
+                    choices=['auto', 'faiss_gpu', 'faiss_cpu', 'sklearn'],
+                    help='Force specific neighbor search backend. "auto" selects '
+                    'based on data size and hardware availability (default: auto)')
+parser.add_argument('--disable_faiss_acceleration', action='store_true',
+                    help='Disable FAISS acceleration even if available, '
+                    'forcing sklearn backend for all neighbor searches')
+parser.add_argument('--faiss_adaptive_parameters', action='store_true', default=True,
+                    help='Enable adaptive FAISS parameter selection based on '
+                    'dataset characteristics (default: enabled)')
+parser.add_argument('--store_backend_config', action='store_true', default=True,
+                    help='Store FAISS backend configuration in AnnData for '
+                    'reproducibility (default: enabled)')
+
 args = parser.parse_args()
 
 if len(sys.argv)==1:
@@ -91,6 +120,43 @@ if args.use_kpca_tcrdist and args.no_tcrdists:
     sys.exit(1)
 
 
+
+# Set defaults for new parameters
+if args.random_seed is None:
+    args.random_seed = conga.util.DEFAULT_RANDOM_SEED
+
+# FAISS backend flag validation (matching run_conga.py logic)
+if args.disable_faiss_acceleration and args.backend_selection in ['faiss_gpu', 'faiss_cpu']:
+    print('ERROR: --disable_faiss_acceleration conflicts with --backend_selection faiss_gpu/faiss_cpu', file=sys.stderr)
+    sys.exit(1)
+
+if args.backend_selection == 'faiss_gpu':
+    # Try to validate GPU availability early
+    try:
+        import faiss
+        if not hasattr(faiss, 'StandardGpuResources'):
+            print('WARNING: --backend_selection faiss_gpu requested but FAISS GPU not available')
+            print('Will fall back to CPU or sklearn during execution')
+    except ImportError:
+        print('WARNING: --backend_selection faiss_gpu requested but FAISS not installed')
+        print('Will fall back to sklearn during execution')
+        
+elif args.backend_selection in ['faiss_cpu', 'faiss_gpu']:
+    # Try to validate FAISS availability early
+    try:
+        import faiss
+    except ImportError:
+        print(f'WARNING: --backend_selection {args.backend_selection} requested but FAISS not installed')
+        print('Will fall back to sklearn during execution')
+
+# Encoding flags validation for unsupported organisms (check after setup)
+encoding_flags_set = [
+    args.aa_mds_dim is not None,
+    args.num_pos_cdr3 is not None, 
+    args.cdr3_weight is not None,
+    args.random_seed != conga.util.DEFAULT_RANDOM_SEED
+]
+has_encoding_flags = any(encoding_flags_set)
 input_distfile = None
 
 if args.input_clones_file is None:

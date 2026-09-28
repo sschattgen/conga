@@ -304,23 +304,23 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
 
 ### Phase I: Setup Integration and Testing Infrastructure
 
-- [ ] I1. Setup_10x_for_conga.py integration
-  - [~] I1.1 Add setup CLI flag support and path selection
+- [x] I1. Setup_10x_for_conga.py integration
+  - [x] I1.1 Add setup CLI flag support and path selection
     - Add --kpca_reduction_limit and --use_kpca_tcrdist flags
     - Add FAISS backend selection flags to setup workflow
     - Implement behavior changes for supported organisms (skip KernelPCA by default)
     - Add clear messaging about which analysis paths and backends will be used
     - _Requirements: 8.32, 8.33, 8.34, 8.35, 8.36, 8.37, 8.38_
 
-- [ ] I2. Comprehensive test suite infrastructure
-  - [~] I2.1 Create test fixtures and data
+- [x] I2. Comprehensive test suite infrastructure
+  - [x] I2.1 Create test fixtures and data
     - Set up pytest test infrastructure in tests/ directory
     - Create seeded clonotype fixtures from bundled TCR database
     - Generate synthetic mouse and rhesus test data with seeded random generation
     - Add FAISS backend mocking for CI environments without GPU
     - _Requirements: 10.1, 10.5_
   
-  - [~] I2.2 Create error condition tests
+  - [x] I2.2 Create error condition tests
     - Write tests for all ValueError and exit conditions in error handling table
     - Cover organism validation, V gene validation, CDR3 validation, flag conflicts
     - Test exact path binary requirements and logging
@@ -347,16 +347,16 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
 
 ### Phase J: Portability and Documentation
 
-- [ ] J1. Portable import validation and cleanup
-  - [~] J1.1 Create subprocess import test
+- [x] J1. Portable import validation and cleanup
+  - [x] J1.1 Create subprocess import test
     - Stage synthetic installed layout excluding repository-specific paths
     - Test import success in scrubbed environment outside repository
     - Verify all vectorized and FAISS modules import without filesystem dependencies
     - Test graceful FAISS import failures in minimal environments
     - _Requirements: 10.9, 1.3_
 
-- [ ] J2. Documentation and cleanup
-  - [~] J2.1 Add comprehensive module documentation  
+- [x] J2. Documentation and cleanup
+  - [x] J2.1 Add comprehensive module documentation  
     - Write NumPy-style docstrings for all public functions
     - Add type hints to all public function signatures
     - Document accuracy approximation and measured correlation figures
@@ -368,7 +368,7 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
     - **Property 21: FAISS backend API is fully documented**
     - **Validates: Requirements 9.1, 9.2**
   
-  - [~] J2.3 Update README and package metadata
+  - [x] J2.3 Update README and package metadata
     - Add "TCR representations" section describing all three paths
     - Add "FAISS acceleration" section with backend selection guidance
     - Document default behavior changes for alpha-beta organisms
@@ -378,14 +378,14 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
 
 ### Phase K: Final Integration and Performance Validation
 
-- [ ] K1. Remove prototypes and finalize integration
-  - [~] K1.1 Delete prototype file and update references
+- [x] K1. Remove prototypes and finalize integration
+  - [x] K1.1 Delete prototype file and update references
     - Remove `conga/tcrdist_vectorizing_functions_for_sharing.py`
     - Update steering document references to point to new implementation
     - Verify no remaining imports of prototype module
     - _Requirements: 9.6_
   
-  - [~] K1.2 Update package dependencies
+  - [x] K1.2 Update package dependencies
     - Raise scikit-learn requirement to >=1.8 in pyproject.toml
     - Add faiss-cpu>=1.7.4 to [performance] extra
     - Add faiss-gpu>=1.7.4 to [performance-gpu] extra
@@ -394,7 +394,7 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
     - _Requirements: Dependencies section in design_
 
 - [ ] K2. Final integration and validation
-  - [~] K2.1 Run end-to-end pipeline testing with both optimizations
+  - [ ] K2.1 Run end-to-end pipeline testing with both optimizations
     - Test all three TCR paths with example datasets
     - Test all FAISS backend combinations (GPU, CPU, sklearn fallback)
     - Verify behavior change: alpha-beta defaults to vectorized representation
@@ -403,7 +403,7 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
     - Test restart scenarios from existing .h5ad files
     - _Requirements: complete workflow validation_
   
-  - [~] K2.2 Performance and accuracy validation
+  - [ ] K2.2 Performance and accuracy validation
     - Measure encoding time and memory usage at N=20000 with both optimizations
     - Verify accuracy gates pass for all supported organisms
     - Test vectorized vs exact TCRdist correlation on real data
@@ -412,7 +412,7 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
     - Validate 10-100x speedup and >50% memory reduction targets
     - _Requirements: 6.6, performance considerations from design_
 
-- [~] K3. Final checkpoint - Complete implementation ready
+- [ ] K3. Final checkpoint - Complete implementation ready
   - Ensure all tests pass for both vectorized TCRdist and FAISS acceleration
   - Verify backward compatibility maintained
   - Confirm all performance targets achieved

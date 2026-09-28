@@ -14,6 +14,9 @@ from . import compatibility
 from . import neighbors  # FAISS-accelerated neighbor search
 from . import benchmark  # Performance benchmarking infrastructure
 
+# Version
+__version__ = "0.2.0"
+
 # Expose key compatibility functions at package level
 from .compatibility import (
     check_environment_compatibility,
