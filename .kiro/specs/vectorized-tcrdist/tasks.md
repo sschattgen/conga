@@ -393,8 +393,8 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
     - Update environment.yml if needed for new minimum versions
     - _Requirements: Dependencies section in design_
 
-- [ ] K2. Final integration and validation
-  - [ ] K2.1 Run end-to-end pipeline testing with both optimizations
+- [x] K2. Final integration and validation
+  - [x] K2.1 Run end-to-end pipeline testing with both optimizations
     - Test all three TCR paths with example datasets
     - Test all FAISS backend combinations (GPU, CPU, sklearn fallback)
     - Verify behavior change: alpha-beta defaults to vectorized representation
@@ -403,7 +403,7 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
     - Test restart scenarios from existing .h5ad files
     - _Requirements: complete workflow validation_
   
-  - [ ] K2.2 Performance and accuracy validation
+  - [x] K2.2 Performance and accuracy validation
     - Measure encoding time and memory usage at N=20000 with both optimizations
     - Verify accuracy gates pass for all supported organisms
     - Test vectorized vs exact TCRdist correlation on real data
@@ -412,7 +412,7 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
     - Validate 10-100x speedup and >50% memory reduction targets
     - _Requirements: 6.6, performance considerations from design_
 
-- [ ] K3. Final checkpoint - Complete implementation ready
+- [x] K3. Final checkpoint - Complete implementation ready
   - Ensure all tests pass for both vectorized TCRdist and FAISS acceleration
   - Verify backward compatibility maintained
   - Confirm all performance targets achieved

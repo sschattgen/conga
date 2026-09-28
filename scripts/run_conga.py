@@ -924,60 +924,14 @@ if args.subset_to_CD4 or args.subset_to_CD8:
         adata, clustering_method=args.clustering_method,
         clustering_resolution=args.clustering_resolution)
 
-# Check if we need to compute TCR UMAP/clusters based on active representation
-active_tcr_rep = conga.preprocess.get_active_tcr_representation(adata)
-
-need_to_compute_tcrdist_umap = (
-    'X_tcr_2d' not in adata.obsm.keys() or  # missing
-    (args.use_tcrdist_umap and active_tcr_rep != util.ACTIVE_REP_EXACT))  # recompute unless using exact path
-
-need_to_compute_tcrdist_clusters = (
-    'clusters_tcr' not in adata.obs.columns or  # missing  
-    (args.use_tcrdist_clusters and active_tcr_rep != util.ACTIVE_REP_EXACT))  # recompute unless using exact path
-
-if need_to_compute_tcrdist_umap or need_to_compute_tcrdist_clusters:
-    umap_key_added = 'X_tcr_2d' if need_to_compute_tcrdist_umap else \
-                     'X_tcrdist_2d'
-    cluster_key_added = 'clusters_tcr' if need_to_compute_tcrdist_clusters else\
-                        'clusters_tcrdist'
-    num_nbrs = 10
-    conga.preprocess.calc_tcrdist_nbrs_umap_clusters_cpp(
-        adata, num_nbrs,
-        tmpfile_prefix=args.outfile_prefix,
-        umap_key_added=umap_key_added,
-        cluster_key_added=cluster_key_added)
-
-# optionally save a checkpoint h5-formatted AnnData object
-if args.checkpoint:
-    adata.write_h5ad(args.outfile_prefix+'_checkpoint.h5ad')
-
-###############################################################################
-###
-### DONE WITH I/O, now do some setup, calculate neighbor graphs, etc
-###
-###############################################################################
-
-
-# all_nbrs is dict from nbr_frac to [nbrs_gex, nbrs_tcr]
-# for nndist calculations, use a smallish nbr_frac, but not too small:
-num_clones = adata.shape[0]
-
-# adjust nbr_fracs if necessary
-if args.min_nbrhood_size is not None:
-    min_nbr_frac = args.min_nbrhood_size/num_clones
-    min_nbr_frac = int(1000*min_nbr_frac)/1000. # dont need all the precision
-    old_nbr_fracs = args.nbr_fracs[:]
-    args.nbr_fracs = sorted(set(max(min_nbr_frac,x) for x in args.nbr_fracs))
-    if args.nbr_fracs != old_nbr_fracs:
-        print('adjusted nbr_fracs:', args.min_nbrhood_size, num_clones,
-              old_nbr_fracs, args.nbr_fracs)
-
-nbr_frac_for_nndists = min( x for x in args.nbr_fracs
-                            if x*num_clones>=10 or x==max(args.nbr_fracs) )
-outlog.write(f'nbr_frac_for_nndists: {nbr_frac_for_nndists}\n')
-adata.uns['conga_stats']['nbr_frac_for_nndists'] = nbr_frac_for_nndists
-
-# Resolve TCR representation using three-way selection
+# Resolve TCR representation using three-way selection.
+# NOTE: this must happen before the "need_to_compute_tcrdist_umap" /
+# "need_to_compute_tcrdist_clusters" check below, because that check has to
+# branch on the representation that will actually be used for this run, not
+# on whatever (possibly absent) representation happens to already be
+# recorded in adata.uns. Resolving first also means store_tcr_vectors_in_adata
+# has already populated X_vec_tcr (if that's the selected path) by the time
+# we get to the checkpoint save and the neighbor-graph calculation below.
 tcr_representation = resolve_tcr_representation(
     organism=adata.uns['organism'],
     num_obs=adata.shape[0],
@@ -1036,6 +990,60 @@ elif tcr_representation.active == util.ACTIVE_REP_EXACT:
     adata.uns['conga_stats']['exact_path_by_override'] = (
         args.use_exact_tcrdist_nbrs or args.no_kpca
     )
+
+# Check if we need to compute TCR UMAP/clusters based on the just-resolved
+# active representation (not a stale/absent value read before resolution).
+active_tcr_rep = tcr_representation.active
+
+need_to_compute_tcrdist_umap = (
+    'X_tcr_2d' not in adata.obsm.keys() or  # missing
+    (args.use_tcrdist_umap and active_tcr_rep != util.ACTIVE_REP_EXACT))  # recompute unless using exact path
+
+need_to_compute_tcrdist_clusters = (
+    'clusters_tcr' not in adata.obs.columns or  # missing  
+    (args.use_tcrdist_clusters and active_tcr_rep != util.ACTIVE_REP_EXACT))  # recompute unless using exact path
+
+if need_to_compute_tcrdist_umap or need_to_compute_tcrdist_clusters:
+    umap_key_added = 'X_tcr_2d' if need_to_compute_tcrdist_umap else \
+                     'X_tcrdist_2d'
+    cluster_key_added = 'clusters_tcr' if need_to_compute_tcrdist_clusters else\
+                        'clusters_tcrdist'
+    num_nbrs = 10
+    conga.preprocess.calc_tcrdist_nbrs_umap_clusters_cpp(
+        adata, num_nbrs,
+        tmpfile_prefix=args.outfile_prefix,
+        umap_key_added=umap_key_added,
+        cluster_key_added=cluster_key_added)
+
+# optionally save a checkpoint h5-formatted AnnData object
+if args.checkpoint:
+    adata.write_h5ad(args.outfile_prefix+'_checkpoint.h5ad')
+
+###############################################################################
+###
+### DONE WITH I/O, now do some setup, calculate neighbor graphs, etc
+###
+###############################################################################
+
+
+# all_nbrs is dict from nbr_frac to [nbrs_gex, nbrs_tcr]
+# for nndist calculations, use a smallish nbr_frac, but not too small:
+num_clones = adata.shape[0]
+
+# adjust nbr_fracs if necessary
+if args.min_nbrhood_size is not None:
+    min_nbr_frac = args.min_nbrhood_size/num_clones
+    min_nbr_frac = int(1000*min_nbr_frac)/1000. # dont need all the precision
+    old_nbr_fracs = args.nbr_fracs[:]
+    args.nbr_fracs = sorted(set(max(min_nbr_frac,x) for x in args.nbr_fracs))
+    if args.nbr_fracs != old_nbr_fracs:
+        print('adjusted nbr_fracs:', args.min_nbrhood_size, num_clones,
+              old_nbr_fracs, args.nbr_fracs)
+
+nbr_frac_for_nndists = min( x for x in args.nbr_fracs
+                            if x*num_clones>=10 or x==max(args.nbr_fracs) )
+outlog.write(f'nbr_frac_for_nndists: {nbr_frac_for_nndists}\n')
+adata.uns['conga_stats']['nbr_frac_for_nndists'] = nbr_frac_for_nndists
 
 all_nbrs, nndists_gex, nndists_tcr = conga.preprocess.calc_nbrs(
     adata,

@@ -1097,7 +1097,9 @@ def _compute_gex_neighbors_fast(
     nbr_fracs, 
     exclude_groups=None, 
     also_calc_nndists=False, 
-    nbr_frac_for_nndists=None
+    nbr_frac_for_nndists=None,
+    force_backend=None,
+    adaptive_parameters=True
 ):
     """
     FAISS-accelerated GEX neighbor computation with sklearn fallback.
@@ -1117,6 +1119,12 @@ def _compute_gex_neighbors_fast(
         Whether to calculate nearest neighbor distances
     nbr_frac_for_nndists : Optional[float]
         Which fraction to use for nndist calculation
+    force_backend : Optional[Backend]
+        If set, forces FaissNeighborSearcher to use this backend
+        (Backend.FAISS_GPU, Backend.FAISS_CPU, or Backend.SKLEARN) instead of
+        automatic selection. None leaves selection automatic.
+    adaptive_parameters : bool
+        Passed through to FaissNeighborSearcher's adaptive_parameters option.
         
     Returns:
     --------
@@ -1127,8 +1135,11 @@ def _compute_gex_neighbors_fast(
     if _FAISS_NEIGHBORS_AVAILABLE:
         try:
             # Use FAISS acceleration through FaissNeighborSearcher
-            print(f'compute neighbors gex using FAISS (data: {X.shape})')
-            searcher = FaissNeighborSearcher()
+            print(f'compute neighbors gex using FAISS (data: {X.shape}, '
+                  f'force_backend={force_backend})')
+            searcher = FaissNeighborSearcher(
+                force_backend=force_backend,
+                adaptive_parameters=adaptive_parameters)
             result = searcher.search_neighbors(
                 X=X,
                 nbr_fracs=nbr_fracs,
@@ -1185,7 +1196,9 @@ def _compute_tcr_vector_neighbors_fast(
     nbr_fracs, 
     exclude_groups=None, 
     also_calc_nndists=False, 
-    nbr_frac_for_nndists=None
+    nbr_frac_for_nndists=None,
+    force_backend=None,
+    adaptive_parameters=True
 ):
     """
     FAISS-accelerated TCR vector neighbor computation with sklearn fallback.
@@ -1214,6 +1227,12 @@ def _compute_tcr_vector_neighbors_fast(
         Whether to calculate nearest neighbor distances for analysis
     nbr_frac_for_nndists : Optional[float]
         Which fraction to use for nndist calculation (must be in nbr_fracs)
+    force_backend : Optional[Backend]
+        If set, forces FaissNeighborSearcher to use this backend
+        (Backend.FAISS_GPU, Backend.FAISS_CPU, or Backend.SKLEARN) instead of
+        automatic selection. None leaves selection automatic.
+    adaptive_parameters : bool
+        Passed through to FaissNeighborSearcher's adaptive_parameters option.
         
     Returns:
     --------
@@ -1256,8 +1275,11 @@ def _compute_tcr_vector_neighbors_fast(
             
             print(f'Computing TCR vector neighbors using FAISS acceleration')
             print(f'  Data: {X_vec_tcr.shape[0]:,} clonotypes × {X_vec_tcr.shape[1]:,} features ({data_size_mb:.1f}MB)')
+            print(f'  force_backend={force_backend}')
             
-            searcher = FaissNeighborSearcher()
+            searcher = FaissNeighborSearcher(
+                force_backend=force_backend,
+                adaptive_parameters=adaptive_parameters)
             result = searcher.search_neighbors(
                 X=X_vec_tcr,
                 nbr_fracs=nbr_fracs,
@@ -1345,6 +1367,8 @@ def calc_nbrs_batched(
         target_N_for_batching = 8192,
         use_exact_tcrdist_nbrs = False,
         tmpfile_prefix = None, # only used if use_exact_tcrdist_nbrs and CPP
+        force_backend = None,
+        adaptive_parameters = True,
 ):
     ''' Enhanced batched neighbor calculation with FAISS acceleration and index reuse.
     
@@ -1357,6 +1381,13 @@ def calc_nbrs_batched(
     - GPU memory management: Automatic CPU fallback for large datasets
     - Mixed backend support: Independent backend selection for GEX vs TCR
     - Batch size optimization: Adaptive batching based on backend capabilities
+
+    force_backend, if set to a neighbors.Backend value, forces that backend
+    for the FAISS-accelerated batch processing path (see
+    _process_batched_with_faiss_reuse); this keeps the batched path
+    consistent with the non-batched calc_nbrs path when a user has requested
+    a specific backend or disabled FAISS acceleration via
+    --backend_selection / --disable_faiss_acceleration.
     
     Returns dict mapping from nbr_frac to [nbrs_gex, nbrs_tcr]
 
@@ -1416,14 +1447,18 @@ def calc_nbrs_batched(
         X = adata.obsm[obsm_tag]
         
         # Determine if FAISS acceleration is available and beneficial for this data type
-        use_faiss_acceleration = _should_use_faiss_for_batched(tag, obsm_tag, X, num_batches)
+        use_faiss_acceleration = _should_use_faiss_for_batched(
+            tag, obsm_tag, X, num_batches, force_backend=force_backend)
         
         if use_faiss_acceleration:
-            print(f'Using FAISS acceleration with index reuse for {tag} data')
+            print(f'Using FAISS acceleration with index reuse for {tag} data '
+                  f'(force_backend={force_backend})')
             _process_batched_with_faiss_reuse(
                 X, nbr_fracs, exclude_groups, also_calc_nndists, 
                 nbr_frac_for_nndists, batch_size, num_batches, N,
-                all_nbrs, nndists, itag, tag, obsm_tag
+                all_nbrs, nndists, itag, tag, obsm_tag,
+                force_backend=force_backend,
+                adaptive_parameters=adaptive_parameters
             )
         else:
             print(f'Using traditional distance matrix approach for {tag} data')
@@ -1456,7 +1491,9 @@ def calc_nbrs_batched(
         return all_nbrs
 
 
-def _should_use_faiss_for_batched(tag: str, obsm_tag: str, X: np.ndarray, num_batches: int) -> bool:
+def _should_use_faiss_for_batched(
+        tag: str, obsm_tag: str, X: np.ndarray, num_batches: int,
+        force_backend=None) -> bool:
     """
     Determine if FAISS acceleration should be used for batched processing.
     
@@ -1470,6 +1507,11 @@ def _should_use_faiss_for_batched(tag: str, obsm_tag: str, X: np.ndarray, num_ba
         Data matrix
     num_batches : int
         Number of batches planned
+    force_backend : Optional[Backend]
+        If Backend.SKLEARN, the user has explicitly requested sklearn (or
+        disabled FAISS acceleration), so the FAISS-accelerated batch path is
+        skipped in favor of _process_batched_with_traditional_method. Any
+        other value (or None) does not affect this decision on its own.
         
     Returns:
     --------
@@ -1480,12 +1522,17 @@ def _should_use_faiss_for_batched(tag: str, obsm_tag: str, X: np.ndarray, num_ba
     ------
     The decision logic considers:
     - FAISS availability
+    - User-requested backend override
     - Data type and representation  
     - Dataset size and dimensionality
     - Expected performance benefit vs overhead
     """
     # Check if FAISS is available
     if not _FAISS_NEIGHBORS_AVAILABLE:
+        return False
+
+    # Respect an explicit user request to use sklearn / disable FAISS
+    if force_backend is not None and force_backend == Backend.SKLEARN:
         return False
     
     n_samples, n_features = X.shape
@@ -1528,7 +1575,9 @@ def _process_batched_with_faiss_reuse(
     nndists: list, 
     itag: int, 
     tag: str, 
-    obsm_tag: str
+    obsm_tag: str,
+    force_backend=None,
+    adaptive_parameters=True
 ):
     """
     Process batched neighbor search with FAISS acceleration and efficient index reuse.
@@ -1550,8 +1599,17 @@ def _process_batched_with_faiss_reuse(
     start_time = time.time()
     
     try:
-        # Create FAISS searcher for batch-level operations
+        # Note: force_backend == Backend.SKLEARN is already handled by the
+        # caller (_should_use_faiss_for_batched returns False in that case,
+        # so this function is not invoked at all); by the time we get here
+        # FAISS acceleration for this batch has been approved. The
+        # FaissNeighborSearcher below is kept configured consistently with
+        # the resolved backend/adaptive_parameters for any future code path
+        # that queries it directly (search_neighbors), even though the
+        # per-batch loop below currently drives the faiss index API itself.
         searcher = FaissNeighborSearcher(
+            force_backend=force_backend,
+            adaptive_parameters=adaptive_parameters,
             gpu_memory_limit_gb=1.0,  # Conservative limit for batched processing
             batch_size=batch_size
         )
@@ -1725,6 +1783,52 @@ def _process_batched_with_traditional_method(
                     _calc_nndists(D, full_nbrs[b_start:b_stop,:]))
 
 
+def _resolve_faiss_force_backend(backend_selection, disable_faiss_acceleration):
+    """Map the calc_nbrs CLI-facing backend flags to a neighbors.Backend enum.
+
+    Parameters
+    ----------
+    backend_selection : str
+        One of 'auto', 'faiss_gpu', 'faiss_cpu', 'sklearn'.
+    disable_faiss_acceleration : bool
+        If True, forces the sklearn backend regardless of backend_selection.
+
+    Returns
+    -------
+    Backend | None
+        The Backend enum member to force, or None to allow automatic
+        selection (only possible when backend_selection == 'auto' and
+        disable_faiss_acceleration is False). Returns None unconditionally
+        if the neighbors.Backend enum could not be imported (extremely
+        unlikely, since Backend has no dependency on faiss itself), since
+        there is then nothing meaningful to force.
+
+    Raises
+    ------
+    ValueError
+        If backend_selection is not one of the recognized values.
+    """
+    if not _FAISS_NEIGHBORS_AVAILABLE:
+        # Backend enum unavailable; nothing to force, calc_nbrs's TCR/GEX
+        # helpers will use their sklearn-only fallback regardless.
+        return None
+
+    if disable_faiss_acceleration:
+        return Backend.SKLEARN
+
+    mapping = {
+        'auto': None,
+        'sklearn': Backend.SKLEARN,
+        'faiss_cpu': Backend.FAISS_CPU,
+        'faiss_gpu': Backend.FAISS_GPU,
+    }
+    if backend_selection not in mapping:
+        raise ValueError(
+            f'Unrecognized backend_selection: {backend_selection!r}; '
+            f'expected one of {sorted(mapping.keys())}')
+    return mapping[backend_selection]
+
+
 def calc_nbrs(
         adata,
         nbr_fracs,
@@ -1744,14 +1848,27 @@ def calc_nbrs(
     """Returns dict mapping from nbr_frac to [nbrs_gex, nbrs_tcr]
 
     nbrs exclude self and any clones in same atcr group or btcr group
+
+    backend_selection, disable_faiss_acceleration, and faiss_adaptive_parameters
+    are resolved into a neighbors.Backend (or None for automatic selection) and
+    threaded through to the FAISS-accelerated GEX and TCR neighbor helpers, so
+    that a user-requested backend is actually honored rather than silently
+    ignored. store_backend_config is not yet wired to a persistence mechanism
+    here (see neighbors.store_backend_config_in_adata for the pre-existing,
+    separately-invoked helper); it is accepted for forward compatibility but
+    currently has no effect within calc_nbrs itself.
     """
-  
+    force_backend = _resolve_faiss_force_backend(
+        backend_selection, disable_faiss_acceleration)
+
     if adata.shape[0] > 1.25*target_N_for_batching and not sort_nbrs: ## EARLY RETURN
         return calc_nbrs_batched(
             adata, nbr_fracs, obsm_tag_gex, obsm_tag_tcr, also_calc_nndists,
             nbr_frac_for_nndists, target_N_for_batching,
             use_exact_tcrdist_nbrs=use_exact_tcrdist_nbrs,
-            tmpfile_prefix=tmpfile_prefix)
+            tmpfile_prefix=tmpfile_prefix,
+            force_backend=force_backend,
+            adaptive_parameters=faiss_adaptive_parameters)
 
     if also_calc_nndists:
         assert nbr_frac_for_nndists in nbr_fracs
@@ -1785,13 +1902,17 @@ def calc_nbrs(
                 gex_nbrs, gex_nndists = _compute_gex_neighbors_fast(
                     X, nbr_fracs, (agroups, bgroups), 
                     also_calc_nndists=True, 
-                    nbr_frac_for_nndists=nbr_frac_for_nndists
+                    nbr_frac_for_nndists=nbr_frac_for_nndists,
+                    force_backend=force_backend,
+                    adaptive_parameters=faiss_adaptive_parameters
                 )
                 nndists[itag] = gex_nndists
             else:
                 gex_nbrs = _compute_gex_neighbors_fast(
                     X, nbr_fracs, (agroups, bgroups), 
-                    also_calc_nndists=False
+                    also_calc_nndists=False,
+                    force_backend=force_backend,
+                    adaptive_parameters=faiss_adaptive_parameters
                 )
             
             # Store results in all_nbrs dict
@@ -1808,13 +1929,17 @@ def calc_nbrs(
                     tcr_nbrs, tcr_nndists = _compute_tcr_vector_neighbors_fast(
                         X, nbr_fracs, (agroups, bgroups), 
                         also_calc_nndists=True, 
-                        nbr_frac_for_nndists=nbr_frac_for_nndists
+                        nbr_frac_for_nndists=nbr_frac_for_nndists,
+                        force_backend=force_backend,
+                        adaptive_parameters=faiss_adaptive_parameters
                     )
                     nndists[itag] = tcr_nndists
                 else:
                     tcr_nbrs = _compute_tcr_vector_neighbors_fast(
                         X, nbr_fracs, (agroups, bgroups), 
-                        also_calc_nndists=False
+                        also_calc_nndists=False,
+                        force_backend=force_backend,
+                        adaptive_parameters=faiss_adaptive_parameters
                     )
                 
                 # Store results in all_nbrs dict
@@ -2463,16 +2588,27 @@ def calc_tcrdist_nbrs_umap_clusters_cpp(
         knn_indices = np.loadtxt(knn_indices_filename, dtype=int)
         knn_distances = np.loadtxt(knn_distances_filename, dtype=float)
 
-        #distances=sc.neighbors.get_sparse_matrix_from_indices_distances_numpy(
-        #     knn_indices, knn_distances, adata.shape[0], num_nbrs)
-
-        try: # HACK: the naming of this function changes across scanpy versions
-            distances,connectivities= sc.neighbors.compute_connectivities_umap(
-                knn_indices, knn_distances, adata.shape[0], num_nbrs)
-        except:
-            print('try new name for compute_connectivities_umap')
-            distances,connectivities= sc.neighbors._compute_connectivities_umap(
-                knn_indices, knn_distances, adata.shape[0], num_nbrs)
+        # NOTE: the name and signature of scanpy's UMAP-connectivities helper
+        # has changed across scanpy versions (compute_connectivities_umap ->
+        # _compute_connectivities_umap -> neighbors._connectivity.umap).
+        # scanpy>=1.10 also split "distances" and "connectivities" into two
+        # separate calls rather than returning both from one function, so we
+        # rebuild the distances sparse matrix ourselves the same way scanpy
+        # does internally (this mirrors the long-commented-out call to
+        # get_sparse_matrix_from_indices_distances_numpy above).
+        try: # current scanpy (>=1.10) API
+            connectivities = sc.neighbors._connectivity.umap(
+                knn_indices, knn_distances,
+                n_obs=adata.shape[0], n_neighbors=num_nbrs)
+            distances = sc.neighbors._get_sparse_matrix_from_indices_distances(
+                knn_indices, knn_distances, keep_self=True)
+        except (AttributeError, ImportError):
+            try: # older scanpy naming
+                distances, connectivities = sc.neighbors.compute_connectivities_umap(
+                    knn_indices, knn_distances, adata.shape[0], num_nbrs)
+            except AttributeError:
+                distances, connectivities = sc.neighbors._compute_connectivities_umap(
+                    knn_indices, knn_distances, adata.shape[0], num_nbrs)
 
         if issparse(connectivities): # I think this is always true
             from scipy.sparse.csgraph import connected_components

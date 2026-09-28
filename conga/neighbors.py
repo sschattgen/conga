@@ -1022,8 +1022,13 @@ class FaissNeighborSearcher:
         # Apply exclude_groups masking if provided (TCR-specific)
         if exclude_groups is not None:
             agroups, bgroups = exclude_groups
-            # Set distances to infinity where groups don't match
-            mask = (agroups[:, None] != agroups[None, :]) | (bgroups[:, None] != bgroups[None, :])
+            # Exclude same-group clones from being neighbors: set distances to
+            # infinity where the alpha group OR beta group matches (i.e. the
+            # candidate shares a TCR chain group with the query). This
+            # mirrors calc_nbrs's original sklearn-fallback semantics
+            # (D[ii, (agroups == a)] = big; D[ii, (bgroups == b)] = big),
+            # NOT the inverse (excluding non-matching groups).
+            mask = (agroups[:, None] == agroups[None, :]) | (bgroups[:, None] == bgroups[None, :])
             distances = distances.copy()  # Don't modify input
             distances[mask] = np.inf
             logger.debug(f"Applied TCR group exclusions: masked {np.sum(mask)} pairs")
@@ -1227,11 +1232,17 @@ class FaissNeighborSearcher:
             logger.debug(f"Applying TCR group exclusions to FAISS results")
             
             for i in range(n_samples):
-                valid_mask = (
-                    (agroups[cleaned_indices[i]] == agroups[i]) & 
+                # Exclude candidates that share the alpha group OR beta group
+                # with the query (same-TCR-group clones should not be
+                # neighbors), matching the sklearn path and calc_nbrs's
+                # original semantics. A candidate is valid only if it
+                # differs in BOTH groups.
+                exclude_mask = (
+                    (agroups[cleaned_indices[i]] == agroups[i]) |
                     (bgroups[cleaned_indices[i]] == bgroups[i])
                 )
-                
+                valid_mask = ~exclude_mask
+
                 # Keep only valid neighbors, pad with -1 if needed
                 valid_indices = cleaned_indices[i][valid_mask]
                 valid_distances = cleaned_distances[i][valid_mask]

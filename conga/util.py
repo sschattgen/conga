@@ -96,6 +96,7 @@ ACTIVE_REP_EXACT: str = 'exact_tcrdist'  # Sentinel for exact TCRdist path (no o
 
 # AnnData uns keys for TCR representation metadata
 UNS_KEY_ACTIVE_TCR_REP: str = 'active_tcr_representation'
+UNS_KEY_VEC_TCR_CONFIG: str = 'vec_tcr_config'  # Vectorized TCR EncodingConfig metadata
 UNS_KEY_BACKEND_CONFIG: str = 'faiss_backend_config'  # FAISS backend configuration
 
 
