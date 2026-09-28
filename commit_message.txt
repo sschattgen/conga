@@ -1,0 +1,30 @@
+feat: pandas 3.0/NumPy 2.0 compatibility modernization
+
+Comprehensive modernization to support pandas 3.0.6+ and NumPy 2.5.3+ environments:
+
+CRITICAL FIXES:
+- Fix pandas Series indexing with .iloc[] for positional access (correlations.py, plotting.py)
+- Replace deprecated AnnData methods: .uns_keys() → .uns, .obsm_keys() → .obsm.keys()  
+- Remove NumPy legacy aliases: np.float_ → np.float64, np.int_ → np.int64
+- Update Series iteration and chained assignment patterns for copy-on-write
+
+MODERNIZATION INFRASTRUCTURE:
+- Add conga/compatibility.py: Version checking and compatibility utilities
+- Add automated modernization tools in scripts/:
+  - modernize_numpy_dtypes.py: Batch NumPy alias modernization
+  - audit_cow_patterns.py: Pandas copy-on-write pattern detection
+  - test_modernization_results.py: Validation framework
+  - modernize_codebase.py: Orchestrated modernization runner
+
+WORKFLOW VALIDATION:
+- Full end-to-end CoNGA workflows validated with pandas 3.0.6/NumPy 2.5.3
+- Maintains backward compatibility with existing data formats
+- All core analyses (CoNGA scoring, TCR clumping, plotting) functional
+
+DOCUMENTATION:
+- MODERNIZATION.md: Complete migration guide and compatibility notes
+- README updates for automated modernization tools
+- Environment compatibility guidance
+
+This addresses the systematic pandas 3.0+ copy-on-write behavior changes and 
+NumPy 2.0+ dtype system updates that affect CoNGA's data manipulation patterns.

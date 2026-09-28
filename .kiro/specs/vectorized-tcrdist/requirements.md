@@ -2,36 +2,25 @@
 
 ## Introduction
 
+This feature delivers two complementary performance optimizations for CoNGA to address quadratic memory scaling issues:
+
+### 1. Vectorized TCRdist (TCR-side optimization)
+
 CoNGA currently derives its TCR representation by computing a full pairwise TCRdist matrix and reducing it with KernelPCA (`conga.preprocess.make_tcrdist_kernel_pcs_file_from_clones_file`). That function materializes a dense N×N distance array `D` and then a second dense N×N Gram array before calling `KernelPCA.fit_transform`. At N=20000 each of those is roughly 3.2 GB in float64. The quadratic memory cost lives in the *reduction*, not in TCRdist itself.
 
 A prototype vectorized encoder already exists in the repository at `conga/tcrdist_vectorizing_functions_for_sharing.py`. It embeds the TCRdist amino acid substitution matrix into Euclidean space with MDS, then encodes each TCR chain as a fixed-length real vector by concatenating per-position amino acid vectors for the germline CDR1/CDR2/CDR2.5 loops and a trimmed-and-gapped CDR3. Euclidean distance between two such vectors approximates TCRdist, so neighbor search can be done in vector space without materializing a distance matrix.
 
-The prototype is not usable as shipped: it hardcodes an absolute path belonging to another developer's machine and asserts that path exists at import time, it reads the gene database from the wrong location, it only accepts `human` and `mouse`, it expects AIRR-style column names rather than CoNGA's, and it hardcodes an MDS random seed that differs from the project standard.
+### 2. FAISS Acceleration (GEX-side optimization)
 
-This feature refactors the prototype into a supported CoNGA module, `conga/tcrdist/vectorized.py`, that produces reproducible fixed-length vector encodings of paired receptor chains, stores them in AnnData, and validates their accuracy against the existing exact TCRdist implementation.
+CoNGA's GEX neighbor search currently uses scipy/sklearn pairwise distance calculations in `conga.preprocess.calc_nbrs()`, which scale quadratically with cell count. FAISS (Facebook AI Similarity Search) provides GPU and CPU-optimized vector similarity search that can deliver 5-100x performance improvements for large datasets.
 
-### Three TCR neighbor paths, not two
+The development branch already contains a FAISS-powered implementation that replaces ~474 lines of distance calculation code with ~95 lines of FAISS integration, providing dramatic simplification alongside the performance gains.
 
-CoNGA already contains a third path that neither computes KernelPCA nor stores an `adata.obsm` array: `conga.preprocess.calculate_tcrdist_nbrs`, reached today via `run_conga.py --no_kpca` / `--use_exact_tcrdist_nbrs`. It computes Exact_TCRdist distances on demand and emits neighbor index arrays directly. Both of its implementations stream:
+### Integrated Implementation
 
-- `calculate_tcrdist_nbrs_python` loops over clonotypes, building one length-N distance vector at a time and discarding it after `argpartition`. Peak additional memory is O(N).
-- `calculate_tcrdist_nbrs_cpp` writes the clonotype table to a temporary TSV, shells out to the `find_neighbors` binary, and reads back `knn_indices` and `knn_distances` of shape (N, num_nbrs). `find_neighbors.cc` holds a single length-N row buffer and streams results to disk.
+This feature refactors the TCRdist prototype into a supported CoNGA module `conga/tcrdist/vectorized.py` and integrates FAISS acceleration into `conga/neighbors.py` with graceful fallback. The vectorized encoder produces reproducible fixed-length vector encodings of paired receptor chains optimized for FAISS consumption, while the FAISS backend provides fast neighbor search on both vectorized TCR representations and existing GEX representations.
 
-Neither route ever holds a dense N×N array, so exact TCRdist neighbor search is viable at observation counts where KernelPCA is not. Its output — a mapping from `nbr_frac` to an int32 (N, num_nbrs) index array — is the same shape the `obsm`-based path produces, so downstream analysis consumes it unchanged. It does, however, store nothing in `adata.obsm`; `calc_nbrs` signals this path by setting `obsm_tag_tcr` to `None`.
-
-This feature therefore specifies **three** TCR neighbor paths and the rules for choosing among them:
-
-1. **Vectorized** (`adata.obsm['X_vec_tcr']`) — alpha-beta organisms only, and the default for those organisms at any observation count.
-2. **Exact TCRdist reduced by KernelPCA** (`adata.obsm['X_pca_tcr']`) — available only below a documented observation-count limit, because the reduction is what carries the quadratic memory cost. It remains the default for organisms the vectorizer does not support, below that limit.
-3. **Exact TCRdist used directly, no KernelPCA** — available for every organism at every observation count, selectable explicitly, and selected automatically for unsupported organisms at or above the limit. It stores no `adata.obsm` array.
-
-Making the vectorized encoding the default for alpha-beta data is an intentional behavior change, not an opt-in addition. Escape hatches are preserved: a user can request the KernelPCA path on a small dataset to reproduce an older analysis, and can request the raw exact path at any size to obtain reference-quality distances for comparison against the vectorized approximation.
-
-Vectorized *encoding* covers alpha-beta organisms only. Gamma-delta and Ig receptors reach path 2 below the limit and path 3 at or above it. No dataset is rejected on size grounds. Extending the vectorizer to those receptor types is deferred.
-
-FAISS/GPU neighbor search, batch integration, containerization, MuData support, and new-species reference building are explicitly out of scope; they are separate roadmap objectives. This feature only has to emit dense arrays that a future FAISS backend can consume directly.
-
-## Glossary
+**FAISS Integration Strategy:** FAISS is implemented as an optional dependency with tiered fallback: faiss-gpu → faiss-cpu → sklearn. All existing workflows continue to function without FAISS installed, but gain significant performance benefits when available. The vectorized TCR representations are designed to be compatible with FAISS indices while remaining usable with standard sklearn neighbor search.
 
 - **TCR_Vectorizer**: The new module `conga/tcrdist/vectorized.py`, containing the public encoding API and its helper functions.
 - **Encoding_Config**: The set of tunable parameters that determine an encoding: MDS dimensionality (`aa_mds_dim`), fixed CDR3 position count (`num_pos_cdr3`), CDR3 weight (`cdr3_weight`), N-terminal trim length (`n_trim`), C-terminal trim length (`c_trim`), and random seed (`random_seed`).

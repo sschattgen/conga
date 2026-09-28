@@ -1,0 +1,2 @@
+sys.argv: scripts/run_conga.py --gex_data test_data/SC5v2_humanPBMCs_5Kcells_Connect_single_channel_SC5v2_humanPBMCs_5Kcells_Connect_single_channel_count_sample_feature_bc_matrix.h5 --gex_data_type 10x_h5 --clones_file test_data/test_run_clones.tsv --organism human --outfile_prefix test_outputs/debug_test
+hostname: D2CHYJ72QV

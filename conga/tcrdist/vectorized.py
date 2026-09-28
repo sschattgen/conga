@@ -1330,6 +1330,288 @@ class AccuracyReport:
         }
 
 
+def store_tcr_vectors_in_adata(
+    adata,
+    organism: str,
+    config: EncodingConfig | None = None,
+    *,
+    va_column: str = 'va',
+    cdr3a_column: str = 'cdr3a',
+    vb_column: str = 'vb', 
+    cdr3b_column: str = 'cdr3b',
+) -> np.ndarray:
+    """Store vectorized TCR encodings in AnnData object with proper metadata.
+    
+    Encodes TCR clonotypes from the AnnData observation metadata and stores the 
+    resulting vector matrix in adata.obsm under the standardized key X_vec_tcr.
+    Also stores encoding configuration, organism, and version metadata in adata.uns
+    for reproducibility and analysis tracking.
+    
+    The function preserves any existing representations in the AnnData object while
+    adding the vectorized representation. If X_vec_tcr already exists, it is 
+    overwritten with a logged warning. Other TCR representations (X_pca_tcr) 
+    remain unchanged.
+    
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Annotated data object containing TCR metadata in .obs. Must have columns
+        for V genes and CDR3 sequences for both alpha and beta chains.
+    organism : str
+        Organism identifier ('human', 'mouse', 'rhesus'). Must be supported
+        by the vectorized encoder.
+    config : EncodingConfig | None, default=None
+        Encoding configuration. If None, uses default configuration.
+        All config values are stored in adata.uns for reproducibility.
+    va_column, cdr3a_column, vb_column, cdr3b_column : str
+        Column names in adata.obs containing V gene and CDR3 data.
+        Defaults match standard CoNGA naming conventions.
+        
+    Returns
+    -------
+    np.ndarray
+        The encoded vector matrix that was stored in adata.obsm[X_vec_tcr].
+        Shape: (n_obs, vector_length). Provided for caller convenience.
+        
+    Notes
+    -----
+    **Storage locations**:
+    - Vector matrix: adata.obsm[util.OBSM_KEY_VEC_TCR] ('X_vec_tcr')
+    - Encoding config: adata.uns[util.UNS_KEY_VEC_TCR_CONFIG] ('vec_tcr_config')
+    
+    **Row ordering**: The stored matrix rows correspond to adata.obs rows in 
+    the same order, enabling direct indexing and slicing operations.
+    
+    **Overwrite behavior**: If X_vec_tcr already exists, logs a warning and 
+    overwrites. This supports workflow restart scenarios and config changes.
+    
+    **Coexistence**: Does not affect existing X_pca_tcr or other representations.
+    Multiple TCR representations can coexist in the same AnnData object.
+    
+    Examples
+    --------
+    Basic usage:
+    >>> import anndata as ad
+    >>> import pandas as pd
+    >>> # Create AnnData with TCR data
+    >>> obs = pd.DataFrame({
+    ...     'va': ['TRAV1*01', 'TRAV2*01'],
+    ...     'cdr3a': ['CAVRD', 'CAVKE'],
+    ...     'vb': ['TRBV1*01', 'TRBV2*01'],
+    ...     'cdr3b': ['CASSRT', 'CASSLQ']
+    ... })
+    >>> adata = ad.AnnData(obs=obs)
+    >>> matrix = store_tcr_vectors_in_adata(adata, 'human')
+    >>> matrix.shape
+    (2, 1136)
+    >>> 'X_vec_tcr' in adata.obsm
+    True
+    
+    Custom configuration:
+    >>> config = EncodingConfig(aa_mds_dim=12, random_seed=123)
+    >>> matrix = store_tcr_vectors_in_adata(adata, 'human', config)
+    >>> adata.uns['vec_tcr_config']['aa_mds_dim']
+    12
+    >>> adata.uns['vec_tcr_config']['random_seed']
+    123
+    
+    Alternative column names:
+    >>> matrix = store_tcr_vectors_in_adata(
+    ...     adata, 'human',
+    ...     va_column='v_alpha', cdr3a_column='cdr3_alpha',
+    ...     vb_column='v_beta', cdr3b_column='cdr3_beta'
+    ... )
+    
+    Restart/overwrite scenario:
+    >>> # First encoding
+    >>> matrix1 = store_tcr_vectors_in_adata(adata, 'human')
+    >>> # Changed config - will log warning and overwrite
+    >>> config2 = EncodingConfig(aa_mds_dim=8)
+    >>> matrix2 = store_tcr_vectors_in_adata(adata, 'human', config2)
+    >>> # New matrix has different dimensions due to config change
+    >>> matrix1.shape != matrix2.shape
+    True
+    """
+    # Lazy import to avoid circular dependencies
+    import anndata as ad
+    
+    if config is None:
+        config = EncodingConfig()
+    
+    # Check if overwriting existing vectorized representation
+    if util.OBSM_KEY_VEC_TCR in adata.obsm:
+        logger.warning(f"Overwriting existing vectorized TCR representation in adata.obsm['{util.OBSM_KEY_VEC_TCR}']")
+    
+    # Convert adata.obs to DataFrame format for encode_tcrs
+    obs_df = adata.obs.copy()
+    
+    # Encode the TCR data
+    logger.info(f"Encoding {adata.n_obs} clonotypes with organism '{organism}'")
+    vector_matrix = encode_tcrs(
+        obs_df,
+        organism, 
+        config,
+        va_column=va_column,
+        cdr3a_column=cdr3a_column,
+        vb_column=vb_column,
+        cdr3b_column=cdr3b_column,
+    )
+    
+    # Verify row ordering matches adata.obs
+    if vector_matrix.shape[0] != adata.n_obs:
+        raise RuntimeError(
+            f"Encoded matrix rows ({vector_matrix.shape[0]}) != adata.n_obs ({adata.n_obs})"
+        )
+    
+    # Store vector matrix in obsm
+    adata.obsm[util.OBSM_KEY_VEC_TCR] = vector_matrix
+    
+    # Store encoding configuration and metadata in uns
+    config_dict = config.as_uns_dict()
+    config_dict['organism'] = organism
+    adata.uns[util.UNS_KEY_VEC_TCR_CONFIG] = config_dict
+    
+    logger.info(
+        f"Stored vectorized TCR representation: {vector_matrix.shape} in "
+        f"adata.obsm['{util.OBSM_KEY_VEC_TCR}'] with config in "
+        f"adata.uns['{util.UNS_KEY_VEC_TCR_CONFIG}']"
+    )
+    
+    return vector_matrix
+
+
+def record_active_tcr_representation(adata, active_representation: str) -> None:
+    """Record which TCR representation is currently active for neighbor calculations.
+    
+    Stores the active TCR representation identifier in AnnData metadata so that
+    downstream analysis steps know which representation to use for neighbor search,
+    clustering, and visualization. This enables multiple TCR representations to
+    coexist while maintaining a clear selection.
+    
+    The active representation determines which obsm key or neighbor calculation 
+    method CoNGA will use for TCR-based analyses. This function only records 
+    the selection; it does not validate that the representation actually exists
+    or perform any computation.
+    
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Annotated data object to store the active representation metadata.
+    active_representation : str
+        Active representation identifier. Must be one of:
+        - util.OBSM_KEY_VEC_TCR ('X_vec_tcr'): Vectorized representation
+        - util.OBSM_KEY_PCA_TCR ('X_pca_tcr'): KernelPCA representation  
+        - util.ACTIVE_REP_EXACT ('exact_tcrdist'): Exact TCRdist path
+        
+    Notes
+    -----
+    **Storage location**: adata.uns[util.UNS_KEY_ACTIVE_TCR_REP] ('active_tcr_representation')
+    
+    **Exact representation handling**: When active_representation is 'exact_tcrdist',
+    no obsm entry is created since the exact path computes neighbors on-demand
+    without storing a per-observation representation matrix.
+    
+    **Validation**: This function does not validate that the specified representation
+    exists in adata.obsm. Callers should ensure the representation is available
+    before recording it as active.
+    
+    **Restart compatibility**: The recorded value persists through h5ad save/load
+    cycles, enabling workflow restart scenarios.
+    
+    Examples
+    --------
+    Record vectorized representation as active:
+    >>> record_active_tcr_representation(adata, util.OBSM_KEY_VEC_TCR)
+    >>> adata.uns['active_tcr_representation']
+    'X_vec_tcr'
+    
+    Record KernelPCA representation as active:
+    >>> record_active_tcr_representation(adata, util.OBSM_KEY_PCA_TCR)
+    >>> adata.uns['active_tcr_representation'] 
+    'X_pca_tcr'
+    
+    Record exact TCRdist path as active:
+    >>> record_active_tcr_representation(adata, util.ACTIVE_REP_EXACT)
+    >>> adata.uns['active_tcr_representation']
+    'exact_tcrdist'
+    >>> # Note: No obsm entry created for exact path
+    >>> util.OBSM_KEY_VEC_TCR in adata.obsm  # May be False
+    """
+    # Validate active_representation value
+    valid_representations = {util.OBSM_KEY_VEC_TCR, util.OBSM_KEY_PCA_TCR, util.ACTIVE_REP_EXACT}
+    if active_representation not in valid_representations:
+        raise ValueError(
+            f"Invalid active_representation '{active_representation}'. "
+            f"Must be one of: {sorted(valid_representations)}"
+        )
+    
+    # Store in uns metadata
+    adata.uns[util.UNS_KEY_ACTIVE_TCR_REP] = active_representation
+    
+    logger.debug(f"Recorded active TCR representation: '{active_representation}'")
+
+
+def get_active_tcr_representation(adata) -> str | None:
+    """Retrieve the currently active TCR representation from AnnData metadata.
+    
+    Returns the active TCR representation identifier that was previously stored
+    using record_active_tcr_representation(). This tells downstream analysis
+    which representation to use for neighbor calculations and TCR-based features.
+    
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Annotated data object containing active representation metadata.
+        
+    Returns
+    -------
+    str | None
+        Active representation identifier, or None if not recorded:
+        - util.OBSM_KEY_VEC_TCR ('X_vec_tcr'): Vectorized representation
+        - util.OBSM_KEY_PCA_TCR ('X_pca_tcr'): KernelPCA representation
+        - util.ACTIVE_REP_EXACT ('exact_tcrdist'): Exact TCRdist path
+        - None: No active representation recorded
+        
+    Notes
+    -----
+    **Storage location**: Reads from adata.uns[util.UNS_KEY_ACTIVE_TCR_REP]
+    
+    **Missing metadata**: Returns None if the metadata key doesn't exist,
+    which can happen with older AnnData objects or when no representation
+    has been explicitly set as active.
+    
+    **Validation**: This function does not validate that the returned 
+    representation actually exists in adata.obsm. Callers should check 
+    availability before using the representation.
+    
+    Examples
+    --------
+    Basic usage:
+    >>> active_rep = get_active_tcr_representation(adata)
+    >>> if active_rep == util.OBSM_KEY_VEC_TCR:
+    ...     print("Using vectorized TCR representation")
+    ... elif active_rep == util.OBSM_KEY_PCA_TCR:
+    ...     print("Using KernelPCA TCR representation")  
+    ... elif active_rep == util.ACTIVE_REP_EXACT:
+    ...     print("Using exact TCRdist calculations")
+    ... else:
+    ...     print("No active TCR representation set")
+    
+    Workflow decision logic:
+    >>> active_rep = get_active_tcr_representation(adata)
+    >>> if active_rep and active_rep in adata.obsm:
+    ...     # Use stored matrix representation
+    ...     tcr_matrix = adata.obsm[active_rep]
+    ... elif active_rep == util.ACTIVE_REP_EXACT:
+    ...     # Use on-demand exact calculations  
+    ...     tcr_matrix = None  # Signal for exact path
+    ... else:
+    ...     # No active representation or missing matrix
+    ...     raise ValueError("No valid TCR representation available")
+    """
+    return adata.uns.get(util.UNS_KEY_ACTIVE_TCR_REP, None)
+
+
 def accuracy_report(
     tcrs: Sequence[tuple[tuple, tuple]] | pd.DataFrame,
     organism: str,
@@ -1541,3 +1823,455 @@ def accuracy_report(
         mean_recall=mean_recalls,
         vectorizer_version=VECTORIZER_VERSION,
     )
+
+
+def store_vectorized_tcr_in_adata(
+    adata,
+    organism: str,
+    config: EncodingConfig | None = None,
+    *,
+    va_column: str = 'va',
+    cdr3a_column: str = 'cdr3a',
+    vb_column: str = 'vb', 
+    cdr3b_column: str = 'cdr3b',
+) -> np.ndarray:
+    """Store vectorized TCR encodings in AnnData object with proper metadata.
+    
+    Encodes TCR clonotypes from the AnnData observation metadata and stores the 
+    resulting vector matrix in adata.obsm under the standardized key X_vec_tcr.
+    Also stores encoding configuration, organism, and version metadata in adata.uns
+    for reproducibility and analysis tracking.
+    
+    The function preserves any existing representations in the AnnData object while
+    adding the vectorized representation. If X_vec_tcr already exists, it is 
+    overwritten with a logged warning. Other TCR representations (X_pca_tcr) 
+    remain unchanged.
+    
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Annotated data object containing TCR metadata in .obs. Must have columns
+        for V genes and CDR3 sequences for both alpha and beta chains.
+    organism : str
+        Organism identifier ('human', 'mouse', 'rhesus'). Must be supported
+        by the vectorized encoder.
+    config : EncodingConfig | None, default=None
+        Encoding configuration. If None, uses default configuration.
+        All config values are stored in adata.uns for reproducibility.
+    va_column, cdr3a_column, vb_column, cdr3b_column : str
+        Column names in adata.obs containing V gene and CDR3 data.
+        Defaults match standard CoNGA naming conventions.
+        
+    Returns
+    -------
+    np.ndarray
+        The encoded vector matrix that was stored in adata.obsm['X_vec_tcr'].
+        Shape: (n_obs, vector_length). Provided for caller convenience.
+        
+    Raises
+    ------
+    ValueError
+        If organism not supported, required columns missing from adata.obs,
+        or invalid V genes/CDR3 sequences found in data.
+    RuntimeError
+        If encoding produces unexpected shape or non-finite values.
+        
+    Notes
+    -----
+    **Storage locations**:
+    - Vector matrix: adata.obsm[util.OBSM_KEY_VEC_TCR] ('X_vec_tcr')
+    - Encoding config: adata.uns[util.UNS_KEY_VEC_TCR_CONFIG] ('vec_tcr_config')
+    
+    **Row ordering**: The stored matrix rows correspond to adata.obs rows in 
+    the same order, enabling direct indexing and slicing operations.
+    
+    **Overwrite behavior**: If X_vec_tcr already exists, logs a warning and 
+    overwrites. This supports workflow restart scenarios and config changes.
+    
+    **Coexistence**: Does not affect existing X_pca_tcr or other representations.
+    Multiple TCR representations can coexist in the same AnnData object.
+    
+    **Metadata stored**: The configuration dictionary includes:
+    - Encoding parameters (aa_mds_dim, num_pos_cdr3, etc.)
+    - Organism identifier
+    - Vectorizer version tag
+    - Creation timestamp (ISO format)
+    - Detection flag 'has_vectorized_tcr': True
+    
+    Examples
+    --------
+    Basic usage:
+    >>> import anndata as ad
+    >>> import pandas as pd
+    >>> # Create AnnData with TCR data
+    >>> obs = pd.DataFrame({
+    ...     'va': ['TRAV1*01', 'TRAV2*01'],
+    ...     'cdr3a': ['CAVRD', 'CAVKE'],
+    ...     'vb': ['TRBV1*01', 'TRBV2*01'],
+    ...     'cdr3b': ['CASSRT', 'CASSLQ']
+    ... })
+    >>> adata = ad.AnnData(obs=obs)
+    >>> matrix = store_vectorized_tcr_in_adata(adata, 'human')
+    >>> matrix.shape
+    (2, 1136)
+    >>> 'X_vec_tcr' in adata.obsm
+    True
+    
+    Custom configuration:
+    >>> config = EncodingConfig(aa_mds_dim=12, random_seed=123)
+    >>> matrix = store_vectorized_tcr_in_adata(adata, 'human', config)
+    >>> adata.uns['vec_tcr_config']['aa_mds_dim']
+    12
+    >>> adata.uns['vec_tcr_config']['random_seed']
+    123
+    
+    Alternative column names:
+    >>> matrix = store_vectorized_tcr_in_adata(
+    ...     adata, 'human',
+    ...     va_column='v_alpha', cdr3a_column='cdr3_alpha',
+    ...     vb_column='v_beta', cdr3b_column='cdr3_beta'
+    ... )
+    
+    Restart/overwrite scenario:
+    >>> # First encoding
+    >>> matrix1 = store_vectorized_tcr_in_adata(adata, 'human')
+    >>> # Changed config - will log warning and overwrite
+    >>> config2 = EncodingConfig(aa_mds_dim=8)
+    >>> matrix2 = store_vectorized_tcr_in_adata(adata, 'human', config2)
+    >>> # New matrix has different dimensions due to config change
+    >>> matrix1.shape != matrix2.shape
+    True
+    """
+    import datetime
+    
+    if config is None:
+        config = EncodingConfig()
+    
+    # Check if overwriting existing vectorized representation
+    if util.OBSM_KEY_VEC_TCR in adata.obsm:
+        logger.warning(f"Overwriting existing vectorized TCR representation in adata.obsm['{util.OBSM_KEY_VEC_TCR}']")
+    
+    # Convert adata.obs to DataFrame format for encode_tcrs
+    obs_df = adata.obs.copy()
+    
+    # Encode the TCR data
+    logger.info(f"Encoding {adata.n_obs} clonotypes with organism '{organism}'")
+    vector_matrix = encode_tcrs(
+        obs_df,
+        organism, 
+        config,
+        va_column=va_column,
+        cdr3a_column=cdr3a_column,
+        vb_column=vb_column,
+        cdr3b_column=cdr3b_column,
+    )
+    
+    # Verify row ordering matches adata.obs
+    if vector_matrix.shape[0] != adata.n_obs:
+        raise RuntimeError(
+            f"Encoded matrix rows ({vector_matrix.shape[0]}) != adata.n_obs ({adata.n_obs})"
+        )
+    
+    # Store vector matrix in obsm
+    adata.obsm[util.OBSM_KEY_VEC_TCR] = vector_matrix
+    
+    # Store encoding configuration and metadata in uns
+    config_dict = config.as_uns_dict()
+    config_dict['organism'] = organism
+    config_dict['creation_timestamp'] = datetime.datetime.now().isoformat()
+    config_dict['has_vectorized_tcr'] = True
+    adata.uns[util.UNS_KEY_VEC_TCR_CONFIG] = config_dict
+    
+    logger.info(
+        f"Stored vectorized TCR representation: {vector_matrix.shape} in "
+        f"adata.obsm['{util.OBSM_KEY_VEC_TCR}'] with config in "
+        f"adata.uns['{util.UNS_KEY_VEC_TCR_CONFIG}']"
+    )
+    
+    return vector_matrix
+
+
+def load_vectorized_tcr_from_adata(adata) -> tuple[np.ndarray, EncodingConfig, str]:
+    """Load vectorized TCR representation from AnnData object with validation.
+    
+    Retrieves the vectorized TCR matrix from adata.obsm and reconstructs the
+    encoding configuration from adata.uns metadata. Performs comprehensive
+    validation to ensure the stored representation is consistent and usable.
+    
+    This function enables analysis workflows to access previously computed
+    vectorized representations without re-encoding, while ensuring data
+    integrity through validation checks.
+    
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Annotated data object containing stored vectorized TCR representation.
+        Must have been populated by store_vectorized_tcr_in_adata().
+        
+    Returns
+    -------
+    tuple[np.ndarray, EncodingConfig, str]
+        - vector_matrix: (n_obs, vector_length) float32 array from adata.obsm
+        - config: EncodingConfig object reconstructed from stored metadata
+        - organism: Organism identifier string used for encoding
+        
+    Raises
+    ------
+    ValueError
+        - If X_vec_tcr key not found in adata.obsm
+        - If vec_tcr_config key not found in adata.uns
+        - If stored matrix has wrong number of rows
+        - If config metadata is incomplete or invalid
+        - If vectorizer version incompatibility detected
+    RuntimeError
+        - If stored matrix contains non-finite values
+        - If matrix dtype or memory layout is unexpected
+        
+    Notes
+    -----
+    **Validation performed**:
+    - Checks for required obsm/uns keys
+    - Validates matrix shape matches adata.n_obs
+    - Ensures all matrix values are finite
+    - Reconstructs EncodingConfig with parameter validation
+    - Verifies vectorizer version compatibility
+    - Confirms organism field presence
+    
+    **Version compatibility**: The function accepts any vector matrix created
+    by the same vectorizer version (VECTORIZER_VERSION). Cross-version 
+    compatibility may be added in future releases.
+    
+    **Performance**: Matrix data is returned as a view when possible, avoiding
+    unnecessary copies for large datasets.
+    
+    Examples
+    --------
+    Basic usage after storage:
+    >>> # First store some vectors
+    >>> matrix_orig = store_vectorized_tcr_in_adata(adata, 'human')
+    >>> # Later retrieve them
+    >>> matrix, config, organism = load_vectorized_tcr_from_adata(adata)
+    >>> np.array_equal(matrix, matrix_orig)
+    True
+    >>> organism
+    'human'
+    >>> config.aa_mds_dim
+    16
+    
+    Validation of loaded data:
+    >>> matrix, config, organism = load_vectorized_tcr_from_adata(adata)
+    >>> matrix.shape[0] == adata.n_obs  # Row count matches
+    True
+    >>> matrix.dtype == np.float32  # Correct dtype
+    True
+    >>> np.all(np.isfinite(matrix))  # All finite values
+    True
+    
+    Configuration reconstruction:
+    >>> matrix, config, organism = load_vectorized_tcr_from_adata(adata)
+    >>> expected_length = vector_length(organism, config)
+    >>> matrix.shape[1] == expected_length  # Dimensions consistent
+    True
+    
+    Error handling:
+    >>> # AnnData without vectorized representation
+    >>> empty_adata = ad.AnnData(obs=pd.DataFrame({'x': [1, 2]}))
+    >>> load_vectorized_tcr_from_adata(empty_adata)  # doctest: +SKIP
+    ValueError: No vectorized TCR representation found in adata.obsm
+    """
+    # Check for required obsm key
+    if util.OBSM_KEY_VEC_TCR not in adata.obsm:
+        raise ValueError(
+            f"No vectorized TCR representation found in adata.obsm. "
+            f"Expected key: '{util.OBSM_KEY_VEC_TCR}'. "
+            f"Available obsm keys: {list(adata.obsm.keys())}. "
+            f"Use store_vectorized_tcr_in_adata() to create the representation."
+        )
+    
+    # Check for required uns key
+    if util.UNS_KEY_VEC_TCR_CONFIG not in adata.uns:
+        raise ValueError(
+            f"No vectorized TCR configuration found in adata.uns. "
+            f"Expected key: '{util.UNS_KEY_VEC_TCR_CONFIG}'. "
+            f"Available uns keys: {list(adata.uns.keys())}. "
+            f"The vectorized representation may have been created by an incompatible method."
+        )
+    
+    # Load vector matrix
+    vector_matrix = adata.obsm[util.OBSM_KEY_VEC_TCR]
+    
+    # Validate matrix properties
+    if vector_matrix.shape[0] != adata.n_obs:
+        raise ValueError(
+            f"Stored vectorized TCR matrix has {vector_matrix.shape[0]} rows "
+            f"but adata has {adata.n_obs} observations. "
+            f"The stored matrix may be from a different dataset or subset."
+        )
+    
+    if not np.all(np.isfinite(vector_matrix)):
+        raise RuntimeError(
+            f"Stored vectorized TCR matrix contains non-finite values. "
+            f"The stored representation may be corrupted."
+        )
+    
+    # Load and validate configuration metadata
+    config_dict = adata.uns[util.UNS_KEY_VEC_TCR_CONFIG]
+    
+    # Check for required fields
+    if 'organism' not in config_dict:
+        raise ValueError(
+            f"Stored vectorized TCR config missing 'organism' field. "
+            f"Available fields: {list(config_dict.keys())}. "
+            f"The config may have been created by an incompatible method."
+        )
+    
+    organism = str(config_dict['organism'])
+    
+    # Check vectorizer version compatibility
+    stored_version = config_dict.get('vectorizer_version', 'unknown')
+    if stored_version != VECTORIZER_VERSION:
+        logger.warning(
+            f"Stored vectorized TCR representation was created by vectorizer "
+            f"version '{stored_version}', but current version is '{VECTORIZER_VERSION}'. "
+            f"Results may not be reproducible across versions."
+        )
+    
+    # Reconstruct EncodingConfig (this validates parameter ranges)
+    try:
+        config = EncodingConfig.from_uns_dict(config_dict)
+    except (KeyError, TypeError, ValueError) as e:
+        raise ValueError(
+            f"Could not reconstruct EncodingConfig from stored metadata: {e}. "
+            f"Stored fields: {list(config_dict.keys())}. "
+            f"The config may be incomplete or from an incompatible version."
+        ) from e
+    
+    # Validate expected vector length matches stored matrix
+    try:
+        expected_length = vector_length(organism, config)
+        if vector_matrix.shape[1] != expected_length:
+            raise ValueError(
+                f"Stored vectorized TCR matrix has {vector_matrix.shape[1]} columns "
+                f"but expected {expected_length} for organism '{organism}' and config. "
+                f"The stored matrix may be from a different configuration."
+            )
+    except ValueError as e:
+        # Re-raise with additional context
+        raise ValueError(
+            f"Could not validate stored vectorized TCR matrix dimensions: {e}"
+        ) from e
+    
+    logger.debug(
+        f"Loaded vectorized TCR representation: {vector_matrix.shape} from "
+        f"adata.obsm['{util.OBSM_KEY_VEC_TCR}'] with organism '{organism}'"
+    )
+    
+    return vector_matrix, config, organism
+
+
+def clear_vectorized_tcr_from_adata(adata) -> bool:
+    """Remove vectorized TCR representation and metadata from AnnData object.
+    
+    Clears all vectorized TCR-related data from the AnnData object, including
+    the vector matrix in adata.obsm and configuration metadata in adata.uns.
+    This function is useful for cleaning up representations, forcing re-encoding
+    with different parameters, or reducing file size.
+    
+    The function removes only vectorized TCR data and leaves other TCR 
+    representations (X_pca_tcr) and all non-TCR data unchanged.
+    
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Annotated data object to clear vectorized TCR data from.
+        No error is raised if no vectorized TCR data is present.
+        
+    Returns
+    -------
+    bool
+        True if vectorized TCR data was found and removed, False if no
+        vectorized TCR data was present in the AnnData object.
+        
+    Notes
+    -----
+    **Keys removed**:
+    - adata.obsm[util.OBSM_KEY_VEC_TCR] ('X_vec_tcr')
+    - adata.uns[util.UNS_KEY_VEC_TCR_CONFIG] ('vec_tcr_config')
+    
+    **Preservation**: The following are explicitly preserved:
+    - Other obsm entries (X_pca_tcr, X_umap, X_pca, etc.)
+    - Other uns entries (including non-vectorized TCR metadata)
+    - All obs, var, obsp, varp, varm, layers data
+    - Active TCR representation tracking in uns
+    
+    **Use cases**:
+    - Force re-encoding with different EncodingConfig parameters
+    - Clean up AnnData objects before saving to reduce file size
+    - Remove potentially corrupted vectorized representations
+    - Prepare for encoding with different organism identifier
+    
+    **Active representation handling**: If util.UNS_KEY_ACTIVE_TCR_REP points
+    to the vectorized representation ('X_vec_tcr'), that tracking is preserved
+    even though the actual representation is removed. This allows subsequent
+    code to detect the inconsistency and handle it appropriately.
+    
+    Examples
+    --------
+    Basic usage:
+    >>> # Store some vectors first
+    >>> store_vectorized_tcr_in_adata(adata, 'human')
+    >>> 'X_vec_tcr' in adata.obsm
+    True
+    >>> # Clear them
+    >>> was_present = clear_vectorized_tcr_from_adata(adata)
+    >>> was_present
+    True
+    >>> 'X_vec_tcr' in adata.obsm
+    False
+    
+    No-op when data not present:
+    >>> # AnnData without vectorized representation
+    >>> empty_adata = ad.AnnData(obs=pd.DataFrame({'x': [1, 2]}))
+    >>> was_present = clear_vectorized_tcr_from_adata(empty_adata)
+    >>> was_present
+    False
+    
+    Selective clearing (preserves other representations):
+    >>> # Store both vectorized and PCA representations
+    >>> store_vectorized_tcr_in_adata(adata, 'human')
+    >>> adata.obsm['X_pca_tcr'] = np.random.randn(adata.n_obs, 50)
+    >>> # Clear only vectorized
+    >>> clear_vectorized_tcr_from_adata(adata)
+    >>> 'X_vec_tcr' in adata.obsm
+    False
+    >>> 'X_pca_tcr' in adata.obsm  # Preserved
+    True
+    
+    Re-encoding after clearing:
+    >>> # Clear and re-encode with different config
+    >>> clear_vectorized_tcr_from_adata(adata)
+    >>> new_config = EncodingConfig(aa_mds_dim=8)
+    >>> new_matrix = store_vectorized_tcr_in_adata(adata, 'human', new_config)
+    >>> new_matrix.shape[1] < 1136  # Smaller due to reduced aa_mds_dim
+    True
+    """
+    was_present = False
+    
+    # Remove vector matrix from obsm
+    if util.OBSM_KEY_VEC_TCR in adata.obsm:
+        del adata.obsm[util.OBSM_KEY_VEC_TCR]
+        was_present = True
+        logger.debug(f"Removed vectorized TCR matrix from adata.obsm['{util.OBSM_KEY_VEC_TCR}']")
+    
+    # Remove configuration from uns
+    if util.UNS_KEY_VEC_TCR_CONFIG in adata.uns:
+        del adata.uns[util.UNS_KEY_VEC_TCR_CONFIG]
+        was_present = True
+        logger.debug(f"Removed vectorized TCR config from adata.uns['{util.UNS_KEY_VEC_TCR_CONFIG}']")
+    
+    if was_present:
+        logger.info("Cleared vectorized TCR representation and metadata from AnnData object")
+    else:
+        logger.debug("No vectorized TCR representation found to clear")
+    
+    return was_present

@@ -1,0 +1,7 @@
+backend,data_type,n_samples,accuracy,passes_threshold
+faiss-cpu,gex,1000,0.9999166666666667,True
+faiss-cpu,tcr,1000,1.0,True
+faiss-cpu,gex,5000,0.999948,True
+faiss-cpu,tcr,5000,0.9999986666666667,True
+faiss-cpu,gex,10000,0.9999871666666666,True
+faiss-cpu,tcr,10000,0.9999988333333333,True

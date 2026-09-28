@@ -6,26 +6,26 @@ Comprehensive modernization of CoNGA codebase for pandas 3.0+ and NumPy 2.0+ com
 
 ## Phase 1: Critical Runtime Fixes
 
-- [ ] 1. Fix immediate pandas indexing failures
-  - [ ] 1.1 Fix correlations.py Series indexing error
+- [x] 1. Fix immediate pandas indexing failures
+  - [x] 1.1 Fix correlations.py Series indexing error
     - Replace `is_mait[double_nbrs]` with `is_mait.iloc[double_nbrs]` on line 111
     - Replace `agroups[double_nbrs]` and `bgroups[double_nbrs]` with `.iloc[]` on lines 93-94
     - Test with existing test data to ensure CoNGA correlation analysis completes
     - _Requirements: CR1, TR2_
   
-  - [ ] 1.2 Fix AnnData deprecated method calls
+  - [x] 1.2 Fix AnnData deprecated method calls
     - Replace `adata.obs_keys()` with `adata.obs.columns` throughout codebase
     - Replace `adata.uns_keys()` with `adata.uns.keys()` throughout codebase  
     - Replace `adata.obsm_keys()` with `adata.obsm.keys()` throughout codebase
     - Replace `adata.isview` with `adata.is_view` in preprocess.py line 233
     - _Requirements: CR2, TR4_
   
-  - [ ] 1.3 Fix scanpy deprecated API calls
+  - [x] 1.3 Fix scanpy deprecated API calls
     - Replace `sc.logging.print_versions()` with `sc.logging.print_header()` in run_conga.py
     - Update any other deprecated scanpy function calls found during testing
     - _Requirements: CR3_
   
-  - [ ] 1.4 Validate critical workflow restoration
+  - [x] 1.4 Validate critical workflow restoration
     - Test `run_conga.py --graph_vs_graph` completes without pandas/numpy errors
     - Verify both classic and vectorized TCR paths work
     - Confirm basic correlation analysis produces results

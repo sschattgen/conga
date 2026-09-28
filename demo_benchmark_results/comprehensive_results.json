@@ -1,0 +1,185 @@
+{
+  "hardware_profile": {
+    "cpu_cores": 18,
+    "memory_gb": 64.0,
+    "gpu_available": false,
+    "gpu_memory_gb": 0.0,
+    "faiss_gpu_available": true,
+    "faiss_cpu_available": true,
+    "platform": "Darwin"
+  },
+  "config": {
+    "sample_sizes": [
+      500,
+      1000
+    ],
+    "data_types": [
+      "gex"
+    ],
+    "nbr_fracs": [
+      0.01,
+      0.05
+    ],
+    "n_iterations": 1,
+    "warmup_iterations": 0,
+    "test_backends": null,
+    "max_memory_gb": 8.0,
+    "output_dir": "demo_benchmark_results",
+    "include_accuracy": false,
+    "include_memory_profiling": true,
+    "include_gpu_profiling": true
+  },
+  "scaling_results": {
+    "gex": {}
+  },
+  "detailed_benchmarks": [
+    {
+      "data_type": "gex",
+      "n_samples": 500,
+      "n_features": 2000,
+      "backends": {
+        "faiss-gpu": {
+          "query_times": [
+            0.009197711944580078
+          ],
+          "index_times": [
+            1.9073486328125e-06
+          ],
+          "memory_usage": [
+            12.515625
+          ],
+          "accuracy_scores": [],
+          "query_time_mean": 0.009197711944580078,
+          "query_time_std": 0.0,
+          "query_time_min": 0.009197711944580078,
+          "query_time_max": 0.009197711944580078,
+          "memory_mean": 12.515625,
+          "memory_std": 0.0
+        },
+        "faiss-cpu": {
+          "query_times": [
+            0.003921031951904297
+          ],
+          "index_times": [
+            1.6689300537109375e-06
+          ],
+          "memory_usage": [
+            3.0
+          ],
+          "accuracy_scores": [],
+          "query_time_mean": 0.003921031951904297,
+          "query_time_std": 0.0,
+          "query_time_min": 0.003921031951904297,
+          "query_time_max": 0.003921031951904297,
+          "memory_mean": 3.0,
+          "memory_std": 0.0
+        },
+        "sklearn": {
+          "query_times": [
+            0.011436939239501953
+          ],
+          "index_times": [
+            0.0
+          ],
+          "memory_usage": [
+            25.40625
+          ],
+          "accuracy_scores": [],
+          "query_time_mean": 0.011436939239501953,
+          "query_time_std": 0.0,
+          "query_time_min": 0.011436939239501953,
+          "query_time_max": 0.011436939239501953,
+          "memory_mean": 25.40625,
+          "memory_std": 0.0
+        }
+      }
+    },
+    {
+      "data_type": "gex",
+      "n_samples": 1000,
+      "n_features": 2000,
+      "backends": {
+        "faiss-gpu": {
+          "query_times": [
+            0.01821613311767578
+          ],
+          "index_times": [
+            1.9073486328125e-06
+          ],
+          "memory_usage": [
+            26.046875
+          ],
+          "accuracy_scores": [],
+          "query_time_mean": 0.01821613311767578,
+          "query_time_std": 0.0,
+          "query_time_min": 0.01821613311767578,
+          "query_time_max": 0.01821613311767578,
+          "memory_mean": 26.046875,
+          "memory_std": 0.0
+        },
+        "faiss-cpu": {
+          "query_times": [
+            0.011458873748779297
+          ],
+          "index_times": [
+            1.9073486328125e-06
+          ],
+          "memory_usage": [
+            2.40625
+          ],
+          "accuracy_scores": [],
+          "query_time_mean": 0.011458873748779297,
+          "query_time_std": 0.0,
+          "query_time_min": 0.011458873748779297,
+          "query_time_max": 0.011458873748779297,
+          "memory_mean": 2.40625,
+          "memory_std": 0.0
+        },
+        "sklearn": {
+          "query_times": [
+            0.0325319766998291
+          ],
+          "index_times": [
+            0.0
+          ],
+          "memory_usage": [
+            11.4375
+          ],
+          "accuracy_scores": [],
+          "query_time_mean": 0.0325319766998291,
+          "query_time_std": 0.0,
+          "query_time_min": 0.0325319766998291,
+          "query_time_max": 0.0325319766998291,
+          "memory_mean": 11.4375,
+          "memory_std": 0.0
+        }
+      }
+    }
+  ],
+  "statistical_analysis": {},
+  "performance_recommendations": {
+    "hardware_specific": {
+      "gpu": "FAISS-GPU available but limited GPU memory may cause fallbacks",
+      "cpu": "FAISS-CPU available with 18 cores"
+    },
+    "dataset_size_specific": {
+      "gex": {}
+    },
+    "backend_selection": {
+      "small_datasets": "sklearn sufficient for < 5k samples",
+      "medium_datasets": "FAISS-CPU recommended for 5k-50k samples",
+      "large_datasets": "FAISS-GPU preferred for > 50k samples (if available)",
+      "fallback_strategy": "Automatic backend selection with graceful fallback"
+    },
+    "optimization_suggestions": []
+  },
+  "accuracy_validation": {},
+  "memory_analysis": {
+    "gex": {}
+  },
+  "backend_validation": {
+    "sklearn": true,
+    "faiss_cpu": true,
+    "faiss_gpu": true
+  }
+}

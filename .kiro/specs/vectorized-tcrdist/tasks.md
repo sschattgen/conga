@@ -217,14 +217,14 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
 
 ### Phase F: AnnData Integration and Representation Selection
 
-- [ ] F1. AnnData storage and representation management (TCR side)
-  - [ ] F1.1 Create AnnData storage functions
+- [x] F1. AnnData storage and representation management (TCR side)
+  - [x] F1.1 Create AnnData storage functions
     - Implement `store_tcr_vectors_in_adata()` with proper obsm key handling
     - Store EncodingConfig and metadata in uns with proper serialization
     - Handle existing key overwrites with appropriate warnings
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
   
-  - [ ] F1.2 Implement active representation tracking
+  - [x] F1.2 Implement active representation tracking
     - Create `record_active_tcr_representation()` and `get_active_tcr_representation()`
     - Handle the three representation states: X_vec_tcr, X_pca_tcr, exact_tcrdist
     - Ensure exact path records sentinel without creating obsm entry
@@ -238,15 +238,15 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
     - **Property 10: Stored rows follow adata.obs order**
     - **Validates: Requirements 7.1, 7.2, 7.4**
 
-- [ ] F2. Backend selection and configuration management (GEX side, parallel with F1)
-  - [ ] F2.1 Implement backend configuration storage in AnnData
+- [x] F2. Backend selection and configuration management (GEX side, parallel with F1)
+  - [x] F2.1 Implement backend configuration storage in AnnData
     - Store FAISS backend selection and parameters in adata.uns
     - Record performance metrics and index characteristics
     - Enable reproducible analysis with same backend selection
     - Support backend preferences in analysis workflows
     - _Reproducibility and debugging requirement_
   
-  - [ ] F2.2 Add backend selection CLI flags and logic
+  - [x] F2.2 Add backend selection CLI flags and logic
     - Add --use_faiss_gpu, --use_faiss_cpu, --disable_faiss flags to run_conga.py
     - Implement backend conflict detection and error reporting
     - Add performance logging and benchmark reporting options
@@ -255,8 +255,8 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
 
 ### Phase G: Three-way TCR Selection + FAISS Integration
 
-- [ ] G1. Complete TCR representation selection system
-  - [ ] G1.1 Create TcrRepresentation resolver with FAISS awareness
+- [x] G1. Complete TCR representation selection system
+  - [x] G1.1 Create TcrRepresentation resolver with FAISS awareness
     - Implement `TcrRepresentation` dataclass and `resolve_tcr_representation()` function
     - Implement complete selection table logic for organism support and observation counts
     - Handle all override combinations and conflict detection with FAISS options
@@ -267,7 +267,7 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
     - **Property 12: Path selection is total and matches the table**
     - **Validates: Requirements 7.7, 7.8, 8.3-8.11**
   
-  - [ ] G1.3 Implement restart logic for stored representations
+  - [x] G1.3 Implement restart logic for stored representations
     - Handle restart from h5ad files with existing X_pca_tcr and/or X_vec_tcr
     - Apply restart rules from requirements with proper precedence
     - Log warnings for stored representations exceeding current limits
@@ -280,8 +280,8 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
 
 ### Phase H: CLI Integration and Validation
 
-- [ ] H1. CLI flag handling and validation
-  - [ ] H1.1 Update `run_conga.py` with new flags and integrated logic
+- [x] H1. CLI flag handling and validation
+  - [x] H1.1 Update `run_conga.py` with new flags and integrated logic
     - Add --use_kpca_tcrdist, --kpca_reduction_limit and encoding config flags
     - Add FAISS backend selection flags: --use_faiss_gpu, --use_faiss_cpu, --disable_faiss
     - Implement flag conflict detection and clear error messages
@@ -289,7 +289,7 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
     - Add run statistics recording for all three TCR paths and FAISS backends
     - _Requirements: 8.15, 8.16, 8.17, 8.18, 8.19, 8.20, 8.21, 8.22, 8.23, 8.24, 8.25, 8.26_
   
-  - [ ] H1.2 Update preprocess.py consumer sites
+  - [x] H1.2 Update preprocess.py consumer sites
     - Modify calc_nbrs call sites to use resolved obsm_tag_tcr and use_exact flags
     - Update cluster_and_tsne_and_umap to branch on active representation
     - Fix read_dataset warnings for vectorized path
@@ -305,7 +305,7 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
 ### Phase I: Setup Integration and Testing Infrastructure
 
 - [ ] I1. Setup_10x_for_conga.py integration
-  - [ ] I1.1 Add setup CLI flag support and path selection
+  - [~] I1.1 Add setup CLI flag support and path selection
     - Add --kpca_reduction_limit and --use_kpca_tcrdist flags
     - Add FAISS backend selection flags to setup workflow
     - Implement behavior changes for supported organisms (skip KernelPCA by default)
@@ -313,14 +313,14 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
     - _Requirements: 8.32, 8.33, 8.34, 8.35, 8.36, 8.37, 8.38_
 
 - [ ] I2. Comprehensive test suite infrastructure
-  - [ ] I2.1 Create test fixtures and data
+  - [~] I2.1 Create test fixtures and data
     - Set up pytest test infrastructure in tests/ directory
     - Create seeded clonotype fixtures from bundled TCR database
     - Generate synthetic mouse and rhesus test data with seeded random generation
     - Add FAISS backend mocking for CI environments without GPU
     - _Requirements: 10.1, 10.5_
   
-  - [ ] I2.2 Create error condition tests
+  - [~] I2.2 Create error condition tests
     - Write tests for all ValueError and exit conditions in error handling table
     - Cover organism validation, V gene validation, CDR3 validation, flag conflicts
     - Test exact path binary requirements and logging
@@ -348,7 +348,7 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
 ### Phase J: Portability and Documentation
 
 - [ ] J1. Portable import validation and cleanup
-  - [ ] J1.1 Create subprocess import test
+  - [~] J1.1 Create subprocess import test
     - Stage synthetic installed layout excluding repository-specific paths
     - Test import success in scrubbed environment outside repository
     - Verify all vectorized and FAISS modules import without filesystem dependencies
@@ -356,7 +356,7 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
     - _Requirements: 10.9, 1.3_
 
 - [ ] J2. Documentation and cleanup
-  - [ ] J2.1 Add comprehensive module documentation  
+  - [~] J2.1 Add comprehensive module documentation  
     - Write NumPy-style docstrings for all public functions
     - Add type hints to all public function signatures
     - Document accuracy approximation and measured correlation figures
@@ -368,7 +368,7 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
     - **Property 21: FAISS backend API is fully documented**
     - **Validates: Requirements 9.1, 9.2**
   
-  - [ ] J2.3 Update README and package metadata
+  - [~] J2.3 Update README and package metadata
     - Add "TCR representations" section describing all three paths
     - Add "FAISS acceleration" section with backend selection guidance
     - Document default behavior changes for alpha-beta organisms
@@ -379,13 +379,13 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
 ### Phase K: Final Integration and Performance Validation
 
 - [ ] K1. Remove prototypes and finalize integration
-  - [ ] K1.1 Delete prototype file and update references
+  - [~] K1.1 Delete prototype file and update references
     - Remove `conga/tcrdist_vectorizing_functions_for_sharing.py`
     - Update steering document references to point to new implementation
     - Verify no remaining imports of prototype module
     - _Requirements: 9.6_
   
-  - [ ] K1.2 Update package dependencies
+  - [~] K1.2 Update package dependencies
     - Raise scikit-learn requirement to >=1.8 in pyproject.toml
     - Add faiss-cpu>=1.7.4 to [performance] extra
     - Add faiss-gpu>=1.7.4 to [performance-gpu] extra
@@ -394,7 +394,7 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
     - _Requirements: Dependencies section in design_
 
 - [ ] K2. Final integration and validation
-  - [ ] K2.1 Run end-to-end pipeline testing with both optimizations
+  - [~] K2.1 Run end-to-end pipeline testing with both optimizations
     - Test all three TCR paths with example datasets
     - Test all FAISS backend combinations (GPU, CPU, sklearn fallback)
     - Verify behavior change: alpha-beta defaults to vectorized representation
@@ -403,7 +403,7 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
     - Test restart scenarios from existing .h5ad files
     - _Requirements: complete workflow validation_
   
-  - [ ] K2.2 Performance and accuracy validation
+  - [~] K2.2 Performance and accuracy validation
     - Measure encoding time and memory usage at N=20000 with both optimizations
     - Verify accuracy gates pass for all supported organisms
     - Test vectorized vs exact TCRdist correlation on real data
@@ -412,7 +412,7 @@ Together these optimizations target 10-100x speedup and >50% memory reduction on
     - Validate 10-100x speedup and >50% memory reduction targets
     - _Requirements: 6.6, performance considerations from design_
 
-- [ ] K3. Final checkpoint - Complete implementation ready
+- [~] K3. Final checkpoint - Complete implementation ready
   - Ensure all tests pass for both vectorized TCRdist and FAISS acceleration
   - Verify backward compatibility maintained
   - Confirm all performance targets achieved

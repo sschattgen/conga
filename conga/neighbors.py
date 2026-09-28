@@ -2072,3 +2072,73 @@ def compute_tcr_vector_neighbors(
         return result.neighbors, result.nndists
     else:
         return result.neighbors
+
+# Backend configuration storage functions
+def store_backend_config_in_adata(adata, config: dict) -> None:
+    """Store FAISS backend configuration in AnnData for reproducibility.
+    
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        AnnData object to store configuration in
+    config : dict
+        Backend configuration dictionary with keys like:
+        - backend: Backend enum value
+        - index_type: str
+        - parameters: dict
+        - adaptive_parameters: bool
+        - performance_metrics: dict (optional)
+    """
+    from .. import util
+    
+    # Ensure configuration is JSON-serializable
+    json_config = {
+        'backend': config.get('backend', Backend.SKLEARN).value if hasattr(config.get('backend'), 'value') else str(config.get('backend')),
+        'index_type': config.get('index_type'),
+        'parameters': config.get('parameters', {}),
+        'adaptive_parameters': config.get('adaptive_parameters', False),
+        'performance_metrics': config.get('performance_metrics', {}),
+        'timestamp': pd.Timestamp.now().isoformat(),
+        'faiss_version': _FAISS_VERSION if _FAISS_GPU_AVAILABLE or _FAISS_CPU_AVAILABLE else None
+    }
+    
+    adata.uns[util.UNS_KEY_BACKEND_CONFIG] = json_config
+
+
+def load_backend_config_from_adata(adata) -> dict:
+    """Load FAISS backend configuration from AnnData.
+    
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        AnnData object to load configuration from
+        
+    Returns
+    -------
+    dict
+        Backend configuration dictionary, or empty dict if not found
+    """
+    from .. import util
+    
+    return adata.uns.get(util.UNS_KEY_BACKEND_CONFIG, {})
+
+
+def clear_backend_config_from_adata(adata) -> bool:
+    """Remove FAISS backend configuration from AnnData.
+    
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        AnnData object to clear configuration from
+        
+    Returns
+    -------
+    bool
+        True if configuration was present and removed, False otherwise
+    """
+    from .. import util
+    
+    if util.UNS_KEY_BACKEND_CONFIG in adata.uns:
+        del adata.uns[util.UNS_KEY_BACKEND_CONFIG]
+        return True
+    return False

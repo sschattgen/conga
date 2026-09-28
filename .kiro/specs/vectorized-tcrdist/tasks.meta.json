@@ -1,0 +1,864 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "A1.1 Create `conga/tcrdist/vectorized.py` module with portable initialization": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353749489
+      },
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353758452
+      },
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353845432
+      }
+    ],
+    "A1.2 Fix module-scope import blockers in existing code  ": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353749522
+      },
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353852163
+      },
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790354054118
+      }
+    ],
+    "A1.3 Add shared constants to `conga/util.py`": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353749546
+      },
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790354057582
+      },
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790354083389
+      }
+    ],
+    "A2.1 Create `conga/neighbors.py` module for FAISS integration": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353749577
+      },
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790354090885
+      },
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790354437533
+      }
+    ],
+    "A2.2 Add FAISS dependencies and compatibility checking": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353749604
+      },
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790354444812
+      },
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790354610338
+      }
+    ],
+    "A2.3 Update environment.yml and installation documentation": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353749629
+      },
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790354613621
+      },
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790354755790
+      }
+    ],
+    "B1.1 Build amino acid dissimilarity matrix and embedding": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353749655
+      },
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790354763523
+      },
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790355028145
+      }
+    ],
+    "B1.3 Implement germline code table extraction": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353749677
+      },
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790355044727
+      },
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790355219782
+      }
+    ],
+    "B2.1 Implement FAISS-powered GEX neighbor search (calc_nbrs replacement)": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353749704
+      },
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790355224330
+      },
+      {
+        "executionId": "d109bd0a-8d5f-46ba-af83-5c1fac966707",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790355903095
+      }
+    ],
+    "B2.2 Implement FAISS-powered vectorized TCR neighbor search": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353749733
+      },
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790355227809
+      }
+    ],
+    "B2.3 Add comprehensive performance benchmarking infrastructure": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353749757
+      },
+      {
+        "executionId": "d109bd0a-8d5f-46ba-af83-5c1fac966707",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790355947407
+      },
+      {
+        "executionId": "0f9e1149-cf59-49e5-94e5-6455a62870b3",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790357371975
+      }
+    ],
+    "B2.4 Implement unified graceful fallback system": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353749781
+      },
+      {
+        "executionId": "d109bd0a-8d5f-46ba-af83-5c1fac966707",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790355950576
+      },
+      {
+        "executionId": "0f9e1149-cf59-49e5-94e5-6455a62870b3",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790357375058
+      }
+    ],
+    "C1.1 Create CDR3 trimming and gapping function": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353749804
+      },
+      {
+        "executionId": "0f9e1149-cf59-49e5-94e5-6455a62870b3",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790357392749
+      },
+      {
+        "executionId": "0f9e1149-cf59-49e5-94e5-6455a62870b3",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790359527979
+      }
+    ],
+    "C1.2 Implement comprehensive input validation": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353749827
+      },
+      {
+        "executionId": "0f9e1149-cf59-49e5-94e5-6455a62870b3",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790357395884
+      },
+      {
+        "executionId": "0f9e1149-cf59-49e5-94e5-6455a62870b3",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790359531221
+      }
+    ],
+    "C2.1 Create FAISS vs sklearn accuracy validation suite": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353749852
+      },
+      {
+        "executionId": "0f9e1149-cf59-49e5-94e5-6455a62870b3",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790357399095
+      },
+      {
+        "executionId": "0f9e1149-cf59-49e5-94e5-6455a62870b3",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790359534687
+      }
+    ],
+    "C2.2 Implement comprehensive error handling": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353749874
+      },
+      {
+        "executionId": "0f9e1149-cf59-49e5-94e5-6455a62870b3",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790357402401
+      },
+      {
+        "executionId": "0f9e1149-cf59-49e5-94e5-6455a62870b3",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790359538004
+      }
+    ],
+    "D1.1 Implement vectorized TCR encoding algorithm": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353749896
+      },
+      {
+        "executionId": "d0000195-6f46-4130-b09e-ce8118fba513",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790361266500
+      }
+    ],
+    "D1.3 Implement vector length calculation": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353749921
+      },
+      {
+        "executionId": "d0000195-6f46-4130-b09e-ce8118fba513",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790361270067
+      }
+    ],
+    "D2.1 Update calc_nbrs to use FAISS backend for GEX": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353749945
+      },
+      {
+        "executionId": "d0000195-6f46-4130-b09e-ce8118fba513",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790361273861
+      }
+    ],
+    "D2.2 Integrate FAISS backend for vectorized TCR neighbor search": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353749972
+      },
+      {
+        "executionId": "d0000195-6f46-4130-b09e-ce8118fba513",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790361277511
+      }
+    ],
+    "D2.3 Update batch processing with unified FAISS optimization": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353750000
+      },
+      {
+        "executionId": "d0000195-6f46-4130-b09e-ce8118fba513",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790361280942
+      }
+    ],
+    "E1.1 Create accuracy reporting infrastructure": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353750025
+      },
+      {
+        "executionId": "d0000195-6f46-4130-b09e-ce8118fba513",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790361292247
+      },
+      {
+        "executionId": "d0000195-6f46-4130-b09e-ce8118fba513",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790362676472
+      }
+    ],
+    "E2.1 Create comprehensive performance test suite": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353750050
+      },
+      {
+        "executionId": "d0000195-6f46-4130-b09e-ce8118fba513",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790361296114
+      },
+      {
+        "executionId": "d0000195-6f46-4130-b09e-ce8118fba513",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790362680356
+      }
+    ],
+    "E2.2 Optimize FAISS parameters for single-cell data": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353750074
+      },
+      {
+        "executionId": "d0000195-6f46-4130-b09e-ce8118fba513",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790361299780
+      },
+      {
+        "executionId": "d0000195-6f46-4130-b09e-ce8118fba513",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790362684272
+      }
+    ],
+    "F1.1 Create AnnData storage functions": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353750112
+      },
+      {
+        "executionId": "54765486-d0c9-4fda-9a33-0e2d4ccaab26",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790363963441
+      },
+      {
+        "executionId": "54765486-d0c9-4fda-9a33-0e2d4ccaab26",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790363976852
+      },
+      {
+        "executionId": "f1810862-33b3-454d-89a6-4b66bc4b0aa3",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790364375714
+      }
+    ],
+    "F1.2 Implement active representation tracking": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353750139
+      },
+      {
+        "executionId": "54765486-d0c9-4fda-9a33-0e2d4ccaab26",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790363963473
+      },
+      {
+        "executionId": "f1810862-33b3-454d-89a6-4b66bc4b0aa3",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790364378812
+      },
+      {
+        "executionId": "2ac5657e-0a0e-4341-a000-205eb6471508",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790366780036
+      }
+    ],
+    "F2.1 Implement backend configuration storage in AnnData": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353750160
+      },
+      {
+        "executionId": "54765486-d0c9-4fda-9a33-0e2d4ccaab26",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790363963503
+      },
+      {
+        "executionId": "54765486-d0c9-4fda-9a33-0e2d4ccaab26",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790363980215
+      },
+      {
+        "executionId": "2ac5657e-0a0e-4341-a000-205eb6471508",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790366784931
+      }
+    ],
+    "F2.2 Add backend selection CLI flags and logic": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353750185
+      },
+      {
+        "executionId": "54765486-d0c9-4fda-9a33-0e2d4ccaab26",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790363963524
+      },
+      {
+        "executionId": "2ac5657e-0a0e-4341-a000-205eb6471508",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790366867863
+      },
+      {
+        "executionId": "2ac5657e-0a0e-4341-a000-205eb6471508",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790366892623
+      }
+    ],
+    "G1.1 Create TcrRepresentation resolver with FAISS awareness": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353750208
+      },
+      {
+        "executionId": "54765486-d0c9-4fda-9a33-0e2d4ccaab26",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790363963550
+      },
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790367302408
+      },
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790367312156
+      },
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790367376345
+      }
+    ],
+    "G1.3 Implement restart logic for stored representations": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353750231
+      },
+      {
+        "executionId": "54765486-d0c9-4fda-9a33-0e2d4ccaab26",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790363963577
+      },
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790367302449
+      },
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790367380565
+      },
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790367432252
+      }
+    ],
+    "H1.1 Update `run_conga.py` with new flags and integrated logic": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353750254
+      },
+      {
+        "executionId": "54765486-d0c9-4fda-9a33-0e2d4ccaab26",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790363963607
+      },
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790367302480
+      },
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790367442259
+      },
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790367879449
+      }
+    ],
+    "H1.2 Update preprocess.py consumer sites": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353750279
+      },
+      {
+        "executionId": "54765486-d0c9-4fda-9a33-0e2d4ccaab26",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790363963633
+      },
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790367302507
+      },
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790367443086
+      },
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790368362741
+      }
+    ],
+    "I1.1 Add setup CLI flag support and path selection": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353750305
+      },
+      {
+        "executionId": "54765486-d0c9-4fda-9a33-0e2d4ccaab26",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790363963656
+      },
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790367302538
+      }
+    ],
+    "I2.1 Create test fixtures and data": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353750329
+      },
+      {
+        "executionId": "54765486-d0c9-4fda-9a33-0e2d4ccaab26",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790363963680
+      },
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790367302570
+      }
+    ],
+    "I2.2 Create error condition tests": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353750351
+      },
+      {
+        "executionId": "54765486-d0c9-4fda-9a33-0e2d4ccaab26",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790363963704
+      },
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790367302598
+      }
+    ],
+    "J1.1 Create subprocess import test": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353750375
+      },
+      {
+        "executionId": "54765486-d0c9-4fda-9a33-0e2d4ccaab26",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790363963727
+      },
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790367302633
+      }
+    ],
+    "J2.1 Add comprehensive module documentation  ": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353750400
+      },
+      {
+        "executionId": "54765486-d0c9-4fda-9a33-0e2d4ccaab26",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790363963750
+      },
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790367302665
+      }
+    ],
+    "J2.3 Update README and package metadata": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353750424
+      },
+      {
+        "executionId": "54765486-d0c9-4fda-9a33-0e2d4ccaab26",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790363963774
+      },
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790367302696
+      }
+    ],
+    "K1.1 Delete prototype file and update references": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353750450
+      },
+      {
+        "executionId": "54765486-d0c9-4fda-9a33-0e2d4ccaab26",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790363963803
+      },
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790367302723
+      }
+    ],
+    "K1.2 Update package dependencies": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353750473
+      },
+      {
+        "executionId": "54765486-d0c9-4fda-9a33-0e2d4ccaab26",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790363963833
+      },
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790367302757
+      }
+    ],
+    "K2.1 Run end-to-end pipeline testing with both optimizations": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353750495
+      },
+      {
+        "executionId": "54765486-d0c9-4fda-9a33-0e2d4ccaab26",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790363963856
+      },
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790367302788
+      }
+    ],
+    "K2.2 Performance and accuracy validation": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353750524
+      },
+      {
+        "executionId": "54765486-d0c9-4fda-9a33-0e2d4ccaab26",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790363963879
+      },
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790367302816
+      }
+    ],
+    "K3. Final checkpoint - Complete implementation ready": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790353750546
+      },
+      {
+        "executionId": "54765486-d0c9-4fda-9a33-0e2d4ccaab26",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790363963902
+      },
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790367302848
+      }
+    ],
+    "A1. Set up portable module foundation and fix import blockers": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790354083418
+      }
+    ],
+    "A2. FAISS Infrastructure Setup (Parallel with A1)": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790354755828
+      }
+    ],
+    "B1. Vectorized encoding core algorithm (TCR side)": [
+      {
+        "executionId": "10171b7d-42a1-41bc-af4d-e8f0b932fe40",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790355219824
+      }
+    ],
+    "B2. FAISS neighbor search implementation (TCR + GEX sides, parallel with B1)": [
+      {
+        "executionId": "d109bd0a-8d5f-46ba-af83-5c1fac966707",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790355940942
+      }
+    ],
+    "C1. CDR3 processing and input validation (TCR side)": [
+      {
+        "executionId": "0f9e1149-cf59-49e5-94e5-6455a62870b3",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790357382775
+      }
+    ],
+    "C2. FAISS accuracy and correctness validation (GEX side, parallel with C1)": [
+      {
+        "executionId": "0f9e1149-cf59-49e5-94e5-6455a62870b3",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790357385993
+      }
+    ],
+    "D1. Vectorized assembly pipeline (TCR side)": [
+      {
+        "executionId": "0f9e1149-cf59-49e5-94e5-6455a62870b3",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790359552822
+      }
+    ],
+    "D2. Integrate FAISS into neighbor search pipelines (TCR + GEX sides, parallel with D1)": [
+      {
+        "executionId": "0f9e1149-cf59-49e5-94e5-6455a62870b3",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790359556441
+      }
+    ],
+    "E1. Accuracy validation framework (TCR side)": [
+      {
+        "executionId": "d0000195-6f46-4130-b09e-ce8118fba513",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790361284846
+      }
+    ],
+    "E2. FAISS performance validation and optimization (GEX side, parallel with E1)": [
+      {
+        "executionId": "d0000195-6f46-4130-b09e-ce8118fba513",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790361288644
+      }
+    ],
+    "F1. AnnData storage and representation management (TCR side)": [
+      {
+        "executionId": "2ac5657e-0a0e-4341-a000-205eb6471508",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790366780123
+      }
+    ],
+    "F2. Backend selection and configuration management (GEX side, parallel with F1)": [
+      {
+        "executionId": "2ac5657e-0a0e-4341-a000-205eb6471508",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790366892690
+      }
+    ],
+    "G1. Complete TCR representation selection system": [
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790367432293
+      }
+    ],
+    "H1. CLI flag handling and validation": [
+      {
+        "executionId": "494c57af-654a-47dd-8c6b-eb2b55532ab1",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790368362781
+      }
+    ]
+  }
+}
