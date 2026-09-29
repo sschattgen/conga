@@ -462,6 +462,16 @@ class AccuracyValidator:
             
         D = pairwise_distances(X, metric=metric)
         
+        # Exclude self from neighbor results. Every other neighbor-search
+        # implementation in this codebase (FaissNeighborSearcher._search_sklearn,
+        # preprocess.calc_nbrs's sklearn fallback) excludes the query point
+        # itself; this standalone baseline implementation was missing that
+        # step, so row i's own index (distance 0 to itself) would always
+        # win the argpartition and appear as its own top neighbor, causing
+        # spurious mismatches against any real backend's (correctly
+        # self-excluding) results in downstream accuracy comparisons.
+        np.fill_diagonal(D, np.inf)
+        
         # Apply exclusions if provided
         if exclude_groups is not None:
             agroups, bgroups = exclude_groups
