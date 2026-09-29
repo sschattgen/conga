@@ -602,6 +602,12 @@ class FaissNeighborSearcher:
         adaptive_parameters: bool = True
     ):
         _detect_backends()
+        if force_backend is not None and not isinstance(force_backend, Backend):
+            raise FaissConfigurationError(
+                f"force_backend must be a Backend enum member or None, "
+                f"got {type(force_backend).__name__}: {force_backend!r}",
+                invalid_params={'force_backend': f"expected Backend enum, got {type(force_backend).__name__}"}
+            )
         self.force_backend = force_backend
         self.gpu_memory_limit_gb = gpu_memory_limit_gb
         self.batch_size = batch_size
