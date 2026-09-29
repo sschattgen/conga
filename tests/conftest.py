@@ -11,6 +11,13 @@ including:
 Requirements validated: 10.1, 10.5
 """
 
+# test_config.py defines additional fixtures (minimal_adata, minimal_clones,
+# edge_case_clones, invalid_gene_clones, performance_adata) backed by files in
+# tests/fixtures/. Since it is a plain module (not conftest.py), pytest will
+# not auto-discover its fixtures; register it explicitly as a plugin so those
+# fixtures become available across the test suite.
+pytest_plugins = ["test_config"]
+
 import os
 import pandas as pd
 import numpy as np

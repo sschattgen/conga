@@ -891,18 +891,35 @@ class FaissNeighborSearcher:
             )
         
         n_samples = X.shape[0]
-        selected_backend = self._select_backend(X, data_type)
         
-        # Try backends in fallback order
-        available_backends = self.get_available_backends()
-        if self.force_backend:
-            backends_to_try = [self.force_backend]
+        # Data quality issues (NaN/Inf) must force sklearn regardless of the
+        # normally selected backend or any user-specified force_backend.
+        # FAISS index building/search on NaN/Inf-contaminated data can silently
+        # produce garbage neighbor indices (e.g. -1 placeholders) instead of
+        # erroring, whereas sklearn's pairwise_distances raises a clear
+        # ValueError naming the problem. Correctness wins over backend
+        # preference here.
+        if data_issues:
+            logger.warning(
+                f"Forcing sklearn backend for {data_type} neighbor search because "
+                f"data quality issues were detected (NaN/infinite values): {data_issues}. "
+                f"FAISS backends are skipped to avoid silently producing invalid neighbor "
+                f"indices on corrupted data."
+            )
+            backends_to_try = [Backend.SKLEARN]
         else:
-            # Start with selected backend, add others as fallback
-            backends_to_try = [selected_backend]
-            for backend in available_backends:
-                if backend != selected_backend:
-                    backends_to_try.append(backend)
+            selected_backend = self._select_backend(X, data_type)
+            
+            # Try backends in fallback order
+            available_backends = self.get_available_backends()
+            if self.force_backend:
+                backends_to_try = [self.force_backend]
+            else:
+                # Start with selected backend, add others as fallback
+                backends_to_try = [selected_backend]
+                for backend in available_backends:
+                    if backend != selected_backend:
+                        backends_to_try.append(backend)
         
         last_error = None
         

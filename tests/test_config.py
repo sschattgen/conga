@@ -28,12 +28,14 @@ TEST_CONFIG = {
 }
 
 # Test data specifications
+#
+# NOTE: keys here must match the `performance_{name}_adata.h5ad` fixture files
+# actually produced by tests/fixtures/test_data_generator.py
+# (TestDataGenerator.create_performance_test_scenarios), which only generates
+# 'small', 'medium', and 'large' scenarios. There is no 'minimal' performance
+# fixture on disk (the minimal-sized AnnData is covered separately by the
+# `minimal_adata` fixture), so it is intentionally omitted here.
 TEST_DATASETS = {
-    'minimal': {
-        'n_cells': 100,
-        'n_genes': 500,
-        'description': 'Minimal dataset for basic functionality testing'
-    },
     'small': {
         'n_cells': 500,
         'n_genes': 1000,

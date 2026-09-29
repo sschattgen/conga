@@ -174,24 +174,54 @@ class TestProductionErrorHandling:
         X_problematic[0, 0] = np.nan  # NaN that might cause issues
         X_problematic[1, 1] = np.inf  # Inf that might cause issues
         
-        # Should detect issues and either fix them or fall back gracefully
-        try:
-            result = searcher.search_neighbors(
+        # NaN/Inf data is forced onto the sklearn backend (never FAISS, which
+        # can silently produce garbage -1 neighbor indices on bad data).
+        # sklearn's own pairwise_distances raises a clear ValueError naming
+        # the problem, so we expect a loud, clear failure here rather than a
+        # successful fallback.
+        with pytest.raises(Exception) as exc_info:
+            searcher.search_neighbors(
                 X=X_problematic,
                 nbr_fracs=[0.05],
                 data_type='test'
             )
-            
-            # If it succeeds, it should have used sklearn fallback
-            assert result.backend_used == Backend.SKLEARN
-            logger.info("Index building failure test: succeeded with sklearn fallback")
-            
-        except Exception as e:
-            # Should get a clear error message about data issues
-            error_msg = str(e).lower()
-            assert any(keyword in error_msg for keyword in ['nan', 'infinite', 'data'])
-            logger.info(f"Index building failure test: got expected error: {e}")
+        
+        error_msg = str(exc_info.value).lower()
+        assert any(keyword in error_msg for keyword in ['nan', 'infinite', 'data'])
+        logger.info(f"Index building failure test: got expected error: {exc_info.value}")
     
+    def test_data_issues_override_force_backend(self):
+        """Test that NaN/Inf data issues force sklearn even when force_backend
+        explicitly requests a FAISS backend.
+
+        This confirms the subtlest part of the fix: correctness on
+        NaN/infinite data must win over a user's explicit backend
+        preference, not just override automatic backend selection.
+        """
+        X_problematic = np.random.randn(100, 10).astype(np.float32)
+        X_problematic[0, 0] = np.nan
+        X_problematic[1, 1] = np.inf
+
+        for forced in (Backend.FAISS_GPU, Backend.FAISS_CPU):
+            searcher = FaissNeighborSearcher(force_backend=forced)
+
+            # Regardless of the forced backend, sklearn must be used (and, since
+            # sklearn raises on NaN/Inf, we expect a clear data-related error
+            # rather than a FAISS backend silently consuming the bad data).
+            with pytest.raises(Exception) as exc_info:
+                searcher.search_neighbors(
+                    X=X_problematic,
+                    nbr_fracs=[0.05],
+                    data_type='test'
+                )
+
+            error_msg = str(exc_info.value).lower()
+            assert any(keyword in error_msg for keyword in ['nan', 'infinite', 'data'])
+            logger.info(
+                f"force_backend={forced.value} correctly overridden by data "
+                f"quality check: {exc_info.value}"
+            )
+
     def test_comprehensive_error_logging(self):
         """Test comprehensive error logging and user guidance."""
         searcher = FaissNeighborSearcher()
