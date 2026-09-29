@@ -1944,8 +1944,16 @@ def store_backend_config_in_adata(adata, config: dict) -> None:
         - adaptive_parameters: bool
         - performance_metrics: dict (optional)
     """
-    from .. import util
-    
+    from . import util
+
+    # Lazily determine the installed FAISS version, if any, following the
+    # same pattern used in get_backend_info().
+    try:
+        import faiss
+        faiss_version = getattr(faiss, '__version__', 'unknown')
+    except ImportError:
+        faiss_version = None
+
     # Ensure configuration is JSON-serializable
     json_config = {
         'backend': config.get('backend', Backend.SKLEARN).value if hasattr(config.get('backend'), 'value') else str(config.get('backend')),
@@ -1954,7 +1962,7 @@ def store_backend_config_in_adata(adata, config: dict) -> None:
         'adaptive_parameters': config.get('adaptive_parameters', False),
         'performance_metrics': config.get('performance_metrics', {}),
         'timestamp': pd.Timestamp.now().isoformat(),
-        'faiss_version': _FAISS_VERSION if _FAISS_GPU_AVAILABLE or _FAISS_CPU_AVAILABLE else None
+        'faiss_version': faiss_version
     }
     
     adata.uns[util.UNS_KEY_BACKEND_CONFIG] = json_config
@@ -1973,7 +1981,7 @@ def load_backend_config_from_adata(adata) -> dict:
     dict
         Backend configuration dictionary, or empty dict if not found
     """
-    from .. import util
+    from . import util
     
     return adata.uns.get(util.UNS_KEY_BACKEND_CONFIG, {})
 
@@ -1991,7 +1999,7 @@ def clear_backend_config_from_adata(adata) -> bool:
     bool
         True if configuration was present and removed, False otherwise
     """
-    from .. import util
+    from . import util
     
     if util.UNS_KEY_BACKEND_CONFIG in adata.uns:
         del adata.uns[util.UNS_KEY_BACKEND_CONFIG]

@@ -61,14 +61,25 @@ class TestVectorizedAccuracy:
     def test_vector_length_consistency(self):
         """Test that vector length calculation is consistent."""
         config = EncodingConfig()
-        
+
+        # Real V/J gene names differ by organism in the reference database
+        # (e.g. human/rhesus use 'TRAV1-1*01' while mouse uses 'TRAV1*01'),
+        # so each organism needs its own valid gene tuple.
+        organism_genes = {
+            'human': ('TRAV1-1*01', 'TRAJ1*01', 'TRBV1*01', 'TRBJ1-1*01'),
+            'mouse': ('TRAV1*01', 'TRAJ11*01', 'TRBV1*01', 'TRBJ1-1*01'),
+            'rhesus': ('TRAV1-1*01', 'TRAJ10*01', 'TRBV1-1*01', 'TRBJ1-1*01'),
+        }
+
         for organism in ['human', 'mouse', 'rhesus']:
             expected_length = vector_length(organism, config)
-            
-            # Create dummy TCR data for this organism
+
+            va, ja, vb, jb = organism_genes[organism]
+            # Create dummy TCR data for this organism (CDR3s must meet the
+            # minimum length of n_trim + c_trim + 1 = 6 under the default config)
             tcrs = [
-                (('TRAV1*01', 'TRAJ1*01', 'CAVRD', ''), 
-                 ('TRBV1*01', 'TRBJ1*01', 'CASSRT', ''))
+                ((va, ja, 'CAVRDS', ''),
+                 (vb, jb, 'CASSRTF', ''))
             ]
             
             vectors = encode_tcrs(tcrs, organism, config)
@@ -112,7 +123,7 @@ class TestFAISSPerformance:
                 searcher = neighbors.FaissNeighborSearcher(
                     force_backend=getattr(neighbors.Backend, backend.upper())
                 )
-                result = searcher.find_neighbors(
+                result = searcher.search_neighbors(
                     X_gex, nbr_fracs, data_type='gex'
                 )
                 assert len(result.neighbors) == len(nbr_fracs)
@@ -145,7 +156,7 @@ class TestFAISSPerformance:
             searcher = neighbors.FaissNeighborSearcher(
                 force_backend=neighbors.Backend.FAISS_CPU
             )
-            result = searcher.find_neighbors(X, nbr_fracs, data_type='gex')
+            result = searcher.search_neighbors(X, nbr_fracs, data_type='gex')
             faiss_time = time.time() - start_time
             
             # Expect speedup for medium/large datasets
@@ -171,19 +182,41 @@ class TestErrorHandling:
             encode_tcrs(tcrs, 'human')
     
     def test_edge_case_cdr3_lengths(self, edge_case_clones):
-        """Test handling of edge case CDR3 lengths."""
-        tcrs = []
-        for _, row in edge_case_clones.iterrows():
-            tcr = ((row['va'], row['ja'], row['cdr3a'], row['cdr3a_nucseq']),
-                   (row['vb'], row['jb'], row['cdr3b'], row['cdr3b_nucseq']))
-            tcrs.append(tcr)
-        
-        # Should handle edge cases gracefully
-        vectors = encode_tcrs(tcrs, 'human')
-        
-        # Check output shape is consistent
+        """Test handling of edge case CDR3 lengths.
+
+        The edge_case_clones fixture contains three rows: EDGE001 has a
+        deliberately very-short CDR3 ('CAF', 3 chars), EDGE002 has a
+        deliberately very-long CDR3, and EDGE003 is a normal-length case.
+
+        Under the default EncodingConfig (n_trim=3, c_trim=2), the minimum
+        valid CDR3 length is 6, so the short CDR3 in EDGE001 is expected to
+        raise ValueError (correct product validation, not a bug). The long
+        CDR3 (EDGE002) and normal-length CDR3 (EDGE003) are expected to
+        encode successfully.
+        """
         expected_length = vector_length('human')
-        assert vectors.shape == (len(tcrs), expected_length)
+
+        def row_to_tcr(row):
+            return ((row['va'], row['ja'], row['cdr3a'], row['cdr3a_nucseq']),
+                    (row['vb'], row['jb'], row['cdr3b'], row['cdr3b_nucseq']))
+
+        rows_by_barcode = {
+            row['cell_barcode']: row for _, row in edge_case_clones.iterrows()
+        }
+
+        # EDGE001: CDR3 too short (3 chars < minimum required 6) should raise.
+        short_tcr = row_to_tcr(rows_by_barcode['EDGE001'])
+        with pytest.raises(ValueError, match="too short"):
+            encode_tcrs([short_tcr], 'human')
+
+        # EDGE002 (very long CDR3) and EDGE003 (normal CDR3) should encode
+        # successfully, producing vectors of the expected length.
+        ok_tcrs = [
+            row_to_tcr(rows_by_barcode['EDGE002']),
+            row_to_tcr(rows_by_barcode['EDGE003']),
+        ]
+        vectors = encode_tcrs(ok_tcrs, 'human')
+        assert vectors.shape == (len(ok_tcrs), expected_length)
     
     def test_unsupported_organism(self):
         """Test handling of unsupported organisms."""

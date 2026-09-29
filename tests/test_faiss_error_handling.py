@@ -313,7 +313,13 @@ class TestProductionErrorHandling:
             data_type='test'
         )
         assert result.neighbors[0.5].shape == (1, 1)
-        assert result.neighbors[0.5][0, 0] == 0  # Self as only neighbor
+        # Self is excluded from neighbor results (documented behavior), so a
+        # single-sample dataset has no valid neighbors left after exclusion.
+        # -1 is the established sentinel/padding value for "no valid
+        # neighbor found" elsewhere in this codebase (see the exclude_groups
+        # padding logic in FaissNeighborSearcher._search_faiss), so -1 here
+        # is correct, not a bug.
+        assert result.neighbors[0.5][0, 0] == -1
         
         # Invalid fraction range test
         X_test = np.random.randn(100, 5).astype(np.float32)
@@ -542,6 +548,7 @@ class TestAccuracyValidationErrorHandling:
     
     def test_validation_with_failed_backends(self):
         """Test validation when some backends fail."""
+        from conga.accuracy_validation import AccuracyValidator
         validator = AccuracyValidator(tolerance=0.85, strict_mode=False)
         
         # Generate test data
@@ -567,6 +574,7 @@ class TestAccuracyValidationErrorHandling:
     
     def test_validation_with_mismatched_data(self):
         """Test validation with data that causes mismatches."""
+        from conga.accuracy_validation import AccuracyValidator
         validator = AccuracyValidator(tolerance=0.99, strict_mode=True)  # Very strict
         
         # Create data with potential numerical instability
