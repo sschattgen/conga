@@ -99,6 +99,16 @@ UNS_KEY_ACTIVE_TCR_REP: str = 'active_tcr_representation'
 UNS_KEY_VEC_TCR_CONFIG: str = 'vec_tcr_config'  # Vectorized TCR EncodingConfig metadata
 UNS_KEY_BACKEND_CONFIG: str = 'faiss_backend_config'  # FAISS backend configuration
 
+# AnnData obsm keys for batch-integrated GEX representations
+OBSM_KEY_PCA_GEX_UNINTEGRATED: str = 'X_pca_gex_unintegrated'  # Pre-correction GEX PCA
+OBSM_KEY_PCA_GEX_INTEGRATED: str = 'X_pca_gex_integrated'      # Batch-corrected GEX representation
+
+# AnnData uns key for batch integration run metadata
+UNS_KEY_BATCH_INTEGRATION_CONFIG: str = 'batch_integration_config'  # method, batch_key, n_batches, etc.
+
+# Restricted, validated set of batch integration methods
+BATCH_INTEGRATION_METHODS: frozenset[str] = frozenset({'harmony', 'scvi'})
+
 
 # Active TCR representation tracking functions
 def get_active_tcr_representation(adata) -> str:

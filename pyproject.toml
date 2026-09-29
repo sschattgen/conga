@@ -70,6 +70,12 @@ scvi = [
     "scvi-tools>=1.1.0",
 ]
 
+# Batch integration (Harmony/scVI-based GEX correction; see conga.preprocess.batch_integration)
+batch-integration = [
+    "harmonypy>=0.0.10",
+    "scvi-tools>=1.1.0",
+]
+
 # Development dependencies
 dev = [
     "pytest>=7.4.0",
@@ -84,12 +90,12 @@ dev = [
 
 # All optional dependencies (CPU performance)
 all = [
-    "conga[performance,batch,scvi,dev]",
+    "conga[performance,batch,scvi,batch-integration,dev]",
 ]
 
 # All optional dependencies (GPU performance)
 all-gpu = [
-    "conga[performance-gpu,batch,scvi,dev]",
+    "conga[performance-gpu,batch,scvi,batch-integration,dev]",
 ]
 
 [project.urls]

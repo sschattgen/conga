@@ -1,5 +1,6 @@
 ######################################################################################88
 import scanpy as sc
+import logging
 import random
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -557,43 +558,95 @@ def filter_normalize_and_hvg(
                   .format(np.sum(mask), feature_types_colname ))
             assert removed_at_end # want to make this assumption somewhere else
 
+    # Capture pre-normalization counts for methods (e.g. scVI) that require
+    # raw counts. adata.raw retains its original (pre-antibody-removal)
+    # width even after adata itself is narrowed by adata[:,~mask].copy()
+    # above, so when antibody features were present and removed, slice
+    # adata.raw.X down to the same surviving columns before capturing --
+    # otherwise the layer's width would not match adata's current shape.
+    # Placed after antibody-feature removal so gene ordering matches the
+    # final adata.raw.X, and before normalize_total/log1p so the values
+    # are unmutated raw counts. Unconditional: always captured regardless
+    # of downstream pathway (batch integration, fixed HVG, or neither).
+    if feature_types_colname and np.sum(mask):
+        adata.layers['counts'] = adata.raw.X[:, ~np.asarray(mask)].copy()
+    else:
+        adata.layers['counts'] = adata.raw.X.copy()
+
     # Normalize and log data using modern scanpy API
     sc.pp.normalize_total(adata, target_sum=1e4)  # normalize_per_cell deprecated since 1.3.7
     sc.pp.log1p(adata)
 
     #find and filter by highly variable genes
-    if hvg_batch_key is None:
-        # paranoid, since this is a new addition for conga (2021-09-15)
-        # not sure how far back batch_key option was supported in scanpy hvg...
-        sc.pp.highly_variable_genes(
-            adata,
-            min_mean=hvg_min_mean,
-            max_mean=hvg_max_mean,
-            min_disp=hvg_min_disp,
-        )
-    else:
-        tmp_key = 'tmp_hvg_batch_key' # make sure it's a category or we get an error
-        adata.obs[tmp_key] = adata.obs[hvg_batch_key].astype('category')
+    #
+    # Three-state guard: (A) adata.uns['force_variable_genes'] set -> build
+    # hvg_mask from the gene list, never call sc.pp.highly_variable_genes;
+    # (B) no force_variable_genes, but caller already set
+    # adata.var['highly_variable'] before this function ran -> use that
+    # mask verbatim, never call sc.pp.highly_variable_genes (which would
+    # otherwise silently overwrite the caller's column); (C) neither ->
+    # run sc.pp.highly_variable_genes as before. The presence check for
+    # state B must happen before state C's call, since that call creates/
+    # overwrites adata.var['highly_variable'] as a side effect.
+    force_variable_genes = adata.uns.get('force_variable_genes')
+    caller_supplied_hvg_mask = (
+        not force_variable_genes and 'highly_variable' in adata.var.columns
+    )
+    # Tracks whether the Fixed_HVG_Pathway (state A or B) is active, so that
+    # the conga_stats['fixed_hvg_mask_size'] key (Requirement 5.8) is only
+    # recorded for those two states and not for automatic HVG detection
+    # (state C).
+    fixed_hvg_pathway_active = False
 
-        sc.pp.highly_variable_genes(
-            adata,
-            min_mean=hvg_min_mean,
-            max_mean=hvg_max_mean,
-            min_disp=hvg_min_disp,
-            batch_key=tmp_key,
-        )
-        del adata.obs[tmp_key]
-    hvg_mask = np.array(adata.var['highly_variable'])
-
-    # allow the user to specify which variable genes to use
-    if 'force_variable_genes' in adata.uns.keys():
-        force_variable_genes = set(adata.uns['force_variable_genes'])
+    if force_variable_genes:
+        # State A: user-specified variable genes; skip auto-HVG entirely.
+        fixed_hvg_pathway_active = True
+        original_force_variable_genes_len = len(force_variable_genes)
+        force_variable_genes = set(force_variable_genes)
         hvg_mask = np.array([x in force_variable_genes
                              for x in adata.var_names])
+        excluded = force_variable_genes - set(adata.var_names)
+        if excluded:
+            logging.warning(
+                'filter_normalize_and_hvg: %d gene symbols from '
+                'force_variable_genes not found in adata.var_names, '
+                'excluding: %s', len(excluded), sorted(excluded))
         print('using user-specified variable genes:',
               len(force_variable_genes), np.sum(hvg_mask))
         print('will still exclude TR/IG genes as appropriate, and sex-linked',
               'genes if requested')
+        adata.uns['conga_stats']['fixed_hvg_list_size'] = \
+            original_force_variable_genes_len
+    elif caller_supplied_hvg_mask:
+        # State B: caller pre-set adata.var['highly_variable']; use it
+        # verbatim and skip auto-HVG so it isn't overwritten.
+        fixed_hvg_pathway_active = True
+        hvg_mask = np.array(adata.var['highly_variable'])
+        adata.uns['conga_stats']['fixed_hvg_list_size'] = int(np.sum(hvg_mask))
+    else:
+        # State C: no caller input; run automatic HVG detection as today.
+        if hvg_batch_key is None:
+            # paranoid, since this is a new addition for conga (2021-09-15)
+            # not sure how far back batch_key option was supported in scanpy hvg...
+            sc.pp.highly_variable_genes(
+                adata,
+                min_mean=hvg_min_mean,
+                max_mean=hvg_max_mean,
+                min_disp=hvg_min_disp,
+            )
+        else:
+            tmp_key = 'tmp_hvg_batch_key' # make sure it's a category or we get an error
+            adata.obs[tmp_key] = adata.obs[hvg_batch_key].astype('category')
+
+            sc.pp.highly_variable_genes(
+                adata,
+                min_mean=hvg_min_mean,
+                max_mean=hvg_max_mean,
+                min_disp=hvg_min_disp,
+                batch_key=tmp_key,
+            )
+            del adata.obs[tmp_key]
+        hvg_mask = np.array(adata.var['highly_variable'])
 
     if add_variable_genes is not None:
         add_mask = np.array([x in add_variable_genes for x in adata.var_names])
@@ -628,6 +681,8 @@ def filter_normalize_and_hvg(
     print('total of', np.sum(hvg_mask), 'variable genes', adata.shape)
     adata = adata[:, hvg_mask].copy()
     adata.uns['conga_stats']['num_highly_variable_genes'] = adata.shape[1]
+    if fixed_hvg_pathway_active:
+        adata.uns['conga_stats']['fixed_hvg_mask_size'] = adata.shape[1]
     adata.uns['conga_stats']['num_cells_after_filtering'] = adata.shape[0]
 
     # new: normalize the raw matrix here; used to do this later
@@ -638,6 +693,172 @@ def filter_normalize_and_hvg(
 
     return adata
 
+
+
+def _validate_batch_key(adata: AnnData, batch_key: str) -> None:
+    '''Validate that `batch_key` is usable as the single shared batch column
+    for the Full_Integration_Pathway (batch-aware HVG selection plus
+    Harmony/scVI integration).
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Annotated data matrix to validate against.
+    batch_key : str
+        Name of the `adata.obs` column intended to drive both batch-aware
+        HVG selection and the Integration_Method.
+
+    Raises
+    ------
+    ValueError
+        If `batch_key` is absent from `adata.obs`, or if the column it
+        names has fewer than two distinct values (nothing to integrate
+        across, including the all-NaN/empty-column case).
+
+    Examples
+    --------
+    >>> conga.preprocess._validate_batch_key(adata, 'donor_id')
+    '''
+    if batch_key not in adata.obs.columns:
+        raise ValueError(
+            f'batch_key={batch_key!r} is not a column in adata.obs; '
+            f'available columns: {list(adata.obs.columns)}')
+
+    num_distinct = adata.obs[batch_key].nunique()
+    if num_distinct < 2:
+        raise ValueError(
+            f'adata.obs[{batch_key!r}] has {num_distinct} distinct '
+            'value(s); batch integration requires at least two batches')
+
+
+def batch_integration(
+        adata: AnnData,
+        batch_key: str,
+        method: str,
+        *,
+        n_gex_pcs: int = 40,
+        hvg_min_mean: float = 0.0125,
+        hvg_max_mean: float = 3,
+        hvg_min_disp: float = 0.5,
+        min_genes_per_cell: int = None,
+        max_genes_per_cell: int = None,
+        max_percent_mito: float = None,
+        normalize_antibody_features_CLR: bool = True,
+        scvi_max_epochs: int = None,
+        random_seed: int = util.DEFAULT_RANDOM_SEED,
+) -> AnnData:
+    '''Run batch-aware HVG selection followed by batch integration.
+
+    Runs `filter_normalize_and_hvg(adata, hvg_batch_key=batch_key, ...)`,
+    then (in a later task) corrects the resulting GEX PCA representation
+    using the requested Integration_Method (`harmony` or `scvi`) and
+    writes it into `adata.obsm['X_pca_gex']` so that
+    `cluster_and_tsne_and_umap` and `calc_nbrs` consume it with no further
+    changes.
+
+    `batch_key` is the single `adata.obs` column shared by both
+    batch-aware HVG selection (passed through to `hvg_batch_key`) and the
+    Integration_Method; there is no separate, independently-settable key
+    for the integration step.
+
+    This function is mutually exclusive with the Fixed_HVG_Pathway: if
+    `adata.uns['force_variable_genes']` is already set at entry, a
+    `ValueError` is raised rather than silently running one pathway and
+    ignoring the other.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Annotated data matrix. Should not yet have had
+        `filter_normalize_and_hvg` or `filter_and_scale` called on it for
+        this run -- this function calls `filter_normalize_and_hvg` itself.
+    batch_key : str
+        Name of the single `adata.obs` column driving both HVG selection
+        and the Integration_Method.
+    method : str
+        One of `'harmony'` or `'scvi'` (see `util.BATCH_INTEGRATION_METHODS`).
+    n_gex_pcs : int
+        Number of PCs to compute for the Unintegrated_Representation
+        before correction. Passed to `sc.tl.pca`.
+    hvg_min_mean, hvg_max_mean, hvg_min_disp : float
+        Passed through to `filter_normalize_and_hvg`.
+    min_genes_per_cell, max_genes_per_cell, max_percent_mito :
+        Passed through to `filter_normalize_and_hvg`.
+    normalize_antibody_features_CLR : bool
+        Passed through to `filter_normalize_and_hvg`.
+    scvi_max_epochs : int, optional
+        Passed to `scvi.model.SCVI.train(max_epochs=...)` on the `scvi`
+        path (not yet implemented in this scaffold).
+    random_seed : int
+        Seed used for the PCA/integration steps (not yet consumed in this
+        scaffold).
+
+    Returns
+    -------
+    anndata.AnnData
+        The same object, mutated in place and also returned for chaining,
+        consistent with `filter_and_scale`'s existing convention.
+
+    Raises
+    ------
+    ValueError
+        If `batch_key` is missing from `adata.obs`, names a column with
+        fewer than two distinct values (via `_validate_batch_key`), if
+        `method` is not in `util.BATCH_INTEGRATION_METHODS`, or if
+        `adata.uns['force_variable_genes']` is already set (Fixed_HVG_Pathway
+        and Full_Integration_Pathway are mutually exclusive).
+
+    Examples
+    --------
+    >>> adata = conga.preprocess.batch_integration(
+    ...     adata, batch_key='donor_id', method='harmony')
+    '''
+    _validate_batch_key(adata, batch_key)
+
+    if method not in util.BATCH_INTEGRATION_METHODS:
+        raise ValueError(
+            f'method={method!r} is not a supported Integration_Method; '
+            f'supported values: {sorted(util.BATCH_INTEGRATION_METHODS)}')
+
+    if adata.uns.get('force_variable_genes'):
+        raise ValueError(
+            'batch_integration: adata.uns["force_variable_genes"] is '
+            'already set. The Fixed_HVG_Pathway (force_variable_genes) '
+            'and the Full_Integration_Pathway (batch_integration) are '
+            'mutually exclusive; unset force_variable_genes before '
+            'calling batch_integration, or vice versa.')
+
+    adata = filter_normalize_and_hvg(
+        adata,
+        min_genes_per_cell=min_genes_per_cell,
+        max_genes_per_cell=max_genes_per_cell,
+        max_percent_mito=max_percent_mito,
+        hvg_min_mean=hvg_min_mean,
+        hvg_max_mean=hvg_max_mean,
+        hvg_min_disp=hvg_min_disp,
+        hvg_batch_key=batch_key,
+        normalize_antibody_features_CLR=normalize_antibody_features_CLR,
+    )
+
+    if method == 'harmony':
+        # TODO(task 5.x): _regress_out_technical_covariates, sc.tl.pca ->
+        # OBSM_KEY_PCA_GEX_UNINTEGRATED, _run_harmony_integration ->
+        # OBSM_KEY_PCA_GEX_INTEGRATED / X_pca_gex, record
+        # UNS_KEY_BATCH_INTEGRATION_CONFIG. See design.md Component 1.
+        raise NotImplementedError(
+            "batch_integration: method='harmony' is not yet implemented "
+            '(scaffolded in task 4.3; implementation lands in task 5.x)')
+    elif method == 'scvi':
+        # TODO(task 6.x): assert 'counts' in adata.layers,
+        # _regress_out_technical_covariates, sc.tl.pca ->
+        # OBSM_KEY_PCA_GEX_UNINTEGRATED, _run_scvi_integration ->
+        # OBSM_KEY_PCA_GEX_INTEGRATED / X_pca_gex, record
+        # UNS_KEY_BATCH_INTEGRATION_CONFIG. See design.md Component 1.
+        raise NotImplementedError(
+            "batch_integration: method='scvi' is not yet implemented "
+            '(scaffolded in task 4.3; implementation lands in task 6.x)')
+
+    return adata
 
 
 def calc_X_pca_gex_including_protein_features(

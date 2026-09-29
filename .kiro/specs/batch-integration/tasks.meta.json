@@ -1,0 +1,294 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Add batch integration constants to `conga/util.py`": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715500877
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715512474
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790717340044
+      }
+    ],
+    "1.2 Add the `batch-integration` optional-dependency group to `pyproject.toml`": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715500905
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715512842
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790717340694
+      }
+    ],
+    "2.1 Add unconditional `adata.layers['counts']` capture": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715500934
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790717350203
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790719068203
+      }
+    ],
+    "2.2 Write unit tests for Counts_Layer capture": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715500956
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790719592902
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790723999509
+      }
+    ],
+    "3.1 Skip automatic HVG detection when `force_variable_genes` or a caller-set `highly_variable` column is present": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715500976
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790719075299
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790719585840
+      }
+    ],
+    "3.2 Log excluded gene symbols and record Fixed_Gene_List/mask sizes": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715500998
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790719593608
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790724000234
+      }
+    ],
+    "3.3 Write unit tests for the Fixed_HVG_Pathway": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715501018
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790724014035
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790724315685
+      }
+    ],
+    "4.1 Implement `_validate_batch_key`": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715501039
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790724014710
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790724316323
+      }
+    ],
+    "4.2 Write unit tests for `_validate_batch_key`": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715501058
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790724323755
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790724625937
+      }
+    ],
+    "4.3 Implement the `batch_integration()` signature, method validation, and mutual-exclusion check": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715501076
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790724324326
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790724626658
+      }
+    ],
+    "4.4 Write unit tests for method validation and mutual exclusion": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715501096
+      }
+    ],
+    "5.1 Implement `_regress_out_technical_covariates`": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715501123
+      }
+    ],
+    "5.2 Implement `_run_harmony_integration` and wire the `harmony` branch of `batch_integration()`": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715501142
+      }
+    ],
+    "5.3 Write unit and integration tests for the Harmony path": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715501161
+      }
+    ],
+    "6.1 Implement `_run_scvi_integration` and wire the `scvi` branch of `batch_integration()`": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715501183
+      }
+    ],
+    "6.2 Write unit and integration tests for the scVI path": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715501201
+      }
+    ],
+    "7. Checkpoint - Ensure Phase C tests pass": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715501223
+      }
+    ],
+    "8.1 Add the two new flags to `scripts/run_conga.py`": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715501241
+      }
+    ],
+    "8.2 Add post-import validation checks": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715501260
+      }
+    ],
+    "8.3 Wire the call site": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715501281
+      }
+    ],
+    "8.4 Write CLI validation and smoke tests": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715501299
+      }
+    ],
+    "9.1 Write the `.h5ad` round-trip test": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715501319
+      }
+    ],
+    "9.2 Write the downstream-consumption guard-reuse test": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715501340
+      }
+    ],
+    "9.3 Final checkpoint - full suite, backward compatibility, and optional-dependency isolation": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790715501358
+      }
+    ],
+    "1. Add shared constants and dependency declarations": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790717340719
+      }
+    ],
+    "2. Capture the Counts_Layer in `filter_normalize_and_hvg`": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790723999542
+      }
+    ],
+    "3. Fix the Fixed_HVG_Pathway guard in `filter_normalize_and_hvg`": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790724315709
+      }
+    ]
+  }
+}
