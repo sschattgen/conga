@@ -93,7 +93,7 @@ Per this design's explicit Testing Strategy section, `batch_integration` is pipe
     - Do not call `sc.pp.scale()` anywhere in this helper
     - _Requirements: (supports 2.3, per Overview point 4 / Resolved Decisions on regress-out-but-unscaled PCA input)_
 
-  - [-] 5.2 Implement `_run_harmony_integration` and wire the `harmony` branch of `batch_integration()`
+  - [x] 5.2 Implement `_run_harmony_integration` and wire the `harmony` branch of `batch_integration()`
     - Cast `adata.obs[batch_key]` to a pandas categorical dtype
     - Import `harmonypy` only inside this function; on `ImportError`, raise an `ImportError` naming `harmonypy` and the `conga[batch-integration]` extra
     - Call `_regress_out_technical_covariates`, then `sc.tl.pca(adata, svd_solver='arpack', n_comps=n_gex_pcs)`, store the result under `util.OBSM_KEY_PCA_GEX_UNINTEGRATED`
@@ -117,7 +117,7 @@ Per this design's explicit Testing Strategy section, `batch_integration` is pipe
     - Store the latent representation under `util.OBSM_KEY_PCA_GEX_INTEGRATED`, set `adata.obsm['X_pca_gex']` to it, and record `method`, `batch_key`, and `n_batches` in `adata.uns[util.UNS_KEY_BATCH_INTEGRATION_CONFIG]`
     - _Requirements: 2.4, 2.6, 2.7, 3.4, 3.5, 4.1, 4.2, 4.4_
 
-  - [-] 6.2 Write unit and integration tests for the scVI path
+  - [x] 6.2 Write unit and integration tests for the scVI path
     - Unit test: `_run_scvi_integration` raises `ValueError` when `adata.layers['counts']` is absent, using a fixture that skips `filter_normalize_and_hvg` (Requirement 3.4)
     - Integration test (marked `slow`): on a small synthetic `AnnData` with `scvi-tools` installed, assert the same `obsm` structure as the Harmony test, and assert `scvi.model.SCVI.setup_anndata` was called with `layer='counts'`, the correct `batch_key`, and `continuous_covariate_keys=['percent_mito']` via a spy/mock rather than asserting on trained-model output values (Requirement 3.5)
     - Integration test: with `scvi-tools` uninstalled (via `sys.modules` patching), `method='scvi'` raises `ImportError` naming `conga[batch-integration]` (Requirement 2.6)

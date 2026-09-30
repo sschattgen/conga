@@ -40,6 +40,7 @@ import pytest
 
 from conga.preprocess import (
     _validate_batch_key,
+    _run_harmony_integration,
     _run_scvi_integration,
     batch_integration,
     filter_normalize_and_hvg,
@@ -626,3 +627,191 @@ class TestScviIntegrationEndToEnd:
         assert config['method'] == 'scvi'
         assert config['batch_key'] == 'batch'
         assert config['n_batches'] == 2
+
+
+class TestHarmonyIntegrationEndToEnd:
+    """Requirement 4.1, 4.2: integration test for the `harmony`
+    Integration_Method, on a small synthetic two-batch `AnnData` run
+    through the full `batch_integration()` entry point.
+
+    Unlike the scVI path, Harmony integration has no epoch-based training
+    loop and is pure numpy/sklearn plus `harmonypy` (no `torch`
+    involved), so this is fast enough on a few-hundred-cell fixture to
+    run unmarked (not `@pytest.mark.slow`) and without the
+    `KMP_DUPLICATE_LIB_OK`/`OMP_NUM_THREADS`/`MKL_NUM_THREADS`
+    workaround the scVI tests in this module require.
+
+    `harmonypy` is expected to already be installed in the `conga-dev`
+    environment (it is a listed `conga[batch-integration]` dependency),
+    so no `sys.modules` patching or optional-skip guard is used here.
+    """
+
+    def _make_hvg_processed_batch_adata(self, n_cells=250, n_genes=200,
+                                         n_batches=2, random_seed=RANDOM_SEED):
+        """Build a two-batch fixture sized per the task description (a
+        few hundred cells) with enough genes surviving HVG selection for
+        a modest `n_gex_pcs`, using the same `hvg_min_disp=0.1` override
+        the scVI tests in this module use to avoid the batch-aware HVG
+        intersection collapsing to an empty mask on small synthetic gene
+        counts.
+        """
+        adata = _make_batch_adata(
+            n_cells=n_cells, n_genes=n_genes, n_batches=n_batches,
+            random_seed=random_seed)
+        adata = _run_filter_normalize_and_hvg_no_filtering(
+            adata, hvg_batch_key='batch')
+        assert 'n_counts' in adata.obs.columns
+        assert 'percent_mito' in adata.obs.columns
+        return adata
+
+    def test_via_batch_integration_entry_point_obsm_keys_present(self):
+        adata = _make_batch_adata(
+            n_cells=250, n_genes=200, n_batches=2, random_seed=RANDOM_SEED)
+
+        result = batch_integration(
+            adata, batch_key='batch', method='harmony',
+            min_genes_per_cell=1, max_genes_per_cell=10000,
+            max_percent_mito=1.0, hvg_min_disp=0.1, n_gex_pcs=5)
+
+        assert util.OBSM_KEY_PCA_GEX_UNINTEGRATED in result.obsm
+        assert util.OBSM_KEY_PCA_GEX_INTEGRATED in result.obsm
+        assert 'X_pca_gex' in result.obsm
+
+    def test_x_pca_gex_equals_integrated_representation_elementwise(self):
+        adata = _make_batch_adata(
+            n_cells=250, n_genes=200, n_batches=2, random_seed=RANDOM_SEED)
+
+        result = batch_integration(
+            adata, batch_key='batch', method='harmony',
+            min_genes_per_cell=1, max_genes_per_cell=10000,
+            max_percent_mito=1.0, hvg_min_disp=0.1, n_gex_pcs=5)
+
+        np.testing.assert_array_equal(
+            np.asarray(result.obsm['X_pca_gex']),
+            np.asarray(result.obsm[util.OBSM_KEY_PCA_GEX_INTEGRATED]))
+
+    def test_unintegrated_and_integrated_representations_differ(self):
+        adata = _make_batch_adata(
+            n_cells=250, n_genes=200, n_batches=2, random_seed=RANDOM_SEED)
+
+        result = batch_integration(
+            adata, batch_key='batch', method='harmony',
+            min_genes_per_cell=1, max_genes_per_cell=10000,
+            max_percent_mito=1.0, hvg_min_disp=0.1, n_gex_pcs=5)
+
+        unintegrated = np.asarray(result.obsm[util.OBSM_KEY_PCA_GEX_UNINTEGRATED])
+        integrated = np.asarray(result.obsm[util.OBSM_KEY_PCA_GEX_INTEGRATED])
+        assert unintegrated.shape == integrated.shape
+        assert not np.array_equal(unintegrated, integrated)
+
+    def test_via_run_harmony_integration_directly(self):
+        """Same structural assertions, but calling
+        `_run_harmony_integration` directly on an already
+        `filter_normalize_and_hvg`-processed fixture, mirroring the
+        scVI `test_obsm_and_uns_structure_matches_harmony_shape` test's
+        approach for the other Integration_Method.
+        """
+        adata = self._make_hvg_processed_batch_adata()
+
+        result = _run_harmony_integration(
+            adata, 'batch', 5, random_seed=RANDOM_SEED)
+
+        assert util.OBSM_KEY_PCA_GEX_UNINTEGRATED in result.obsm
+        assert util.OBSM_KEY_PCA_GEX_INTEGRATED in result.obsm
+        assert 'X_pca_gex' in result.obsm
+
+        np.testing.assert_array_equal(
+            np.asarray(result.obsm['X_pca_gex']),
+            np.asarray(result.obsm[util.OBSM_KEY_PCA_GEX_INTEGRATED]))
+
+        unintegrated = np.asarray(result.obsm[util.OBSM_KEY_PCA_GEX_UNINTEGRATED])
+        integrated = np.asarray(result.obsm[util.OBSM_KEY_PCA_GEX_INTEGRATED])
+        assert not np.array_equal(unintegrated, integrated)
+
+
+class TestHarmonyIntegrationImportErrorWhenUninstalled:
+    """Requirement 2.5: with `harmonypy` uninstalled (simulated via
+    `sys.modules` patching), `method='harmony'` raises `ImportError`
+    naming `conga[batch-integration]`.
+
+    Uses `unittest.mock.patch.dict(sys.modules, {'harmonypy': None})`,
+    the same idiom `TestScviIntegrationImportErrorWhenUninstalled` above
+    uses for `scvi`: setting the `sys.modules` entry to `None` forces the
+    next `import harmonypy` to raise `ImportError` without needing to
+    actually uninstall the real package.
+
+    As in the scVI `ImportError` tests, an unpatched
+    `filter_normalize_and_hvg` call primes numba's JIT cache before
+    entering the `sys.modules` patch context, avoiding the unrelated
+    numba registry-collision bug described in
+    `TestScviIntegrationImportErrorWhenUninstalled`'s docstring.
+    """
+
+    def test_batch_integration_method_harmony_raises_import_error(self):
+        _run_filter_normalize_and_hvg_no_filtering(
+            _make_batch_adata(n_cells=40, n_genes=30, n_batches=2,
+                               random_seed=RANDOM_SEED + 1),
+            hvg_batch_key='batch')
+
+        adata = _make_batch_adata(n_cells=40, n_genes=30, n_batches=2)
+
+        with mock.patch.dict(sys.modules, {'harmonypy': None}):
+            with pytest.raises(ImportError) as exc_info:
+                batch_integration(
+                    adata, batch_key='batch', method='harmony',
+                    min_genes_per_cell=1, max_genes_per_cell=10000,
+                    max_percent_mito=1.0, hvg_min_disp=0.1)
+
+        message = str(exc_info.value)
+        assert 'harmonypy' in message
+        assert 'conga[batch-integration]' in message
+
+    def test_run_harmony_integration_directly_raises_import_error(self):
+        adata = _make_batch_adata(n_cells=40, n_genes=30, n_batches=2)
+        adata = _run_filter_normalize_and_hvg_no_filtering(
+            adata, hvg_batch_key='batch')
+
+        with mock.patch.dict(sys.modules, {'harmonypy': None}):
+            with pytest.raises(ImportError) as exc_info:
+                _run_harmony_integration(adata, 'batch', 5)
+
+        message = str(exc_info.value)
+        assert 'harmonypy' in message
+        assert 'conga[batch-integration]' in message
+
+
+class TestHarmonyIntegrationConfigUns:
+    """Requirement 4.4: `adata.uns[util.UNS_KEY_BATCH_INTEGRATION_CONFIG]`
+    contents (`method`, `batch_key`, `n_batches`) match the Harmony run's
+    actual inputs.
+    """
+
+    def test_config_matches_actual_inputs_two_batches(self):
+        adata = _make_batch_adata(
+            n_cells=250, n_genes=200, n_batches=2, random_seed=RANDOM_SEED)
+
+        result = batch_integration(
+            adata, batch_key='batch', method='harmony',
+            min_genes_per_cell=1, max_genes_per_cell=10000,
+            max_percent_mito=1.0, hvg_min_disp=0.1, n_gex_pcs=5)
+
+        config = result.uns[util.UNS_KEY_BATCH_INTEGRATION_CONFIG]
+        assert config['method'] == 'harmony'
+        assert config['batch_key'] == 'batch'
+        assert config['n_batches'] == 2
+        assert config['n_batches'] == result.obs['batch'].nunique()
+
+    def test_config_matches_actual_inputs_three_batches(self):
+        adata = _make_batch_adata(
+            n_cells=300, n_genes=200, n_batches=3, random_seed=RANDOM_SEED)
+
+        result = batch_integration(
+            adata, batch_key='batch', method='harmony',
+            min_genes_per_cell=1, max_genes_per_cell=10000,
+            max_percent_mito=1.0, hvg_min_disp=0.1, n_gex_pcs=5)
+
+        config = result.uns[util.UNS_KEY_BATCH_INTEGRATION_CONFIG]
+        assert config['method'] == 'harmony'
+        assert config['batch_key'] == 'batch'
+        assert config['n_batches'] == 3
+        assert config['n_batches'] == result.obs['batch'].nunique()
