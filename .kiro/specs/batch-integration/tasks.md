@@ -61,7 +61,7 @@ Per this design's explicit Testing Strategy section, `batch_integration` is pipe
 
 ### Phase C: `batch_integration()` Core Implementation (Harmony and scVI tracks in parallel)
 
-- [ ] 4. Implement shared validation and entry point scaffold
+- [x] 4. Implement shared validation and entry point scaffold
   - [x] 4.1 Implement `_validate_batch_key`
     - Raise `ValueError` naming the missing column if `batch_key` is absent from `adata.obs`
     - Raise `ValueError` naming the column if `adata.obs[batch_key].nunique() < 2`
@@ -81,19 +81,19 @@ Per this design's explicit Testing Strategy section, `batch_integration` is pipe
     - Call `filter_normalize_and_hvg(adata, hvg_batch_key=batch_key, ...)` passing through the relevant preprocessing parameters
     - _Requirements: 1.1, 1.2, 1.3, 1.6, 2.1, 2.2, 5.5_
 
-  - [~] 4.4 Write unit tests for method validation and mutual exclusion
+  - [x] 4.4 Write unit tests for method validation and mutual exclusion
     - Test `'scanorama'`, `'bbknn'`, and an arbitrary string all raise `ValueError` naming the supported set (Requirement 2.2)
     - Test that calling `batch_integration()` with `adata.uns['force_variable_genes']` already set raises `ValueError` (Requirement 5.5)
     - Place in `tests/test_batch_integration.py`
     - _Requirements: 2.2, 5.5_
 
 - [ ] 5. Implement the Harmony integration track
-  - [~] 5.1 Implement `_regress_out_technical_covariates`
+  - [x] 5.1 Implement `_regress_out_technical_covariates`
     - Call `sc.pp.regress_out(adata, ['n_counts', 'percent_mito'])` unconditionally, relying on both columns already being populated by the preceding `filter_normalize_and_hvg` call
     - Do not call `sc.pp.scale()` anywhere in this helper
     - _Requirements: (supports 2.3, per Overview point 4 / Resolved Decisions on regress-out-but-unscaled PCA input)_
 
-  - [~] 5.2 Implement `_run_harmony_integration` and wire the `harmony` branch of `batch_integration()`
+  - [-] 5.2 Implement `_run_harmony_integration` and wire the `harmony` branch of `batch_integration()`
     - Cast `adata.obs[batch_key]` to a pandas categorical dtype
     - Import `harmonypy` only inside this function; on `ImportError`, raise an `ImportError` naming `harmonypy` and the `conga[batch-integration]` extra
     - Call `_regress_out_technical_covariates`, then `sc.tl.pca(adata, svd_solver='arpack', n_comps=n_gex_pcs)`, store the result under `util.OBSM_KEY_PCA_GEX_UNINTEGRATED`
@@ -109,7 +109,7 @@ Per this design's explicit Testing Strategy section, `batch_integration` is pipe
     - _Requirements: 2.5, 4.1, 4.2, 4.4_
 
 - [ ] 6. Implement the scVI integration track
-  - [~] 6.1 Implement `_run_scvi_integration` and wire the `scvi` branch of `batch_integration()`
+  - [x] 6.1 Implement `_run_scvi_integration` and wire the `scvi` branch of `batch_integration()`
     - Raise `ValueError` stating that the `scvi` Integration_Method requires the Counts_Layer and naming `filter_normalize_and_hvg`, if `'counts' not in adata.layers`
     - Import `scvi` only inside this function; on `ImportError`, raise an `ImportError` naming `scvi-tools` and the `conga[batch-integration]` extra
     - Call `_regress_out_technical_covariates`, then `sc.tl.pca(adata, svd_solver='arpack', n_comps=n_gex_pcs)`, store the result under `util.OBSM_KEY_PCA_GEX_UNINTEGRATED`
@@ -117,7 +117,7 @@ Per this design's explicit Testing Strategy section, `batch_integration` is pipe
     - Store the latent representation under `util.OBSM_KEY_PCA_GEX_INTEGRATED`, set `adata.obsm['X_pca_gex']` to it, and record `method`, `batch_key`, and `n_batches` in `adata.uns[util.UNS_KEY_BATCH_INTEGRATION_CONFIG]`
     - _Requirements: 2.4, 2.6, 2.7, 3.4, 3.5, 4.1, 4.2, 4.4_
 
-  - [~] 6.2 Write unit and integration tests for the scVI path
+  - [-] 6.2 Write unit and integration tests for the scVI path
     - Unit test: `_run_scvi_integration` raises `ValueError` when `adata.layers['counts']` is absent, using a fixture that skips `filter_normalize_and_hvg` (Requirement 3.4)
     - Integration test (marked `slow`): on a small synthetic `AnnData` with `scvi-tools` installed, assert the same `obsm` structure as the Harmony test, and assert `scvi.model.SCVI.setup_anndata` was called with `layer='counts'`, the correct `batch_key`, and `continuous_covariate_keys=['percent_mito']` via a spy/mock rather than asserting on trained-model output values (Requirement 3.5)
     - Integration test: with `scvi-tools` uninstalled (via `sys.modules` patching), `method='scvi'` raises `ImportError` naming `conga[batch-integration]` (Requirement 2.6)

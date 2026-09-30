@@ -176,6 +176,16 @@
         "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
         "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
         "timestamp": 1790715501096
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790724659436
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790724965870
       }
     ],
     "5.1 Implement `_regress_out_technical_covariates`": [
@@ -183,6 +193,16 @@
         "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
         "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
         "timestamp": 1790715501123
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790724660547
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790724965153
       }
     ],
     "5.2 Implement `_run_harmony_integration` and wire the `harmony` branch of `batch_integration()`": [
@@ -190,6 +210,11 @@
         "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
         "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
         "timestamp": 1790715501142
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790725359522
       }
     ],
     "5.3 Write unit and integration tests for the Harmony path": [
@@ -204,6 +229,26 @@
         "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
         "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
         "timestamp": 1790715501183
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790724661264
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790724667730
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790724979427
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790725354680
       }
     ],
     "6.2 Write unit and integration tests for the scVI path": [
@@ -211,6 +256,11 @@
         "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
         "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
         "timestamp": 1790715501201
+      },
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790725360054
       }
     ],
     "7. Checkpoint - Ensure Phase C tests pass": [
@@ -288,6 +338,13 @@
         "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
         "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
         "timestamp": 1790724315709
+      }
+    ],
+    "4. Implement shared validation and entry point scaffold": [
+      {
+        "executionId": "24e5deda-6446-4d94-ab52-14752b36860c",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790724965895
       }
     ]
   }

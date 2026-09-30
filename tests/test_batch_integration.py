@@ -29,7 +29,7 @@ import anndata as ad
 import scipy.sparse as sp
 import pytest
 
-from conga.preprocess import _validate_batch_key
+from conga.preprocess import _validate_batch_key, batch_integration
 
 
 RANDOM_SEED = 42
@@ -155,3 +155,87 @@ class TestValidateBatchKeySufficientDistinctValues:
             ['batch_a'] * 10 + ['batch_b'] * 10 + ['batch_c'] * 10)
 
         _validate_batch_key(adata, 'batch')
+
+
+class TestBatchIntegrationMethodValidation:
+    """Requirement 2.2: `batch_integration()` restricts `method` to the
+    supported `util.BATCH_INTEGRATION_METHODS` set (`{'harmony', 'scvi'}`).
+
+    An unsupported `method` value must raise `ValueError` naming the
+    supplied value and the supported set. This check happens after
+    `_validate_batch_key` but before any preprocessing or integration
+    branch runs, so a valid `batch_key` (>= 2 distinct values) is enough
+    to reach it regardless of whether Harmony/scVI are actually
+    implemented yet.
+    """
+
+    @pytest.mark.parametrize('method', ['scanorama', 'bbknn', 'not_a_method'])
+    def test_unsupported_method_raises_value_error(self, method):
+        adata = _make_adata()
+        adata.obs['batch'] = ['batch_a'] * 10 + ['batch_b'] * 10
+
+        with pytest.raises(ValueError):
+            batch_integration(adata, batch_key='batch', method=method)
+
+    @pytest.mark.parametrize('method', ['scanorama', 'bbknn', 'not_a_method'])
+    def test_unsupported_method_error_names_value_and_supported_set(
+            self, method):
+        adata = _make_adata()
+        adata.obs['batch'] = ['batch_a'] * 10 + ['batch_b'] * 10
+
+        with pytest.raises(ValueError) as exc_info:
+            batch_integration(adata, batch_key='batch', method=method)
+
+        message = str(exc_info.value)
+        assert method in message
+        assert 'harmony' in message
+        assert 'scvi' in message
+
+
+class TestBatchIntegrationMutualExclusion:
+    """Requirement 5.5: the Fixed_HVG_Pathway (`force_variable_genes`)
+    and the Full_Integration_Pathway (`batch_integration`) are mutually
+    exclusive. If `adata.uns['force_variable_genes']` is already set when
+    `batch_integration()` is called, a `ValueError` must be raised before
+    any HVG/integration computation runs -- regardless of which
+    supported `method` is requested, since this check happens before the
+    `harmony`/`scvi` branches (which currently raise `NotImplementedError`
+    and would mask a mutual-exclusion failure if the ordering were
+    wrong).
+    """
+
+    @pytest.mark.parametrize('method', ['harmony', 'scvi'])
+    def test_force_variable_genes_set_raises_value_error(self, method):
+        adata = _make_adata()
+        adata.obs['batch'] = ['batch_a'] * 10 + ['batch_b'] * 10
+        adata.uns['force_variable_genes'] = ['GENE0', 'GENE1']
+
+        with pytest.raises(ValueError):
+            batch_integration(adata, batch_key='batch', method=method)
+
+    def test_mutual_exclusion_checked_before_notimplementederror(self):
+        # With force_variable_genes set, the ValueError from the mutual
+        # exclusion check must fire even though method='harmony' would
+        # otherwise reach the (currently NotImplementedError) harmony
+        # branch. This confirms the mutual-exclusion check runs first,
+        # not that the harmony branch's NotImplementedError is somehow
+        # being raised instead.
+        adata = _make_adata()
+        adata.obs['batch'] = ['batch_a'] * 10 + ['batch_b'] * 10
+        adata.uns['force_variable_genes'] = ['GENE0', 'GENE1']
+
+        with pytest.raises(ValueError) as exc_info:
+            batch_integration(adata, batch_key='batch', method='harmony')
+
+        assert 'force_variable_genes' in str(exc_info.value)
+
+    def test_error_message_mentions_mutual_exclusion(self):
+        adata = _make_adata()
+        adata.obs['batch'] = ['batch_a'] * 10 + ['batch_b'] * 10
+        adata.uns['force_variable_genes'] = ['GENE0']
+
+        with pytest.raises(ValueError) as exc_info:
+            batch_integration(adata, batch_key='batch', method='scvi')
+
+        message = str(exc_info.value).lower()
+        assert 'mutually exclusive' in message

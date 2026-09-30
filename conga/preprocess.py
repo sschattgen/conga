@@ -731,6 +731,158 @@ def _validate_batch_key(adata: AnnData, batch_key: str) -> None:
             'value(s); batch integration requires at least two batches')
 
 
+def _regress_out_technical_covariates(adata: AnnData) -> AnnData:
+    '''Regress out technical covariates from `adata.X` ahead of the GEX PCA
+    computed inside `batch_integration()`.
+
+    Calls `sc.pp.regress_out(adata, ['n_counts', 'percent_mito'])`
+    unconditionally. Both `adata.obs['n_counts']` and
+    `adata.obs['percent_mito']` are already populated by
+    `filter_normalize_and_hvg` (which `batch_integration()` always calls
+    first, before this helper runs) -- `filter_normalize_and_hvg` writes
+    `adata.obs['n_counts'] = adata.X.sum(axis=1).A1` and the mitochondrial
+    percentage into `adata.obs['percent_mito']` well before it returns, so
+    both columns are guaranteed present here. This helper does not compute
+    either column itself.
+
+    This helper deliberately does **not** call `sc.pp.scale()`. That is a
+    reviewed design decision (see design.md's Overview point 4 and
+    "Resolved Decisions"), not an oversight: `sc.pp.scale()`'s per-gene
+    mean-center/unit-variance step would inflate the relative influence of
+    low-expression, noisy genes on the PCA that Harmony/scVI subsequently
+    correct, and that tradeoff was judged worse than following Harmony's
+    own documented quickstart convention (which does scale before PCA).
+    Do not add a `sc.pp.scale()` call here to "fix" this.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Annotated data matrix that has already been through
+        `filter_normalize_and_hvg` (so `n_counts`/`percent_mito` are
+        present in `adata.obs`).
+
+    Returns
+    -------
+    anndata.AnnData
+        The same object, mutated in place (`sc.pp.regress_out` mutates
+        `adata.X`) and also returned for chaining.
+
+    Examples
+    --------
+    >>> adata = conga.preprocess._regress_out_technical_covariates(adata)
+    '''
+    sc.pp.regress_out(adata, ['n_counts', 'percent_mito'])
+    return adata
+
+
+def _run_scvi_integration(
+        adata: AnnData,
+        batch_key: str,
+        n_gex_pcs: int,
+        scvi_max_epochs: int = None,
+        random_seed: int = util.DEFAULT_RANDOM_SEED,
+) -> AnnData:
+    '''Run the scVI Integration_Method branch of `batch_integration()`.
+
+    Computes the Unintegrated_Representation via `sc.tl.pca` (after
+    `_regress_out_technical_covariates`), trains an `scvi.model.SCVI`
+    model directly on `adata.layers['counts']`, and writes the resulting
+    latent representation into `adata.obsm` as both
+    `util.OBSM_KEY_PCA_GEX_INTEGRATED` and `adata.obsm['X_pca_gex']` so
+    that `cluster_and_tsne_and_umap` and `calc_nbrs` consume it with no
+    further changes. Also records run metadata under
+    `adata.uns[util.UNS_KEY_BATCH_INTEGRATION_CONFIG]`.
+
+    `scvi-tools` is imported only inside this function (Requirement 2.7)
+    so that `import conga.preprocess` succeeds even when `scvi-tools` is
+    not installed; installing without the `conga[batch-integration]`
+    extra raises an `ImportError` naming that extra instead of a bare
+    `ModuleNotFoundError`.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Annotated data matrix that has already been through
+        `filter_normalize_and_hvg(hvg_batch_key=batch_key, ...)`, so that
+        `adata.layers['counts']` (the Counts_Layer) and
+        `adata.obs['n_counts']`/`adata.obs['percent_mito']` are present.
+    batch_key : str
+        Name of the `adata.obs` column passed to
+        `scvi.model.SCVI.setup_anndata(batch_key=...)`.
+    n_gex_pcs : int
+        Number of PCs to compute for the Unintegrated_Representation.
+        Passed to `sc.tl.pca`.
+    scvi_max_epochs : int, optional
+        Passed to `model.train(max_epochs=...)`. `None` uses scvi-tools'
+        own default epoch-selection heuristic.
+    random_seed : int
+        Seed used for the `sc.tl.pca` computation of the
+        Unintegrated_Representation.
+
+    Returns
+    -------
+    anndata.AnnData
+        The same object, mutated in place and also returned for chaining.
+
+    Raises
+    ------
+    ValueError
+        If `adata.layers['counts']` (the Counts_Layer) is absent --
+        `scvi` cannot train without it, and `filter_normalize_and_hvg`
+        is the function responsible for capturing it.
+    ImportError
+        If `scvi-tools` is not installed.
+
+    Examples
+    --------
+    >>> adata = conga.preprocess._run_scvi_integration(
+    ...     adata, batch_key='donor_id', n_gex_pcs=40)
+    '''
+    if 'counts' not in adata.layers:
+        raise ValueError(
+            "batch_integration: method='scvi' requires adata.layers"
+            "['counts'] (the Counts_Layer), which is not present. Call "
+            'filter_normalize_and_hvg first (batch_integration does this '
+            'automatically), or ensure it is not being bypassed.')
+
+    try:
+        import scvi
+    except ImportError as e:
+        raise ImportError(
+            "batch_integration: method='scvi' requires the scvi-tools "
+            'package, which is not installed. Install it with '
+            "'pip install conga[batch-integration]' (or "
+            "'pip install scvi-tools') and try again."
+        ) from e
+
+    _regress_out_technical_covariates(adata)
+    sc.tl.pca(adata, svd_solver='arpack', n_comps=n_gex_pcs,
+              random_state=random_seed)
+    adata.obsm[util.OBSM_KEY_PCA_GEX_UNINTEGRATED] = adata.obsm['X_pca'].copy()
+
+    scvi.model.SCVI.setup_anndata(
+        adata,
+        layer='counts',
+        batch_key=batch_key,
+        continuous_covariate_keys=['percent_mito'],
+    )
+    model = scvi.model.SCVI(adata)
+    model.train(max_epochs=scvi_max_epochs)
+    latent = model.get_latent_representation()
+
+    adata.obsm[util.OBSM_KEY_PCA_GEX_INTEGRATED] = latent
+    adata.obsm['X_pca_gex'] = adata.obsm[util.OBSM_KEY_PCA_GEX_INTEGRATED]
+
+    n_batches = int(adata.obs[batch_key].nunique())
+    adata.uns[util.UNS_KEY_BATCH_INTEGRATION_CONFIG] = {
+        'method': 'scvi',
+        'batch_key': batch_key,
+        'n_batches': n_batches,
+    }
+
+    return adata
+
+
 def batch_integration(
         adata: AnnData,
         batch_key: str,
@@ -849,14 +1001,11 @@ def batch_integration(
             "batch_integration: method='harmony' is not yet implemented "
             '(scaffolded in task 4.3; implementation lands in task 5.x)')
     elif method == 'scvi':
-        # TODO(task 6.x): assert 'counts' in adata.layers,
-        # _regress_out_technical_covariates, sc.tl.pca ->
-        # OBSM_KEY_PCA_GEX_UNINTEGRATED, _run_scvi_integration ->
-        # OBSM_KEY_PCA_GEX_INTEGRATED / X_pca_gex, record
-        # UNS_KEY_BATCH_INTEGRATION_CONFIG. See design.md Component 1.
-        raise NotImplementedError(
-            "batch_integration: method='scvi' is not yet implemented "
-            '(scaffolded in task 4.3; implementation lands in task 6.x)')
+        adata = _run_scvi_integration(
+            adata, batch_key, n_gex_pcs,
+            scvi_max_epochs=scvi_max_epochs,
+            random_seed=random_seed,
+        )
 
     return adata
 
