@@ -15,13 +15,22 @@ both batch-aware HVG selection and the Integration_Method:
     - Raises no exception when the column has two or more distinct
       values.
 
-This test module is new; other batch-integration tasks (e.g. 4.4, the
-`batch_integration()` method-validation/mutual-exclusion tests) are
-expected to add further test classes to this same file as their
-implementations land.
+This test module also covers the Harmony (task 5.3) and scVI (task 6.2)
+Integration_Method tracks of `batch_integration()`. The scVI integration
+test that actually trains a model is marked `slow` per this project's
+`pyproject.toml` marker configuration; running it (and only it) requires
+`scvi-tools` to be importable, which on this project's macOS/arm64
+`conga-dev` environment additionally requires the `KMP_DUPLICATE_LIB_OK=TRUE`
+environment variable to be set on the *invoking* shell before pytest
+starts (see the development-workflow steering doc's environment note) --
+this is a local OpenMP-conflict workaround, not something the test or
+library code should set itself.
 
-Requirements: 1.4, 1.5
+Requirements: 1.4, 1.5, 2.6, 3.4, 3.5, 4.1, 4.2
 """
+
+import sys
+from unittest import mock
 
 import numpy as np
 import pandas as pd
@@ -29,7 +38,13 @@ import anndata as ad
 import scipy.sparse as sp
 import pytest
 
-from conga.preprocess import _validate_batch_key, batch_integration
+from conga.preprocess import (
+    _validate_batch_key,
+    _run_scvi_integration,
+    batch_integration,
+    filter_normalize_and_hvg,
+)
+from conga import util
 
 
 RANDOM_SEED = 42
@@ -68,6 +83,118 @@ def _make_adata(n_cells: int = 20, n_genes: int = 10,
     var = pd.DataFrame(index=[f'GENE{i}' for i in range(n_genes)])
 
     return ad.AnnData(X=sp.csr_matrix(counts), obs=obs, var=var)
+
+
+def _make_gex_counts(n_cells: int, n_genes: int,
+                      rng: np.random.Generator) -> np.ndarray:
+    """Build a small, dense integer counts matrix with no all-zero rows
+    or columns, so percent_mito/n_counts computations and gene filtering
+    inside `filter_normalize_and_hvg` behave sanely.
+
+    Mirrors the fixture-construction approach in
+    `tests/test_counts_layer.py` / `tests/test_fixed_hvg_pathway.py`:
+    gene means vary and a noisy subset gets a multiplicative burst so
+    that `sc.pp.highly_variable_genes` (run inside
+    `filter_normalize_and_hvg`, upstream of batch integration) has a
+    real, non-empty, non-universal HVG subset to select.
+    """
+    gene_means = rng.uniform(low=0.5, high=40.0, size=n_genes)
+    counts = rng.poisson(lam=gene_means, size=(n_cells, n_genes)).astype(np.float64)
+    noisy_gene_idx = rng.choice(
+        n_genes, size=max(1, n_genes // 5), replace=False)
+    burst = rng.choice(
+        [1.0, 8.0], size=(n_cells, len(noisy_gene_idx)), p=[0.85, 0.15])
+    counts[:, noisy_gene_idx] *= burst
+    counts += 1.0
+    return counts
+
+
+def _make_batch_adata(n_cells: int = 80, n_genes: int = 60,
+                       n_batches: int = 2,
+                       random_seed: int = RANDOM_SEED) -> ad.AnnData:
+    """Build a small synthetic multi-batch AnnData suitable for driving
+    `filter_normalize_and_hvg(hvg_batch_key=...)` and `batch_integration()`
+    end to end, following the fixture conventions in
+    `tests/test_counts_layer.py` / `tests/test_fixed_hvg_pathway.py`
+    (sparse `X`, plain 'GENE{i}' names, no TR/IG/MT prefixes, loose
+    enough distributions that no cell/gene gets filtered out by default
+    thresholds).
+
+    Cells are split as evenly as possible across `n_batches` distinct
+    values of `adata.obs['batch']`, with a mild per-batch multiplicative
+    shift applied to gene means so the batches are not numerically
+    identical (batch integration on genuinely indistinguishable batches
+    would not exercise anything interesting).
+
+    Parameters
+    ----------
+    n_cells : int
+        Total number of cells.
+    n_genes : int
+        Total number of genes.
+    n_batches : int
+        Number of distinct batch labels to assign.
+    random_seed : int
+        Seed for the random count matrix and batch assignment.
+
+    Returns
+    -------
+    anndata.AnnData
+        Synthetic AnnData with `adata.obs['batch']` populated and
+        `adata.uns['organism']` set.
+    """
+    rng = np.random.default_rng(random_seed)
+
+    batch_labels = np.array(
+        [f'batch_{i % n_batches}' for i in range(n_cells)])
+    rng.shuffle(batch_labels)
+
+    counts = _make_gex_counts(n_cells, n_genes, rng)
+    # Apply a mild per-batch multiplicative shift to a subset of genes so
+    # the batches are numerically distinguishable (not required for the
+    # tests below to pass, but keeps the fixture realistic).
+    shifted_gene_idx = rng.choice(
+        n_genes, size=max(1, n_genes // 4), replace=False)
+    for i, label in enumerate(batch_labels):
+        batch_num = int(label.split('_')[1])
+        if batch_num > 0:
+            counts[i, shifted_gene_idx] *= (1.0 + 0.3 * batch_num)
+
+    gene_names = [f'GENE{i}' for i in range(n_genes)]
+    obs = pd.DataFrame(
+        {'batch': batch_labels},
+        index=[f'cell{i}' for i in range(n_cells)],
+    )
+    var = pd.DataFrame(index=gene_names)
+
+    adata = ad.AnnData(X=sp.csr_matrix(counts), obs=obs, var=var)
+    adata.uns['organism'] = 'human'
+    return adata
+
+
+def _run_filter_normalize_and_hvg_no_filtering(adata, **kwargs):
+    """Call filter_normalize_and_hvg with thresholds loose enough that no
+    cell or gene is dropped, matching the convention in
+    tests/test_counts_layer.py and tests/test_fixed_hvg_pathway.py.
+
+    `hvg_min_disp` defaults to a lower value (0.1) than
+    `filter_normalize_and_hvg`'s own default (0.5): batch-aware HVG
+    selection (`hvg_batch_key` set) intersects the per-batch HVG calls
+    across all batches, which is considerably stricter than the
+    single-batch case, and this project's synthetic random-count
+    fixtures otherwise frequently yield zero surviving genes under that
+    intersection with only ~40-100 genes total. A lower threshold keeps
+    the fixtures small (per the task's guidance to avoid unnecessarily
+    large synthetic datasets) while still exercising a real, non-empty
+    HVG subset for the batch-integration PCA/regress_out/Harmony/scVI
+    steps that run after `filter_normalize_and_hvg` returns.
+    """
+    kwargs.setdefault('min_genes_per_cell', 1)
+    kwargs.setdefault('max_genes_per_cell', 10000)
+    kwargs.setdefault('max_percent_mito', 1.0)
+    kwargs.setdefault('min_cells_per_gene', 1)
+    kwargs.setdefault('hvg_min_disp', 0.1)
+    return filter_normalize_and_hvg(adata, **kwargs)
 
 
 class TestValidateBatchKeyColumnAbsent:
@@ -239,3 +366,263 @@ class TestBatchIntegrationMutualExclusion:
 
         message = str(exc_info.value).lower()
         assert 'mutually exclusive' in message
+
+
+class TestScviIntegrationCountsLayerAbsent:
+    """Requirement 3.4: `_run_scvi_integration` raises `ValueError` when
+    `adata.layers['counts']` is absent.
+
+    Uses a fixture that deliberately skips `filter_normalize_and_hvg` so
+    that the `ValueError` for the missing Counts_Layer fires before any
+    `scvi` import or PCA computation is attempted. `adata.obs` still
+    carries `n_counts`/`percent_mito` so that, if the guard were absent
+    (i.e. if this test were exercising a regression), execution would
+    proceed into `_regress_out_technical_covariates` rather than failing
+    for an unrelated missing-column reason -- keeping this test specific
+    to the Counts_Layer check.
+
+    This test does not need `scvi-tools` importable at all: the
+    `ValueError` check in `_run_scvi_integration` runs before the
+    `import scvi` line, so it is run without `KMP_DUPLICATE_LIB_OK` set,
+    for extra confidence the import is never reached.
+    """
+
+    def _make_adata_without_counts_layer(self, n_cells=20, n_genes=10,
+                                          random_seed=RANDOM_SEED):
+        rng = np.random.default_rng(random_seed)
+        counts = rng.poisson(lam=5.0, size=(n_cells, n_genes)).astype(np.float64)
+
+        obs = pd.DataFrame(
+            {
+                'n_counts': counts.sum(axis=1),
+                'percent_mito': np.zeros(n_cells),
+                'batch': (['batch_a'] * (n_cells // 2) +
+                          ['batch_b'] * (n_cells - n_cells // 2)),
+            },
+            index=[f'cell{i}' for i in range(n_cells)],
+        )
+        var = pd.DataFrame(index=[f'GENE{i}' for i in range(n_genes)])
+        adata = ad.AnnData(X=sp.csr_matrix(counts), obs=obs, var=var)
+        adata.uns['organism'] = 'human'
+        return adata
+
+    def test_raises_value_error_when_counts_layer_absent(self):
+        adata = self._make_adata_without_counts_layer()
+        assert 'counts' not in adata.layers
+
+        with pytest.raises(ValueError):
+            _run_scvi_integration(adata, batch_key='batch', n_gex_pcs=5)
+
+    def test_error_message_names_filter_normalize_and_hvg(self):
+        adata = self._make_adata_without_counts_layer()
+
+        with pytest.raises(ValueError) as exc_info:
+            _run_scvi_integration(adata, batch_key='batch', n_gex_pcs=5)
+
+        message = str(exc_info.value)
+        assert 'counts' in message
+        assert 'filter_normalize_and_hvg' in message
+
+    def test_error_raised_before_pca_is_computed(self):
+        # If the ValueError guard were bypassed or misordered, sc.tl.pca
+        # would run and populate adata.obsm['X_pca']/OBSM_KEY_PCA_GEX_UNINTEGRATED.
+        # Confirm neither happens.
+        adata = self._make_adata_without_counts_layer()
+
+        with pytest.raises(ValueError):
+            _run_scvi_integration(adata, batch_key='batch', n_gex_pcs=5)
+
+        assert 'X_pca' not in adata.obsm
+        assert util.OBSM_KEY_PCA_GEX_UNINTEGRATED not in adata.obsm
+
+
+class TestScviIntegrationImportErrorWhenUninstalled:
+    """Requirement 2.6: with `scvi-tools` uninstalled (simulated via
+    `sys.modules` patching), `method='scvi'` raises `ImportError` naming
+    `conga[batch-integration]`.
+
+    Uses `unittest.mock.patch.dict(sys.modules, {'scvi': None})`, the
+    standard idiom for simulating an uninstalled module when it IS
+    actually installed in the environment: setting the `sys.modules`
+    entry to `None` forces the next `import scvi` to raise
+    `ImportError` (per Python's import system) rather than returning a
+    cached module, without needing to uninstall the real package.
+
+    This test does not require the real `scvi-tools` package to be
+    importable, so no `KMP_DUPLICATE_LIB_OK` handling is needed to run
+    it: the patched `import scvi` inside `_run_scvi_integration` never
+    reaches the real module.
+    """
+
+    def test_batch_integration_method_scvi_raises_import_error(self):
+        # See the docstring on test_run_scvi_integration_directly_raises_import_error
+        # below for why a throwaway, unpatched filter_normalize_and_hvg
+        # call primes numba's JIT cache before entering the sys.modules
+        # patch context -- this avoids an unrelated numba registry
+        # collision specific to this environment's numba version, not a
+        # workaround for anything in conga's own code.
+        _run_filter_normalize_and_hvg_no_filtering(
+            _make_batch_adata(n_cells=40, n_genes=30, n_batches=2,
+                               random_seed=RANDOM_SEED + 1),
+            hvg_batch_key='batch')
+
+        adata = _make_batch_adata(n_cells=40, n_genes=30, n_batches=2)
+
+        with mock.patch.dict(sys.modules, {'scvi': None}):
+            with pytest.raises(ImportError) as exc_info:
+                batch_integration(
+                    adata, batch_key='batch', method='scvi',
+                    min_genes_per_cell=1, max_genes_per_cell=10000,
+                    max_percent_mito=1.0)
+
+        message = str(exc_info.value)
+        assert 'scvi-tools' in message
+        assert 'conga[batch-integration]' in message
+
+    def test_run_scvi_integration_directly_raises_import_error(self):
+        # NOTE: adata is built and run through filter_normalize_and_hvg
+        # *before* entering the sys.modules patch below, deliberately.
+        # filter_normalize_and_hvg triggers numba's first-time JIT
+        # compilation (via scanpy/fast-array-utils' sparse mean/var
+        # helpers); numba's on-disk cache loader re-runs
+        # `load_additional_registries()` the first time a numba-jitted
+        # function is invoked in a given process, and doing that for the
+        # first time while `sys.modules['scvi']` is patched to `None`
+        # triggers an unrelated numba registry-collision bug
+        # ("duplicate registration for ... PolynomialType") in this
+        # environment's numba version. Priming the JIT cache with an
+        # unpatched call first (as the other unit tests in this module
+        # already do, since they call filter_normalize_and_hvg before
+        # any test in this class runs) avoids that collision without
+        # masking the actual behavior under test, which is entirely
+        # about `_run_scvi_integration`'s own `import scvi` line.
+        adata = _make_batch_adata(n_cells=40, n_genes=30, n_batches=2)
+        adata = _run_filter_normalize_and_hvg_no_filtering(
+            adata, hvg_batch_key='batch')
+        assert 'counts' in adata.layers
+
+        with mock.patch.dict(sys.modules, {'scvi': None}):
+            with pytest.raises(ImportError) as exc_info:
+                _run_scvi_integration(adata, batch_key='batch', n_gex_pcs=5)
+
+        message = str(exc_info.value)
+        assert 'scvi-tools' in message
+        assert 'conga[batch-integration]' in message
+
+
+@pytest.mark.slow
+class TestScviIntegrationEndToEnd:
+    """Requirement 3.5, 4.1, 4.2: integration test for the `scvi`
+    Integration_Method, using a small synthetic two-batch `AnnData` that
+    has already been through
+    `filter_normalize_and_hvg(hvg_batch_key=batch_key, ...)` (matching
+    what `batch_integration()` itself does before dispatching to
+    `_run_scvi_integration`), so `adata.layers['counts']` and
+    `adata.obs['n_counts']`/`adata.obs['percent_mito']` are present.
+
+    Marked `slow` per this project's `pyproject.toml` marker
+    configuration, since even a tiny fixture's `SCVI.train()` call is not
+    instantaneous. Requires `scvi-tools` to be installed and, on this
+    project's macOS/arm64 `conga-dev` environment, requires
+    `KMP_DUPLICATE_LIB_OK=TRUE` to be set on the invoking shell before
+    pytest starts (a local OpenMP-conflict workaround; see the
+    development-workflow steering doc), e.g.:
+
+        KMP_DUPLICATE_LIB_OK=TRUE mamba run -n conga-dev python -m pytest \\
+            tests/test_batch_integration.py -v -m slow
+
+    `scvi_max_epochs` is kept very small (2) to keep training fast --
+    this test asserts structure (obsm/uns keys, setup_anndata call
+    arguments), not trained-model output values.
+
+    Per the design's Notes section, `scvi.model.SCVI.train()` itself is
+    NOT mocked away (that would defeat the purpose of an integration
+    test); instead, `scvi.model.SCVI.setup_anndata` is wrapped with a
+    `mock.patch.object(..., wraps=real_setup_anndata)` spy (the same spy
+    idiom used for `sc.pp.highly_variable_genes` in
+    `tests/test_fixed_hvg_pathway.py`), so the real implementation still
+    runs to completion while the call arguments are also asserted.
+    """
+
+    def _make_hvg_processed_batch_adata(self, n_cells=80, n_genes=200,
+                                         n_batches=2, random_seed=RANDOM_SEED):
+        adata = _make_batch_adata(
+            n_cells=n_cells, n_genes=n_genes, n_batches=n_batches,
+            random_seed=random_seed)
+        adata = _run_filter_normalize_and_hvg_no_filtering(
+            adata, hvg_batch_key='batch')
+        assert 'counts' in adata.layers
+        assert 'n_counts' in adata.obs.columns
+        assert 'percent_mito' in adata.obs.columns
+        return adata
+
+    def test_setup_anndata_called_with_expected_arguments(self):
+        import scvi
+
+        adata = self._make_hvg_processed_batch_adata()
+        real_setup_anndata = scvi.model.SCVI.setup_anndata
+
+        with mock.patch.object(
+            scvi.model.SCVI, 'setup_anndata',
+            wraps=real_setup_anndata,
+        ) as mock_setup_anndata:
+            _run_scvi_integration(
+                adata, batch_key='batch', n_gex_pcs=5,
+                scvi_max_epochs=2)
+
+        mock_setup_anndata.assert_called_once()
+        _, call_kwargs = mock_setup_anndata.call_args
+        assert call_kwargs['layer'] == 'counts'
+        assert call_kwargs['batch_key'] == 'batch'
+        assert call_kwargs['continuous_covariate_keys'] == ['percent_mito']
+
+    def test_obsm_and_uns_structure_matches_harmony_shape(self):
+        adata = self._make_hvg_processed_batch_adata()
+
+        result = _run_scvi_integration(
+            adata, batch_key='batch', n_gex_pcs=5, scvi_max_epochs=2)
+
+        assert util.OBSM_KEY_PCA_GEX_UNINTEGRATED in result.obsm
+        assert util.OBSM_KEY_PCA_GEX_INTEGRATED in result.obsm
+        assert 'X_pca_gex' in result.obsm
+
+        np.testing.assert_array_equal(
+            np.asarray(result.obsm['X_pca_gex']),
+            np.asarray(result.obsm[util.OBSM_KEY_PCA_GEX_INTEGRATED]))
+
+        unintegrated = np.asarray(result.obsm[util.OBSM_KEY_PCA_GEX_UNINTEGRATED])
+        integrated = np.asarray(result.obsm[util.OBSM_KEY_PCA_GEX_INTEGRATED])
+        assert unintegrated.shape[0] == integrated.shape[0]
+        assert not np.array_equal(unintegrated, integrated)
+
+        config = result.uns[util.UNS_KEY_BATCH_INTEGRATION_CONFIG]
+        assert config['method'] == 'scvi'
+        assert config['batch_key'] == 'batch'
+        assert config['n_batches'] == 2
+
+    def test_via_batch_integration_entry_point(self):
+        """Same structural assertions, but through the public
+        `batch_integration()` entry point rather than calling
+        `_run_scvi_integration` directly, confirming the `scvi` branch is
+        wired correctly end to end.
+        """
+        adata = _make_batch_adata(
+            n_cells=80, n_genes=200, n_batches=2, random_seed=RANDOM_SEED)
+
+        result = batch_integration(
+            adata, batch_key='batch', method='scvi',
+            min_genes_per_cell=1, max_genes_per_cell=10000,
+            max_percent_mito=1.0, hvg_min_disp=0.1, scvi_max_epochs=2,
+            n_gex_pcs=5)
+
+        assert util.OBSM_KEY_PCA_GEX_UNINTEGRATED in result.obsm
+        assert util.OBSM_KEY_PCA_GEX_INTEGRATED in result.obsm
+        assert 'X_pca_gex' in result.obsm
+        np.testing.assert_array_equal(
+            np.asarray(result.obsm['X_pca_gex']),
+            np.asarray(result.obsm[util.OBSM_KEY_PCA_GEX_INTEGRATED]))
+
+        config = result.uns[util.UNS_KEY_BATCH_INTEGRATION_CONFIG]
+        assert config['method'] == 'scvi'
+        assert config['batch_key'] == 'batch'
+        assert config['n_batches'] == 2

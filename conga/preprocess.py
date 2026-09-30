@@ -883,6 +883,100 @@ def _run_scvi_integration(
     return adata
 
 
+def _run_harmony_integration(
+        adata: AnnData,
+        batch_key: str,
+        n_gex_pcs: int,
+        random_seed: int = util.DEFAULT_RANDOM_SEED,
+) -> AnnData:
+    '''Run the Harmony Integration_Method branch of `batch_integration()`.
+
+    Computes the Unintegrated_Representation via `sc.tl.pca` (after
+    `_regress_out_technical_covariates`), then corrects it in place with
+    `scanpy.external.pp.harmony_integrate`, and writes the resulting
+    representation into `adata.obsm` as both
+    `util.OBSM_KEY_PCA_GEX_INTEGRATED` and `adata.obsm['X_pca_gex']` so
+    that `cluster_and_tsne_and_umap` and `calc_nbrs` consume it with no
+    further changes. Also records run metadata under
+    `adata.uns[util.UNS_KEY_BATCH_INTEGRATION_CONFIG]`.
+
+    `harmonypy` is imported only inside this function (Requirement 2.7)
+    so that `import conga.preprocess` succeeds even when `harmonypy` is
+    not installed; installing without the `conga[batch-integration]`
+    extra raises an `ImportError` naming that extra instead of a bare
+    `ModuleNotFoundError`.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        Annotated data matrix that has already been through
+        `filter_normalize_and_hvg(hvg_batch_key=batch_key, ...)`, so that
+        `adata.obs['n_counts']`/`adata.obs['percent_mito']` are present.
+    batch_key : str
+        Name of the `adata.obs` column passed to
+        `scanpy.external.pp.harmony_integrate` as the batch covariate.
+        Cast to a pandas categorical dtype via a temporary column so that
+        the caller's original `adata.obs[batch_key]` dtype is not mutated
+        as a side effect.
+    n_gex_pcs : int
+        Number of PCs to compute for the Unintegrated_Representation.
+        Passed to `sc.tl.pca`.
+    random_seed : int
+        Seed used for the `sc.tl.pca` computation of the
+        Unintegrated_Representation.
+
+    Returns
+    -------
+    anndata.AnnData
+        The same object, mutated in place and also returned for chaining.
+
+    Raises
+    ------
+    ImportError
+        If `harmonypy` is not installed.
+
+    Examples
+    --------
+    >>> adata = conga.preprocess._run_harmony_integration(
+    ...     adata, batch_key='donor_id', n_gex_pcs=40)
+    '''
+    try:
+        import harmonypy  # noqa: F401
+    except ImportError as e:
+        raise ImportError(
+            "batch_integration: method='harmony' requires the harmonypy "
+            'package, which is not installed. Install it with '
+            "'pip install conga[batch-integration]' (or "
+            "'pip install harmonypy') and try again."
+        ) from e
+
+    _regress_out_technical_covariates(adata)
+    sc.tl.pca(adata, svd_solver='arpack', n_comps=n_gex_pcs,
+              random_state=random_seed)
+    adata.obsm[util.OBSM_KEY_PCA_GEX_UNINTEGRATED] = adata.obsm['X_pca'].copy()
+
+    tmp_key = 'tmp_batch_key' # make sure it's a category or we get an error
+    adata.obs[tmp_key] = adata.obs[batch_key].astype('category')
+    sc.external.pp.harmony_integrate(
+        adata,
+        tmp_key,
+        basis='X_pca',
+        adjusted_basis=util.OBSM_KEY_PCA_GEX_INTEGRATED,
+    )
+    del adata.obs[tmp_key]
+
+    adata.obsm['X_pca_gex'] = adata.obsm[util.OBSM_KEY_PCA_GEX_INTEGRATED]
+
+    n_batches = int(adata.obs[batch_key].nunique())
+    adata.uns[util.UNS_KEY_BATCH_INTEGRATION_CONFIG] = {
+        'method': 'harmony',
+        'batch_key': batch_key,
+        'n_batches': n_batches,
+    }
+
+    return adata
+
+
 def batch_integration(
         adata: AnnData,
         batch_key: str,
@@ -902,11 +996,10 @@ def batch_integration(
     '''Run batch-aware HVG selection followed by batch integration.
 
     Runs `filter_normalize_and_hvg(adata, hvg_batch_key=batch_key, ...)`,
-    then (in a later task) corrects the resulting GEX PCA representation
-    using the requested Integration_Method (`harmony` or `scvi`) and
-    writes it into `adata.obsm['X_pca_gex']` so that
-    `cluster_and_tsne_and_umap` and `calc_nbrs` consume it with no further
-    changes.
+    then corrects the resulting GEX PCA representation using the
+    requested Integration_Method (`harmony` or `scvi`) and writes it into
+    `adata.obsm['X_pca_gex']` so that `cluster_and_tsne_and_umap` and
+    `calc_nbrs` consume it with no further changes.
 
     `batch_key` is the single `adata.obs` column shared by both
     batch-aware HVG selection (passed through to `hvg_batch_key`) and the
@@ -940,10 +1033,11 @@ def batch_integration(
         Passed through to `filter_normalize_and_hvg`.
     scvi_max_epochs : int, optional
         Passed to `scvi.model.SCVI.train(max_epochs=...)` on the `scvi`
-        path (not yet implemented in this scaffold).
+        path.
     random_seed : int
-        Seed used for the PCA/integration steps (not yet consumed in this
-        scaffold).
+        Seed used for the `sc.tl.pca` computation of the
+        Unintegrated_Representation on both the `harmony` and `scvi`
+        paths.
 
     Returns
     -------
@@ -993,13 +1087,10 @@ def batch_integration(
     )
 
     if method == 'harmony':
-        # TODO(task 5.x): _regress_out_technical_covariates, sc.tl.pca ->
-        # OBSM_KEY_PCA_GEX_UNINTEGRATED, _run_harmony_integration ->
-        # OBSM_KEY_PCA_GEX_INTEGRATED / X_pca_gex, record
-        # UNS_KEY_BATCH_INTEGRATION_CONFIG. See design.md Component 1.
-        raise NotImplementedError(
-            "batch_integration: method='harmony' is not yet implemented "
-            '(scaffolded in task 4.3; implementation lands in task 5.x)')
+        adata = _run_harmony_integration(
+            adata, batch_key, n_gex_pcs,
+            random_seed=random_seed,
+        )
     elif method == 'scvi':
         adata = _run_scvi_integration(
             adata, batch_key, n_gex_pcs,
