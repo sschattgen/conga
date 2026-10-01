@@ -35,6 +35,7 @@ from unittest import mock
 import numpy as np
 import pandas as pd
 import anndata as ad
+import scanpy as sc
 import scipy.sparse as sp
 import pytest
 
@@ -43,6 +44,7 @@ from conga.preprocess import (
     _run_harmony_integration,
     _run_scvi_integration,
     batch_integration,
+    cluster_and_tsne_and_umap,
     filter_normalize_and_hvg,
 )
 from conga import util
@@ -815,3 +817,239 @@ class TestHarmonyIntegrationConfigUns:
         assert config['batch_key'] == 'batch'
         assert config['n_batches'] == 3
         assert config['n_batches'] == result.obs['batch'].nunique()
+
+
+class TestHarmonyIntegrationH5adRoundTrip:
+    """Requirement 4.5: after the Full_Integration_Pathway runs,
+    `OBSM_KEY_PCA_GEX_UNINTEGRATED`, `OBSM_KEY_PCA_GEX_INTEGRATED`, and
+    `UNS_KEY_BATCH_INTEGRATION_CONFIG` must all round-trip through
+    `.h5ad` elementwise/value-equal.
+
+    Uses the `harmony` Integration_Method rather than `scvi`: this test
+    is checking `.h5ad` serialization mechanics (does anndata faithfully
+    persist and restore these specific `obsm`/`uns` entries), not the
+    Integration_Method's own numerical behavior, which the
+    `TestHarmonyIntegrationEndToEnd`/`TestScviIntegrationEndToEnd` classes
+    above already cover. Harmony has no training loop and needs no
+    `KMP_DUPLICATE_LIB_OK` workaround, so it keeps this test fast and
+    unmarked (not `@pytest.mark.slow`).
+
+    Follows the fixture-sizing conventions of
+    `TestHarmonyIntegrationEndToEnd` above (`n_genes=200`,
+    `hvg_min_disp=0.1`, `n_gex_pcs=5`) and uses pytest's built-in
+    `tmp_path` fixture for the temporary `.h5ad` location, matching the
+    convention already used in `tests/test_run_conga_cli.py`.
+    """
+
+    def _run_full_integration_pathway(self, n_cells: int = 250,
+                                       n_genes: int = 200,
+                                       n_batches: int = 2) -> ad.AnnData:
+        """Run the Full_Integration_Pathway (`batch_integration` with
+        `method='harmony'`) on a small synthetic multi-batch fixture.
+
+        Parameters
+        ----------
+        n_cells : int
+            Total number of cells in the synthetic fixture.
+        n_genes : int
+            Total number of genes in the synthetic fixture.
+        n_batches : int
+            Number of distinct batch labels to assign.
+
+        Returns
+        -------
+        anndata.AnnData
+            The AnnData object returned by `batch_integration`, carrying
+            `OBSM_KEY_PCA_GEX_UNINTEGRATED`, `OBSM_KEY_PCA_GEX_INTEGRATED`,
+            and `UNS_KEY_BATCH_INTEGRATION_CONFIG`.
+        """
+        adata = _make_batch_adata(
+            n_cells=n_cells, n_genes=n_genes, n_batches=n_batches,
+            random_seed=RANDOM_SEED)
+
+        return batch_integration(
+            adata, batch_key='batch', method='harmony',
+            min_genes_per_cell=1, max_genes_per_cell=10000,
+            max_percent_mito=1.0, hvg_min_disp=0.1, n_gex_pcs=5)
+
+    def test_obsm_representations_round_trip_elementwise_equal(self, tmp_path):
+        """`OBSM_KEY_PCA_GEX_UNINTEGRATED` and `OBSM_KEY_PCA_GEX_INTEGRATED`
+        survive a write-then-read `.h5ad` round trip unchanged.
+        """
+        adata = self._run_full_integration_pathway()
+        unintegrated_before = np.asarray(
+            adata.obsm[util.OBSM_KEY_PCA_GEX_UNINTEGRATED]).copy()
+        integrated_before = np.asarray(
+            adata.obsm[util.OBSM_KEY_PCA_GEX_INTEGRATED]).copy()
+
+        h5ad_path = tmp_path / 'batch_integration_roundtrip.h5ad'
+        adata.write_h5ad(h5ad_path)
+        reloaded = ad.read_h5ad(h5ad_path)
+
+        np.testing.assert_array_equal(
+            np.asarray(reloaded.obsm[util.OBSM_KEY_PCA_GEX_UNINTEGRATED]),
+            unintegrated_before)
+        np.testing.assert_array_equal(
+            np.asarray(reloaded.obsm[util.OBSM_KEY_PCA_GEX_INTEGRATED]),
+            integrated_before)
+
+    def test_batch_integration_config_uns_round_trips_value_equal(
+            self, tmp_path):
+        """`UNS_KEY_BATCH_INTEGRATION_CONFIG` (a plain dict with
+        `method`/`batch_key`/`n_batches` keys) matches exactly before vs.
+        after the round trip.
+
+        `n_batches` is compared via `int(...)` on both sides rather than
+        asserting exact type equality: h5ad serialization of `.uns`
+        dicts can coerce a Python `int` into a numpy integer scalar
+        (e.g. `numpy.int64`) on reload, which is a type-representation
+        change, not a value-loss bug, so the comparison here is
+        value-robust by design per the task description.
+        """
+        adata = self._run_full_integration_pathway()
+        config_before = dict(adata.uns[util.UNS_KEY_BATCH_INTEGRATION_CONFIG])
+
+        h5ad_path = tmp_path / 'batch_integration_roundtrip.h5ad'
+        adata.write_h5ad(h5ad_path)
+        reloaded = ad.read_h5ad(h5ad_path)
+
+        config_after = dict(reloaded.uns[util.UNS_KEY_BATCH_INTEGRATION_CONFIG])
+
+        assert set(config_after.keys()) == set(config_before.keys())
+        assert str(config_after['method']) == str(config_before['method'])
+        assert str(config_after['batch_key']) == str(config_before['batch_key'])
+        assert int(config_after['n_batches']) == int(config_before['n_batches'])
+        # Confirm the fixture's actual batch count flows through
+        # end to end, not just that before/after agree with each other.
+        assert int(config_after['n_batches']) == 2
+
+    def test_obsm_arrays_retain_dtype_and_shape_after_round_trip(
+            self, tmp_path):
+        """Elementwise equality alone would not catch a round trip that
+        silently truncates shape or changes dtype in a way that still
+        happens to compare equal (e.g. an all-zero slice). Assert shape
+        and a floating dtype are preserved as an additional guard.
+        """
+        adata = self._run_full_integration_pathway()
+        unintegrated_before = np.asarray(
+            adata.obsm[util.OBSM_KEY_PCA_GEX_UNINTEGRATED])
+        integrated_before = np.asarray(
+            adata.obsm[util.OBSM_KEY_PCA_GEX_INTEGRATED])
+
+        h5ad_path = tmp_path / 'batch_integration_roundtrip.h5ad'
+        adata.write_h5ad(h5ad_path)
+        reloaded = ad.read_h5ad(h5ad_path)
+
+        unintegrated_after = np.asarray(
+            reloaded.obsm[util.OBSM_KEY_PCA_GEX_UNINTEGRATED])
+        integrated_after = np.asarray(
+            reloaded.obsm[util.OBSM_KEY_PCA_GEX_INTEGRATED])
+
+        assert unintegrated_after.shape == unintegrated_before.shape
+        assert integrated_after.shape == integrated_before.shape
+        assert np.issubdtype(unintegrated_after.dtype, np.floating)
+        assert np.issubdtype(integrated_after.dtype, np.floating)
+
+
+class TestClusterAndTsneAndUmapReusesIntegratedPcaGex:
+    """Requirement 4.2: once the Full_Integration_Pathway has populated
+    `adata.obsm['X_pca_gex']` with the Integrated_Representation,
+    `cluster_and_tsne_and_umap` must treat it as already-computed and
+    not recompute it via `sc.tl.pca`.
+
+    `batch_integration(..., method='harmony')` is used to populate
+    `X_pca_gex` because it has no epoch-based training loop (unlike
+    `scvi`) and is therefore fast enough to run unmarked, matching the
+    rationale already given in `TestHarmonyIntegrationEndToEnd` above.
+    This test is about `cluster_and_tsne_and_umap`'s own guard behavior,
+    not about which Integration_Method produced the representation it
+    is reusing.
+
+    `conga.preprocess.sc.tl.pca` is patched (not a bare `scanpy.tl.pca`)
+    because `conga/preprocess.py` imports scanpy at module level as
+    `sc`, so the name must be patched as it is looked up from that
+    module -- the same idiom used for
+    `conga.preprocess.sc.pp.highly_variable_genes` in
+    `tests/test_fixed_hvg_pathway.py`.
+
+    `skip_tcr=True` is used to keep this test scoped to the GEX PCA
+    guard: with `skip_tcr=True`, the `tag=='tcr'` iteration of
+    `cluster_and_tsne_and_umap`'s per-representation loop is skipped via
+    `continue` before any TCR-specific `adata.obsm` lookup is attempted
+    (confirmed by reading `conga/preprocess.py`), so no `X_pca_tcr` /
+    `X_vec_tcr` representation needs to exist on the fixture. Per the
+    function's own source, `sc.tl.pca` is called only inside the
+    `'X_pca_gex' not in adata.obsm.keys() or recompute_pca_gex` guard
+    block for the GEX representation; the TCR branch never calls
+    `sc.tl.pca` at all, so patching `sc.tl.pca` only observes the guard
+    this test is about.
+    """
+
+    def _make_integrated_batch_adata(self, n_cells=250, n_genes=200,
+                                      n_batches=2, random_seed=RANDOM_SEED):
+        adata = _make_batch_adata(
+            n_cells=n_cells, n_genes=n_genes, n_batches=n_batches,
+            random_seed=random_seed)
+        return batch_integration(
+            adata, batch_key='batch', method='harmony',
+            min_genes_per_cell=1, max_genes_per_cell=10000,
+            max_percent_mito=1.0, hvg_min_disp=0.1, n_gex_pcs=5)
+
+    def test_pca_not_recomputed_when_x_pca_gex_already_present(self):
+        adata = self._make_integrated_batch_adata()
+        assert 'X_pca_gex' in adata.obsm
+
+        with mock.patch('conga.preprocess.sc.tl.pca') as mock_pca:
+            cluster_and_tsne_and_umap(
+                adata, recompute_pca_gex=False, skip_tcr=True)
+
+        mock_pca.assert_not_called()
+
+    def test_pca_recomputed_when_recompute_pca_gex_true(self):
+        """Sanity check for the spy itself (mirroring the pattern used by
+        `TestForceVariableGenesSkipsAutoHVG.test_highly_variable_genes_called_on_default_pathway`
+        in `tests/test_fixed_hvg_pathway.py`): forcing recomputation via
+        `recompute_pca_gex=True` must still call `sc.tl.pca` even though
+        `X_pca_gex` is already present, confirming the mock above would
+        actually catch a regression rather than passing vacuously.
+
+        Uses `mock.patch(..., wraps=real_pca)` (a real spy that still
+        delegates to the original implementation) so the function
+        continues to run to completion, rather than `side_effect=real_pca`
+        on an already-patched attribute (which would recurse into the
+        mock itself).
+        """
+        adata = self._make_integrated_batch_adata()
+        assert 'X_pca_gex' in adata.obsm
+
+        real_pca = sc.tl.pca
+        with mock.patch(
+            'conga.preprocess.sc.tl.pca', wraps=real_pca,
+        ) as mock_pca:
+            cluster_and_tsne_and_umap(
+                adata, recompute_pca_gex=True, skip_tcr=True,
+                n_gex_pcs=5)
+
+        mock_pca.assert_called()
+
+    def test_pca_computed_when_x_pca_gex_absent(self):
+        """Sanity check: when `X_pca_gex` is absent entirely (the
+        Default_Pathway case `cluster_and_tsne_and_umap` already
+        handles), `sc.tl.pca` must be called to compute it, confirming
+        the guard's "absent" branch is also observed by the spy.
+        """
+        adata = _make_batch_adata(
+            n_cells=250, n_genes=200, n_batches=2, random_seed=RANDOM_SEED)
+        adata = _run_filter_normalize_and_hvg_no_filtering(
+            adata, hvg_batch_key='batch')
+        assert 'X_pca_gex' not in adata.obsm
+
+        real_pca = sc.tl.pca
+        with mock.patch(
+            'conga.preprocess.sc.tl.pca', wraps=real_pca,
+        ) as mock_pca:
+            cluster_and_tsne_and_umap(
+                adata, recompute_pca_gex=False, skip_tcr=True,
+                n_gex_pcs=5)
+
+        mock_pca.assert_called()
