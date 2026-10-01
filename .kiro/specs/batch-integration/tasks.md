@@ -154,7 +154,7 @@ Per this design's explicit Testing Strategy section, `batch_integration` is pipe
 
 ### Phase E: Final Integration, Round-Trip, and Compatibility Checks
 
-- [ ] 9. Verify cross-cutting correctness and backward compatibility
+- [x] 9. Verify cross-cutting correctness and backward compatibility
   - [x] 9.1 Write the `.h5ad` round-trip test
     - Run the Full_Integration_Pathway, write to a temp `.h5ad`, read it back, assert `OBSM_KEY_PCA_GEX_UNINTEGRATED`, `OBSM_KEY_PCA_GEX_INTEGRATED`, and `UNS_KEY_BATCH_INTEGRATION_CONFIG` all round-trip elementwise/value-equal
     - Place in `tests/test_batch_integration.py`
@@ -165,7 +165,7 @@ Per this design's explicit Testing Strategy section, `batch_integration` is pipe
     - Place in `tests/test_batch_integration.py`
     - _Requirements: 4.2_
 
-  - [~] 9.3 Final checkpoint - full suite, backward compatibility, and optional-dependency isolation
+  - [x] 9.3 Final checkpoint - full suite, backward compatibility, and optional-dependency isolation
     - Run the full test suite and confirm all tests pass
     - Confirm a no-argument `filter_and_scale`/`filter_normalize_and_hvg` preprocessing run is unaffected (no new required parameters, only an added `adata.layers['counts']` key)
     - Confirm the Full_Integration_Pathway and Fixed_HVG_Pathway are mutually exclusive in practice by running both the CLI flag-pairing test and the programmatic `batch_integration()` mutual-exclusion test together, not by code review alone
