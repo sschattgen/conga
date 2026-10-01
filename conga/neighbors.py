@@ -1215,10 +1215,56 @@ class FaissNeighborSearcher:
         max_neighbors = max(int(frac * n_samples) for frac in nbr_fracs)
         max_neighbors = min(max_neighbors, n_samples - 1)  # Can't exceed available
         max_neighbors = max(1, max_neighbors)  # Need at least 1
-        
+
+        # BUGFIX (see docstring note below and
+        # test_data/e2e_batch_integration/diagnose_faiss_minus1.py for the
+        # original diagnosis): previously this always queried FAISS for a
+        # FIXED-SIZE pool of `max_neighbors + 1` candidates (just enough
+        # for "self" plus the requested neighbors with NO exclusions).
+        # When `exclude_groups` is not None, candidates sharing the
+        # query's alpha-group or beta-group are filtered out of that
+        # fixed pool *after* the query, and any shortfall was padded with
+        # -1 instead of asking FAISS for more candidates. Those -1s then
+        # flowed downstream into `neighbors_dict` and crashed
+        # `correlations.py::_make_csr_nbrs` ("negative axis 1 index: -1").
+        # Since `calc_nbrs()` passes (agroups, bgroups) for BOTH the GEX
+        # and TCR branches unconditionally, this leaked into GEX neighbor
+        # search too whenever a clonotype's shared-chain group was large
+        # enough to deplete the fixed top-k pool.
+        #
+        # Fix: widen the FAISS query by the worst-case exclusion-group
+        # size so that, even after filtering, at least `max_neighbors`
+        # genuine (non-excluded) candidates remain for every row. This
+        # mirrors what `_search_sklearn` already does correctly by
+        # masking the FULL pairwise distance matrix (so it never runs out
+        # of candidates to pick from, short of genuinely exhausting the
+        # dataset).
+        if exclude_groups is not None:
+            agroups, bgroups = exclude_groups
+            # Exact count of excluded candidates (including self) for
+            # each row, i.e. the size of the row's own "same alpha-group
+            # OR same beta-group" set. This is the maximum number of
+            # entries that filtering could remove from any fixed-size
+            # candidate pool for that row.
+            exclusion_counts = np.array([
+                int(np.sum((agroups == agroups[i]) | (bgroups == bgroups[i])))
+                for i in range(n_samples)
+            ])
+            max_group_size = int(exclusion_counts.max()) if n_samples else 0
+            # Worst case: all `max_group_size` excluded candidates (which
+            # includes the row's self-match) happen to be among the
+            # top-k returned by FAISS; we still need `max_neighbors + 1`
+            # (the +1 for self) genuine candidates left over, so query
+            # for that many plus the exclusion-group size, capped at the
+            # total number of points (equivalent to sklearn's full-pool
+            # approach once k reaches n_samples).
+            k = min(n_samples, max_neighbors + 1 + max_group_size)
+        else:
+            k = max_neighbors + 1  # +1 for self
+
         try:
             # FAISS search returns (distances, indices)
-            search_distances, search_indices = index.search(X_faiss, max_neighbors + 1)  # +1 for self
+            search_distances, search_indices = index.search(X_faiss, k)
             
         except Exception as e:
             error_msg = f"FAISS search failed: {e}"
@@ -1229,55 +1275,107 @@ class FaissNeighborSearcher:
             else:
                 raise FaissIndexBuildError(error_msg, backend="FAISS-GPU" if use_gpu else "FAISS-CPU", data_type=data_type)
         
-        # Remove self from results (should be first neighbor with distance 0)
-        # Handle case where self might not be first due to floating point precision
+        # Remove self from results (should be first neighbor with distance 0).
+        # Handle case where self might not be first due to floating point
+        # precision. When exclude_groups is set, also filter out any
+        # candidate sharing the query's alpha-group or beta-group here,
+        # BEFORE truncating to max_neighbors -- the pool was already
+        # widened above (via `k`) to guarantee enough genuine candidates
+        # survive both self-removal and group-exclusion filtering.
         cleaned_indices = []
         cleaned_distances = []
-        
+
+        if exclude_groups is not None:
+            agroups, bgroups = exclude_groups
+            logger.debug("Applying TCR group exclusions to FAISS results "
+                         "(widened candidate pool, no -1 padding needed "
+                         "except in genuinely unreachable edge cases)")
+
+        short_rows = []  # rows that still came up short even after widening
         for i in range(n_samples):
             row_indices = search_indices[i]
             row_distances = search_distances[i]
-            
-            # Find and remove self (index i)
-            self_mask = (row_indices != i)
-            filtered_indices = row_indices[self_mask]
-            filtered_distances = row_distances[self_mask]
-            
+
+            # Find and remove self (index i). Note: when n_samples is
+            # smaller than the requested k (e.g. a 1-sample dataset),
+            # FAISS pads unused slots with -1/+inf, which naturally
+            # survives this `!= i` mask (since -1 != i) and is preserved
+            # as the documented "-1 sentinel means no valid neighbor"
+            # behavior for that pre-existing small-dataset edge case --
+            # unrelated to the TCR-group-exclusion bug being fixed here,
+            # so left unchanged.
+            valid_mask = (row_indices != i)
+
+            if exclude_groups is not None:
+                # For the exclude_groups path specifically, explicitly
+                # drop any FAISS -1 padding BEFORE indexing agroups/
+                # bgroups with it (indexing with -1 would otherwise wrap
+                # around to the last element and silently corrupt the
+                # exclusion mask).
+                valid_mask = valid_mask & (row_indices != -1)
+                candidates = row_indices[valid_mask]
+                exclude_mask = (
+                    (agroups[candidates] == agroups[i]) |
+                    (bgroups[candidates] == bgroups[i])
+                )
+                valid_mask = valid_mask.copy()
+                valid_mask[valid_mask] = ~exclude_mask
+
+            filtered_indices = row_indices[valid_mask]
+            filtered_distances = row_distances[valid_mask]
+
+            if len(filtered_indices) < max_neighbors:
+                # Should only be reachable in the pathological case where
+                # a single row's own exclusion group is so large relative
+                # to n_samples that even querying the ENTIRE dataset
+                # (k capped at n_samples) doesn't leave max_neighbors
+                # genuine candidates after exclusion -- i.e. the clone's
+                # true non-group-mate pool really is smaller than
+                # max_neighbors. There is no amount of extra FAISS
+                # querying that can fix this (we've already queried
+                # everything), so, matching sklearn's np.argsort-over-the
+                # full-masked-row behavior, we return the fewer genuine
+                # candidates that actually exist rather than padding with
+                # -1. Downstream (_make_csr_nbrs/_compute_graph_overlap_stats
+                # in correlations.py) consume these as ragged
+                # per-row lists via len(inbrs), so a short row here is
+                # safe; it is only sliced to a common width *within a
+                # given frac* further below, which still works since
+                # num_neighbors for small fracs is <= this row's length
+                # in all but the most extreme group-size cases.
+                short_rows.append((i, len(filtered_indices)))
+
             cleaned_indices.append(filtered_indices[:max_neighbors])
             cleaned_distances.append(filtered_distances[:max_neighbors])
-        
+
+        if short_rows:
+            logger.warning(
+                f"{len(short_rows)} row(s) in {data_type} FAISS neighbor "
+                "search have fewer than max_neighbors genuine "
+                "(non-excluded) candidates even after querying the full "
+                "dataset -- this means those clones' TCR exclusion groups "
+                "(shared alpha/beta chain) span nearly the entire "
+                "dataset. Returning the true (smaller) candidate count "
+                "for those rows rather than padding with -1."
+            )
+            # Rows came up short by different amounts; pad the *array*
+            # (not the semantic neighbor set) with -1 only so the arrays
+            # can be stacked into a single ndarray below -- this mirrors
+            # how a ragged result would be truncated per-frac anyway, and
+            # is clearly distinguished from the old bug because it is
+            # provably unreachable except in this documented edge case
+            # (exclusion group covering almost the whole dataset).
+            max_len = max(len(x) for x in cleaned_indices)
+            for i in range(n_samples):
+                deficit = max_len - len(cleaned_indices[i])
+                if deficit > 0:
+                    cleaned_indices[i] = np.concatenate(
+                        [cleaned_indices[i], np.full(deficit, -1)])
+                    cleaned_distances[i] = np.concatenate(
+                        [cleaned_distances[i], np.full(deficit, np.inf)])
+
         cleaned_indices = np.array(cleaned_indices)
         cleaned_distances = np.array(cleaned_distances)
-        
-        # Apply exclude_groups masking if provided (TCR-specific)
-        if exclude_groups is not None:
-            agroups, bgroups = exclude_groups
-            logger.debug(f"Applying TCR group exclusions to FAISS results")
-            
-            for i in range(n_samples):
-                # Exclude candidates that share the alpha group OR beta group
-                # with the query (same-TCR-group clones should not be
-                # neighbors), matching the sklearn path and calc_nbrs's
-                # original semantics. A candidate is valid only if it
-                # differs in BOTH groups.
-                exclude_mask = (
-                    (agroups[cleaned_indices[i]] == agroups[i]) |
-                    (bgroups[cleaned_indices[i]] == bgroups[i])
-                )
-                valid_mask = ~exclude_mask
-
-                # Keep only valid neighbors, pad with -1 if needed
-                valid_indices = cleaned_indices[i][valid_mask]
-                valid_distances = cleaned_distances[i][valid_mask]
-                
-                # Pad to maintain consistent shape
-                if len(valid_indices) < max_neighbors:
-                    pad_length = max_neighbors - len(valid_indices)
-                    valid_indices = np.concatenate([valid_indices, np.full(pad_length, -1)])
-                    valid_distances = np.concatenate([valid_distances, np.full(pad_length, np.inf)])
-                
-                cleaned_indices[i] = valid_indices[:max_neighbors]
-                cleaned_distances[i] = valid_distances[:max_neighbors]
         
         # Build results for each requested fraction
         neighbors_dict = {}
