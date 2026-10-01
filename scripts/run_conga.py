@@ -176,6 +176,18 @@ parser.add_argument('--min_genes_per_cell', type=int)
 parser.add_argument('--max_percent_mito', type=float)
 parser.add_argument('--force_variable_genes')
 
+# Batch integration flags (Requirement 6). Both default to None, resolved
+# and cross-validated after `import conga` below -- see the note on argparse
+# ordering carried over from the vectorized-tcrdist design.
+parser.add_argument('--batch_key', type=str, default=None,
+                    help='adata.obs column shared by batch-aware HVG selection'
+                    ' and batch integration (Full_Integration_Pathway).'
+                    ' Requires --batch_integration_method.')
+parser.add_argument('--batch_integration_method', type=str, default=None,
+                    help='Batch integration method: "harmony" or "scvi".'
+                    ' Requires --batch_key. Validated set is'
+                    ' conga.util.BATCH_INTEGRATION_METHODS.')
+
 # if your input AnnData file has integer-valued columns defining
 #  batch/tissue/donor/etc you can pass the column names with this option
 #  and it will add 'batch' information to the logo plots
@@ -320,6 +332,26 @@ if args.kpca_reduction_limit is None:
     args.kpca_reduction_limit = util.KPCA_REDUCTION_LIMIT
 if args.random_seed is None:
     args.random_seed = util.DEFAULT_RANDOM_SEED
+
+# Batch integration flag validation (Requirement 6.3, 6.5, 6.6). Deferred to
+# here (rather than add_argument time) because the pairing/mutual-exclusion
+# messages need conga.util.BATCH_INTEGRATION_METHODS, which is not available
+# until after `import conga` above.
+if bool(args.batch_key) != bool(args.batch_integration_method):
+    sys.exit('ERROR: --batch_key and --batch_integration_method must be'
+              ' supplied together (Full_Integration_Pathway requires both);'
+              f' got --batch_key={args.batch_key!r}'
+              f' --batch_integration_method={args.batch_integration_method!r}')
+
+if args.batch_integration_method is not None and \
+   args.batch_integration_method not in util.BATCH_INTEGRATION_METHODS:
+    sys.exit(f'ERROR: --batch_integration_method={args.batch_integration_method!r}'
+              f' is not supported; choose from {sorted(util.BATCH_INTEGRATION_METHODS)}')
+
+if args.force_variable_genes and (args.batch_key or args.batch_integration_method):
+    sys.exit('ERROR: --force_variable_genes (Fixed_HVG_Pathway) and'
+              ' --batch_key/--batch_integration_method (Full_Integration_Pathway)'
+              ' are mutually exclusive')
 
 # Flag conflict detection
 encoding_flags_set = [
@@ -673,15 +705,26 @@ if args.restart is None: ################################## load GEX/TCR data
         with open(args.force_variable_genes,'r') as f:
             force_genes = [x.strip() for x in f]
         adata.uns['force_variable_genes'] = force_genes
-            
-    adata = conga.preprocess.filter_and_scale(
-        adata,
-        max_genes_per_cell = args.max_genes_per_cell,
-        min_genes_per_cell = args.min_genes_per_cell,
-        max_percent_mito = args.max_percent_mito,
-        outfile_prefix_for_qc_plots = outfile_prefix_for_qc_plots,
-        add_variable_genes = add_variable_genes,
-    )
+
+    if args.batch_key:
+        adata = conga.preprocess.batch_integration(
+            adata, batch_key=args.batch_key,
+            method=args.batch_integration_method,
+            max_genes_per_cell = args.max_genes_per_cell,
+            min_genes_per_cell = args.min_genes_per_cell,
+            max_percent_mito = args.max_percent_mito,
+        )
+        # batch_integration() already ran filter_normalize_and_hvg internally;
+        # skip the plain filter_and_scale call below for this pathway.
+    else:
+        adata = conga.preprocess.filter_and_scale(
+            adata,
+            max_genes_per_cell = args.max_genes_per_cell,
+            min_genes_per_cell = args.min_genes_per_cell,
+            max_percent_mito = args.max_percent_mito,
+            outfile_prefix_for_qc_plots = outfile_prefix_for_qc_plots,
+            add_variable_genes = add_variable_genes,
+        )
 
     if args.filter_ribo_norm_low_cells:
         # this is sketchy
