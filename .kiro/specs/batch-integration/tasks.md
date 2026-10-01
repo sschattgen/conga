@@ -155,12 +155,12 @@ Per this design's explicit Testing Strategy section, `batch_integration` is pipe
 ### Phase E: Final Integration, Round-Trip, and Compatibility Checks
 
 - [ ] 9. Verify cross-cutting correctness and backward compatibility
-  - [~] 9.1 Write the `.h5ad` round-trip test
+  - [x] 9.1 Write the `.h5ad` round-trip test
     - Run the Full_Integration_Pathway, write to a temp `.h5ad`, read it back, assert `OBSM_KEY_PCA_GEX_UNINTEGRATED`, `OBSM_KEY_PCA_GEX_INTEGRATED`, and `UNS_KEY_BATCH_INTEGRATION_CONFIG` all round-trip elementwise/value-equal
     - Place in `tests/test_batch_integration.py`
     - _Requirements: 4.5_
 
-  - [~] 9.2 Write the downstream-consumption guard-reuse test
+  - [x] 9.2 Write the downstream-consumption guard-reuse test
     - After the Full_Integration_Pathway populates `adata.obsm['X_pca_gex']`, call `cluster_and_tsne_and_umap(adata)` with `recompute_pca_gex=False` and assert, via a spy on `sc.tl.pca`, that `sc.tl.pca` is not called again
     - Place in `tests/test_batch_integration.py`
     - _Requirements: 4.2_
