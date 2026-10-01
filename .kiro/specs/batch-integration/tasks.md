@@ -87,7 +87,7 @@ Per this design's explicit Testing Strategy section, `batch_integration` is pipe
     - Place in `tests/test_batch_integration.py`
     - _Requirements: 2.2, 5.5_
 
-- [ ] 5. Implement the Harmony integration track
+- [x] 5. Implement the Harmony integration track
   - [x] 5.1 Implement `_regress_out_technical_covariates`
     - Call `sc.pp.regress_out(adata, ['n_counts', 'percent_mito'])` unconditionally, relying on both columns already being populated by the preceding `filter_normalize_and_hvg` call
     - Do not call `sc.pp.scale()` anywhere in this helper
@@ -101,14 +101,14 @@ Per this design's explicit Testing Strategy section, `batch_integration` is pipe
     - Set `adata.obsm['X_pca_gex'] = adata.obsm[util.OBSM_KEY_PCA_GEX_INTEGRATED]` and record `method`, `batch_key`, and `n_batches` in `adata.uns[util.UNS_KEY_BATCH_INTEGRATION_CONFIG]`
     - _Requirements: 2.3, 2.5, 2.7, 4.1, 4.2, 4.4_
 
-  - [~] 5.3 Write unit and integration tests for the Harmony path
+  - [x] 5.3 Write unit and integration tests for the Harmony path
     - Integration test: on a small synthetic `AnnData` (a few hundred cells, two batches) with `harmonypy` installed, assert `OBSM_KEY_PCA_GEX_UNINTEGRATED`, `OBSM_KEY_PCA_GEX_INTEGRATED`, and `X_pca_gex` are all present, `X_pca_gex` equals `OBSM_KEY_PCA_GEX_INTEGRATED` elementwise, and the two representations are not elementwise-equal to each other (Requirement 4.1, 4.2)
     - Integration test: with `harmonypy` uninstalled (via `sys.modules` patching), `method='harmony'` raises `ImportError` naming `conga[batch-integration]` (Requirement 2.5)
     - Unit test: `adata.uns[util.UNS_KEY_BATCH_INTEGRATION_CONFIG]` contents (method, batch_key, n_batches) match the run's actual inputs (Requirement 4.4)
     - Place in `tests/test_batch_integration.py`
     - _Requirements: 2.5, 4.1, 4.2, 4.4_
 
-- [ ] 6. Implement the scVI integration track
+- [x] 6. Implement the scVI integration track
   - [x] 6.1 Implement `_run_scvi_integration` and wire the `scvi` branch of `batch_integration()`
     - Raise `ValueError` stating that the `scvi` Integration_Method requires the Counts_Layer and naming `filter_normalize_and_hvg`, if `'counts' not in adata.layers`
     - Import `scvi` only inside this function; on `ImportError`, raise an `ImportError` naming `scvi-tools` and the `conga[batch-integration]` extra
@@ -124,7 +124,7 @@ Per this design's explicit Testing Strategy section, `batch_integration` is pipe
     - Place in `tests/test_batch_integration.py`
     - _Requirements: 2.6, 3.4, 3.5, 4.1, 4.2_
 
-- [~] 7. Checkpoint - Ensure Phase C tests pass
+- [x] 7. Checkpoint - Ensure Phase C tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ### Phase D: CLI Integration
