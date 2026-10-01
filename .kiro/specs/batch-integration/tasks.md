@@ -129,24 +129,24 @@ Per this design's explicit Testing Strategy section, `batch_integration` is pipe
 
 ### Phase D: CLI Integration
 
-- [ ] 8. Add and validate `--batch_key`/`--batch_integration_method` CLI flags
-  - [~] 8.1 Add the two new flags to `scripts/run_conga.py`
+- [x] 8. Add and validate `--batch_key`/`--batch_integration_method` CLI flags
+  - [x] 8.1 Add the two new flags to `scripts/run_conga.py`
     - Add `parser.add_argument('--batch_key', type=str, default=None, ...)` and `parser.add_argument('--batch_integration_method', type=str, default=None, ...)`, placed immediately after the existing `--force_variable_genes` flag and before `--batch_keys`
     - Do not use `choices=` at `add_argument` time (so `None` is not rejected before the pairing check runs)
     - _Requirements: 6.1, 6.2_
 
-  - [~] 8.2 Add post-import validation checks
+  - [x] 8.2 Add post-import validation checks
     - Immediately after `import conga`/`from conga import util`, add: a check that `--batch_key` and `--batch_integration_method` are supplied together, exiting nonzero naming both flags if not (Requirement 6.3)
     - A check that `--batch_integration_method` is in `util.BATCH_INTEGRATION_METHODS` when supplied, exiting nonzero naming the supplied value and the supported set if not (Requirement 6.6)
     - A check that `--force_variable_genes` is not supplied together with `--batch_key` or `--batch_integration_method`, exiting nonzero naming the conflicting flags if it is (Requirement 6.5)
     - _Requirements: 6.3, 6.4, 6.5, 6.6_
 
-  - [~] 8.3 Wire the call site
+  - [x] 8.3 Wire the call site
     - After the existing `if args.force_variable_genes:` block and before the `filter_and_scale` call, add an `if args.batch_key:` branch that calls `conga.preprocess.batch_integration(adata, batch_key=args.batch_key, method=args.batch_integration_method)` instead of `filter_and_scale`
     - Keep the existing `filter_and_scale` call as the `else` branch for the Fixed_HVG_Pathway and Default_Pathway
     - _Requirements: 6.1, 6.2_
 
-  - [~] 8.4 Write CLI validation and smoke tests
+  - [x] 8.4 Write CLI validation and smoke tests
     - Unit tests: `--batch_integration_method` without `--batch_key` exits nonzero naming both flags (Requirement 6.3); `--batch_key` without `--batch_integration_method` likewise; `--force_variable_genes` with either new flag exits nonzero (Requirement 6.5); an unsupported `--batch_integration_method` value exits nonzero naming the supported set (Requirement 6.6)
     - Integration test: invoke `scripts/run_conga.py` as a subprocess with `--batch_key`+`--batch_integration_method=harmony` on a small fixture dataset, assert exit code 0 and the expected `obsm` keys in the output `.h5ad`
     - Place in `tests/test_run_conga_cli.py` (new file)
