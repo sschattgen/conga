@@ -171,7 +171,40 @@ from .. import util
 logger = logging.getLogger(__name__)
 
 # Supported organisms for vectorized encoding
-SUPPORTED_ORGANISMS: frozenset[str] = frozenset({'human', 'mouse', 'rhesus'})
+# Membership is a hand-edited literal, updated from the Accuracy_Gate
+# Results table recorded in .kiro/specs/tcrdist-db-update/design.md
+# (Component 4). All 18 evaluated organisms passed the Accuracy_Gate
+# (Spearman >= 0.90 and mean recall@10 >= 0.70) as of that run.
+SUPPORTED_ORGANISMS: frozenset[str] = frozenset({
+    'human', 'mouse', 'rhesus',
+    'rhesus_gd', 'rhesus_ig',
+    'cat', 'cat_gd', 'cat_ig',
+    'dog', 'dog_gd', 'dog_ig',
+    'ferret', 'ferret_gd', 'ferret_ig',
+    'rabbit', 'rabbit_gd', 'rabbit_ig',
+    'sheep',
+})
+
+# Tier_3 organisms: validated via the Synthetic_CDR3_Generator (modeled on
+# human CDR3 content), not species-matched real repertoire data, per the
+# Validation_Tier column of the same Results table referenced above.
+# `human`, `mouse`, and `rhesus` are Tier_1 (real, species-matched data) and
+# are deliberately NEVER included here, regardless of Accuracy_Gate outcome,
+# since tier classification is independent of pass/fail (Resolved Decision 5).
+_TIER_3_ORGANISMS: frozenset[str] = frozenset({
+    'rhesus_gd', 'rhesus_ig',
+    'cat', 'cat_gd', 'cat_ig',
+    'dog', 'dog_gd', 'dog_ig',
+    'ferret', 'ferret_gd', 'ferret_ig',
+    'rabbit', 'rabbit_gd', 'rabbit_ig',
+    'sheep',
+})
+
+# Tracks which Tier_3 organisms have already triggered the one-time-per-process
+# Validation_Warning in encode_tcrs, so repeated calls for the same organism
+# (e.g. across a pipeline run) don't flood logs.
+_already_warned_organisms: set[str] = set()
+
 VECTORIZER_VERSION: str = 'conga.vectorized/1'
 
 # Default encoding configuration parameters
@@ -501,7 +534,7 @@ def aa_embedding(config: EncodingConfig) -> np.ndarray:
     return embedding.copy()
 
 
-def _validate_organism(organism: str) -> None:
+def _validate_organism(organism: str, *, _skip_validation: bool = False) -> None:
     """Validate organism is supported by vectorizer.
     
     Parameters
@@ -515,6 +548,8 @@ def _validate_organism(organism: str) -> None:
         If organism is not in SUPPORTED_ORGANISMS set, with clear message
         listing alternatives for unsupported receptor types
     """
+    if _skip_validation:
+        return
     if organism not in SUPPORTED_ORGANISMS:
         # Get specific error message for common unsupported types
         if organism in {'human_gd', 'mouse_gd', 'rhesus_gd'}:
@@ -629,7 +664,9 @@ def trim_and_gap_cdr3(
     return fullseq
 
 
-def vector_length(organism: str, config: EncodingConfig | None = None) -> int:
+def vector_length(
+    organism: str, config: EncodingConfig | None = None, *, _skip_validation: bool = False
+) -> int:
     """Calculate expected vector length for given organism and configuration.
     
     Computes the total length L of the fixed-size vectors that encode_tcrs() 
@@ -693,7 +730,7 @@ def vector_length(organism: str, config: EncodingConfig | None = None) -> int:
     >>> L = vector_length('human')
     >>> matrix = np.empty((n_clonotypes, L), dtype=np.float32)
     """
-    _validate_organism(organism)
+    _validate_organism(organism, _skip_validation=_skip_validation)
     
     if config is None:
         config = EncodingConfig()
@@ -703,7 +740,9 @@ def vector_length(organism: str, config: EncodingConfig | None = None) -> int:
     for chain in ['A', 'B']:
         # Get germline code table to determine actual lengths
         try:
-            gene_ids, code_matrix = germline_code_table(organism, chain)
+            gene_ids, code_matrix = germline_code_table(
+                organism, chain, _skip_validation=_skip_validation
+            )
             germline_length = code_matrix.shape[1]  # Number of variant positions
         except ValueError:
             # Fallback to estimated lengths from design measurements
@@ -724,7 +763,9 @@ def vector_length(organism: str, config: EncodingConfig | None = None) -> int:
     return total_length
 
 
-def germline_code_table(organism: str, chain: str) -> tuple[list[str], np.ndarray]:
+def germline_code_table(
+    organism: str, chain: str, *, _skip_validation: bool = False
+) -> tuple[list[str], np.ndarray]:
     """Build germline code table for organism and chain.
     
     Extracts V gene CDR loop sequences from the gene database, converts them to 
@@ -798,7 +839,7 @@ def germline_code_table(organism: str, chain: str) -> tuple[list[str], np.ndarra
     >>> amino_acids[2]
     'D'  # Corresponds to aspartic acid
     """
-    _validate_organism(organism)
+    _validate_organism(organism, _skip_validation=_skip_validation)
     
     # Lazy import gene database
     from .all_genes import all_genes
@@ -877,7 +918,9 @@ def _validate_input(
     vb: Sequence[str], 
     cdr3b: Sequence[str],
     organism: str,
-    config: EncodingConfig
+    config: EncodingConfig,
+    *,
+    _skip_validation: bool = False,
 ) -> None:
     """Validate all input before encoding allocation.
     
@@ -911,7 +954,7 @@ def _validate_input(
         raise ValueError("All input sequences must have same length")
     
     # Validate organism is supported
-    _validate_organism(organism)
+    _validate_organism(organism, _skip_validation=_skip_validation)
     
     # Get organism gene database
     if organism not in all_genes:
@@ -1012,6 +1055,7 @@ def encode_tcrs(
     cdr3a_column: str = 'cdr3a', 
     vb_column: str = 'vb',
     cdr3b_column: str = 'cdr3b',
+    _skip_validation: bool = False,
 ) -> np.ndarray:
     """Encode paired TCR clonotypes as fixed-length vectors.
     
@@ -1133,7 +1177,16 @@ def encode_tcrs(
     >>> distances = pdist(matrix, metric='euclidean')  # Approximates sqrt(TCRdist)
     >>> squared_distances = pdist(matrix, metric='sqeuclidean')  # Approximates TCRdist
     """
-    _validate_organism(organism)
+    _validate_organism(organism, _skip_validation=_skip_validation)
+    if organism in _TIER_3_ORGANISMS and organism not in _already_warned_organisms:
+        _already_warned_organisms.add(organism)
+        logger.warning(
+            f"Vectorized TCRdist for organism {organism!r} was validated "
+            f"using synthetic sequence data modeled on human CDR3 content, "
+            f"not species-matched real repertoire data for {organism!r}. "
+            f"Consider the KernelPCA representation (X_pca_tcr) or the "
+            f"exact TCRdist path for a more conservative alternative."
+        )
     
     if config is None:
         config = EncodingConfig()
@@ -1171,11 +1224,11 @@ def encode_tcrs(
     n_clonotypes = len(va)
     if n_clonotypes == 0:
         # Return empty array with correct shape
-        L = vector_length(organism, config)
+        L = vector_length(organism, config, _skip_validation=_skip_validation)
         return np.empty((0, L), dtype=np.float32, order='C')
     
     # Validate all input before any allocation
-    _validate_input(va, cdr3a, vb, cdr3b, organism, config)
+    _validate_input(va, cdr3a, vb, cdr3b, organism, config, _skip_validation=_skip_validation)
     
     # Get amino acid embedding
     aa_embedding_matrix = aa_embedding(config)  # (21, aa_mds_dim)
@@ -1185,7 +1238,9 @@ def encode_tcrs(
     
     for chain_id, chain_va, chain_cdr3 in [('A', va, cdr3a), ('B', vb, cdr3b)]:
         # Get germline code table for this chain
-        gene_ids, germline_codes = germline_code_table(organism, chain_id)
+        gene_ids, germline_codes = germline_code_table(
+            organism, chain_id, _skip_validation=_skip_validation
+        )
         
         # Map V gene names to row indices
         gene_to_row = {gene_id: i for i, gene_id in enumerate(gene_ids)}
@@ -1233,7 +1288,7 @@ def encode_tcrs(
     result = np.hstack(blocks)  # Still float64 from embedding
     
     # Verify expected shape
-    expected_length = vector_length(organism, config)
+    expected_length = vector_length(organism, config, _skip_validation=_skip_validation)
     if result.shape != (n_clonotypes, expected_length):
         raise RuntimeError(f"Encoding shape mismatch: got {result.shape}, expected {(n_clonotypes, expected_length)}")
     
@@ -1653,233 +1708,6 @@ def get_active_tcr_representation(adata) -> str | None:
     return adata.uns.get(util.UNS_KEY_ACTIVE_TCR_REP, None)
 
 
-def accuracy_report(
-    tcrs: Sequence[tuple[tuple, tuple]] | pd.DataFrame,
-    organism: str,
-    config: EncodingConfig | None = None,
-    *,
-    max_pairs: int = 500000,
-    neighbor_counts: tuple[int, ...] = (10, 100),
-    **kwargs
-) -> AccuracyReport:
-    """Generate comprehensive accuracy report comparing vectorized vs exact TCRdist.
-    
-    Encodes the provided TCR clonotypes using the vectorized algorithm and compares
-    the resulting Euclidean distances against exact TCRdist distances. Computes
-    correlation statistics and k-nearest neighbor recall metrics to quantify
-    encoding accuracy.
-    
-    This function is the primary tool for validating vectorized encoding quality
-    and deciding whether the approximation is suitable for specific analyses.
-    It uses the same exact TCRdist implementation (TcrDistCalculator) that CoNGA
-    uses elsewhere, ensuring consistency with production workflows.
-    
-    Parameters
-    ----------
-    tcrs : Sequence[tuple[tuple, tuple]] | pd.DataFrame
-        Clonotype data in the same formats accepted by encode_tcrs().
-        Larger datasets provide more reliable accuracy estimates but require
-        more computation time.
-    organism : str
-        Organism identifier ('human', 'mouse', 'rhesus'). Must match the
-        organism of the input clonotypes.
-    config : EncodingConfig | None, default=None
-        Encoding configuration to test. If None, uses default configuration.
-        Different configurations may have different accuracy profiles.
-    max_pairs : int, default=500000
-        Maximum number of clonotype pairs to sample for correlation computation.
-        For N clonotypes, there are N*(N-1)/2 pairs total. Large datasets are
-        randomly sampled to this limit for computational tractability.
-    neighbor_counts : tuple[int, ...], default=(10, 100)
-        Values of k where k-NN recall will be measured. Should match the
-        neighbor counts relevant to downstream CoNGA analysis (typically 
-        derived from nbr_frac * N where nbr_frac ∈ [0.01, 0.1]).
-    **kwargs
-        Additional keyword arguments for backwards compatibility.
-        Currently unused but reserved for future extensions.
-        
-    Returns
-    -------
-    AccuracyReport
-        Comprehensive accuracy validation results containing:
-        - Pearson correlations for both distance and squared distance
-        - Spearman rank correlation (most robust metric)
-        - Mean k-NN recall for each requested neighbor count
-        - Dataset and configuration metadata
-        
-    Raises
-    ------
-    ValueError
-        - If organism not supported by vectorized encoder
-        - If input data format invalid
-        - If neighbor_counts contains invalid values (≤ 0 or > N)
-        - If max_pairs ≤ 0
-        
-    Notes
-    -----
-    **Performance**: Scales as O(N^2) due to exact TCRdist computation.
-    Large datasets (N > 2000) may require significant time. Consider
-    using a representative subset for quick evaluation.
-    
-    **Sampling**: When N*(N-1)/2 > max_pairs, pairs are sampled uniformly
-    at random with a fixed seed for reproducibility. The sample size is
-    recorded in the returned AccuracyReport.
-    
-    **Distance interpretation**: Vectorized Euclidean distance approximates
-    sqrt(TCRdist), while squared Euclidean distance approximates TCRdist.
-    The report includes both correlations for completeness.
-    
-    **Memory usage**: Requires temporary storage of N×N exact distance matrix
-    and vectorized distance computations. Peak memory ~O(N^2).
-    
-    Examples
-    --------
-    Basic accuracy validation:
-    >>> tcrs = [
-    ...     (('TRAV1*01', 'TRAJ1*01', 'CAVRD', ''), 
-    ...      ('TRBV1*01', 'TRBJ1*01', 'CASSRT', '')),
-    ...     (('TRAV2*01', 'TRAJ2*01', 'CAVKE', ''),
-    ...      ('TRBV2*01', 'TRBJ2*01', 'CASSLQ', ''))
-    ... ]
-    >>> report = accuracy_report(tcrs, 'human')
-    >>> print(f"Spearman correlation: {report.spearman:.3f}")
-    >>> print(f"Recall@10: {report.mean_recall[10]:.3f}")
-    
-    Custom configuration testing:
-    >>> config = EncodingConfig(aa_mds_dim=12, cdr3_weight=2.0)
-    >>> report = accuracy_report(tcrs, 'human', config)
-    >>> if report.spearman >= 0.95 and report.mean_recall[10] >= 0.80:
-    ...     print("Configuration passes accuracy gates")
-    
-    Large dataset with sampling:
-    >>> # For large dataset, limit correlation pairs but test all neighbors
-    >>> report = accuracy_report(large_tcrs, 'mouse', max_pairs=100000)
-    >>> print(f"Sampled {report.num_pairs_sampled} of {len(large_tcrs)*(len(large_tcrs)-1)//2} total pairs")
-    
-    Accuracy gate validation:
-    >>> report = accuracy_report(test_tcrs, 'human')
-    >>> assert report.spearman >= 0.95, "Failed Spearman correlation gate"
-    >>> assert report.mean_recall[10] >= 0.80, "Failed recall@10 gate"
-    >>> # Configuration meets production accuracy requirements
-    """
-    if config is None:
-        config = EncodingConfig()
-        
-    # Lazy import to avoid circular dependencies
-    from .tcr_distances import TcrDistCalculator
-    
-    # Validate inputs
-    _validate_organism(organism)
-    
-    if max_pairs <= 0:
-        raise ValueError(f"max_pairs must be positive, got {max_pairs}")
-        
-    for k in neighbor_counts:
-        if not isinstance(k, int) or k <= 0:
-            raise ValueError(f"neighbor_counts must contain positive integers, got {k}")
-    
-    logger.info(f"Starting accuracy validation for {organism} with {len(tcrs) if hasattr(tcrs, '__len__') else 'unknown'} clonotypes")
-    
-    # Encode with vectorized algorithm
-    vector_matrix = encode_tcrs(tcrs, organism, config)
-    n_clonotypes = vector_matrix.shape[0]
-    
-    # Validate neighbor counts against dataset size
-    for k in neighbor_counts:
-        if k >= n_clonotypes:
-            raise ValueError(f"neighbor_count {k} >= dataset size {n_clonotypes}")
-    
-    # Convert input to format expected by TcrDistCalculator
-    if isinstance(tcrs, pd.DataFrame):
-        tcr_list = []
-        for _, row in tcrs.iterrows():
-            alpha_tuple = (row['va'], '', row['cdr3a'], '')  # J gene and nucseq not needed
-            beta_tuple = (row['vb'], '', row['cdr3b'], '')
-            tcr_list.append((alpha_tuple, beta_tuple))
-    else:
-        tcr_list = list(tcrs)
-    
-    # Compute exact TCRdist distances
-    calculator = TcrDistCalculator(organism)
-    exact_distances = np.zeros((n_clonotypes, n_clonotypes), dtype=np.float64)
-    
-    for i in range(n_clonotypes):
-        for j in range(i + 1, n_clonotypes):
-            dist = calculator.tcr_distance(tcr_list[i], tcr_list[j])
-            exact_distances[i, j] = dist
-            exact_distances[j, i] = dist  # Symmetric
-    
-    # Compute vectorized distances
-    from scipy.spatial.distance import pdist, squareform
-    vectorized_distances_condensed = pdist(vector_matrix, metric='euclidean')
-    vectorized_squared_distances_condensed = pdist(vector_matrix, metric='sqeuclidean')
-    
-    # Convert to full matrices for neighbor calculations
-    vectorized_distances = squareform(vectorized_distances_condensed)
-    vectorized_squared_distances = squareform(vectorized_squared_distances_condensed)
-    
-    # Sample pairs for correlation if needed
-    total_pairs = n_clonotypes * (n_clonotypes - 1) // 2
-    if total_pairs > max_pairs:
-        # Sample pairs uniformly at random with fixed seed
-        np.random.seed(config.random_seed)
-        pair_indices = np.random.choice(total_pairs, size=max_pairs, replace=False)
-        
-        # Convert condensed indices to (i, j) pairs
-        sampled_exact = vectorized_distances_condensed[pair_indices]
-        sampled_vector = exact_distances[np.triu_indices(n_clonotypes, k=1)][pair_indices]
-        sampled_vector_sq = vectorized_squared_distances_condensed[pair_indices]
-        
-        pairs_sampled = max_pairs
-    else:
-        # Use all pairs
-        sampled_exact = exact_distances[np.triu_indices(n_clonotypes, k=1)]
-        sampled_vector = vectorized_distances_condensed
-        sampled_vector_sq = vectorized_squared_distances_condensed
-        pairs_sampled = total_pairs
-    
-    # Compute correlations
-    from scipy.stats import pearsonr, spearmanr
-    
-    pearson_dist_corr, _ = pearsonr(sampled_vector, sampled_exact)
-    pearson_sq_dist_corr, _ = pearsonr(sampled_vector_sq, sampled_exact)
-    spearman_corr, _ = spearmanr(sampled_vector, sampled_exact)
-    
-    # Compute k-NN recall
-    mean_recalls = {}
-    for k in neighbor_counts:
-        recalls = []
-        for i in range(n_clonotypes):
-            # Find k nearest neighbors in exact distances
-            exact_neighbors = np.argsort(exact_distances[i, :])[1:k+1]  # Skip self (index 0)
-            
-            # Find k nearest neighbors in vectorized distances 
-            vector_neighbors = np.argsort(vectorized_distances[i, :])[1:k+1]
-            
-            # Compute recall
-            intersection_size = len(np.intersect1d(exact_neighbors, vector_neighbors))
-            recall = intersection_size / k
-            recalls.append(recall)
-        
-        mean_recalls[k] = np.mean(recalls)
-    
-    logger.info(f"Accuracy validation complete: Spearman={spearman_corr:.3f}, "
-                f"mean_recall@{neighbor_counts[0]}={mean_recalls[neighbor_counts[0]]:.3f}")
-    
-    return AccuracyReport(
-        organism=organism,
-        config=config,
-        num_clonotypes=n_clonotypes,
-        num_pairs_sampled=pairs_sampled,
-        pearson_distance=pearson_dist_corr,
-        pearson_squared_distance=pearson_sq_dist_corr,
-        spearman=spearman_corr,
-        neighbor_counts=neighbor_counts,
-        mean_recall=mean_recalls,
-        vectorizer_version=VECTORIZER_VERSION,
-    )
-
-
 def record_active_tcr_representation(adata, active_representation: str) -> None:
     """Record which TCR representation is currently active for neighbor calculations.
     
@@ -1997,6 +1825,7 @@ def accuracy_report(
     neighbor_counts: Sequence[int] = (10, 100),
     max_pairs: int = 1_000_000,
     random_seed: int = util.DEFAULT_RANDOM_SEED,
+    _skip_validation: bool = False,
 ) -> AccuracyReport:
     """Generate comprehensive accuracy report comparing vectorized vs exact TCRdist.
     
@@ -2083,7 +1912,15 @@ def accuracy_report(
     >>> for org in organisms:
     ...     report = accuracy_report(tcrs, org)
     ...     print(f"{org}: Spearman={report.spearman:.3f}, Recall@10={report.mean_recall[10]:.3f}")
+
+    Notes
+    -----
+    The private `_skip_validation` parameter allows the Validation_Harness to
+    measure accuracy for a candidate organism before it is added to
+    `SUPPORTED_ORGANISMS` -- it is not intended for use outside that harness.
     """
+    _validate_organism(organism, _skip_validation=_skip_validation)
+
     if config is None:
         config = EncodingConfig()
     
@@ -2092,7 +1929,7 @@ def accuracy_report(
     import scipy.stats
     
     # Encode with vectorized method
-    vector_matrix = encode_tcrs(tcrs, organism, config)
+    vector_matrix = encode_tcrs(tcrs, organism, config, _skip_validation=_skip_validation)
     n_clonotypes = vector_matrix.shape[0]
     
     if n_clonotypes < 2:
@@ -2200,6 +2037,294 @@ def accuracy_report(
         mean_recall=mean_recalls,
         vectorizer_version=VECTORIZER_VERSION,
     )
+
+
+def _load_human_cdr3_corpus() -> pd.DataFrame:
+    """Load the real, paired human CDR3 validation corpus.
+
+    Reads ``conga/data/new_paired_tcr_db_for_matching_nr.tsv``, resolving the
+    path via ``conga.util.path_to_data`` (a ``pathlib.Path``) rather than a
+    hardcoded string, and keeps only rows that are both (1) complete
+    alpha-beta pairs (both ``cdr3a`` and ``cdr3b`` non-null and non-empty)
+    and (2) fully gene-resolvable: ``va``, ``vb``, ``ja``, and ``jb`` must
+    each be non-null *and* an exact key in ``all_genes['human']`` for the
+    matching chain/region (``va`` -> chain='A', region='V'; ``vb`` ->
+    chain='B', region='V'; ``ja`` -> chain='A', region='J'; ``jb`` ->
+    chain='B', region='J'). A non-trivial fraction of rows have CDR3
+    sequences present but a missing or non-matching J-gene call, so the
+    CDR3-only filter alone is insufficient -- ``encode_tcrs``'s
+    ``gene_to_row[v_gene]`` lookup requires an exact dict-key match with no
+    fuzzy normalization, so any row with an unresolvable gene id must be
+    dropped here rather than passed through.
+
+    Column naming convention
+    -------------------------
+    This file uses the matching-db schema: ``va``/``vb``/``ja``/``jb`` for V/J
+    gene calls and ``cdr3a``/``cdr3b`` for CDR3 sequences. This is the *same*
+    convention used by :func:`_load_mouse_cdr3_corpus`, but is distinct from
+    :func:`_load_rhesus_cdr3_corpus`, which reads a clones-file-style schema
+    (``va_gene``/``vb_gene``/``ja_gene``/``jb_gene``).
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns ``cdr3a``, ``cdr3b``, ``va``, ``vb``, ``ja``, ``jb``, one row
+        per complete, gene-resolvable paired clonotype. This function does
+        not convert rows to the common ``list[tuple[tuple, tuple]]`` shape;
+        per the Data Models normalization contract, that projection is the
+        caller's (Validation_Harness's) responsibility, not this loader's.
+    """
+    # Lazy import gene database, matching this module's existing convention
+    # (see germline_code_table).
+    from .all_genes import all_genes
+
+    data_file = util.path_to_data / 'new_paired_tcr_db_for_matching_nr.tsv'
+    df = pd.read_csv(data_file, sep='\t')
+
+    columns = ['cdr3a', 'cdr3b', 'va', 'vb', 'ja', 'jb']
+    df = df[columns]
+
+    paired_mask = (
+        df['cdr3a'].notna() & (df['cdr3a'].astype(str).str.len() > 0)
+        & df['cdr3b'].notna() & (df['cdr3b'].astype(str).str.len() > 0)
+    )
+
+    genes_dict = all_genes['human']
+    va_ids = {g.id for g in genes_dict.values() if g.chain == 'A' and g.region == 'V'}
+    ja_ids = {g.id for g in genes_dict.values() if g.chain == 'A' and g.region == 'J'}
+    vb_ids = {g.id for g in genes_dict.values() if g.chain == 'B' and g.region == 'V'}
+    jb_ids = {g.id for g in genes_dict.values() if g.chain == 'B' and g.region == 'J'}
+
+    gene_mask = (
+        df['va'].isin(va_ids) & df['vb'].isin(vb_ids)
+        & df['ja'].isin(ja_ids) & df['jb'].isin(jb_ids)
+    )
+
+    return df.loc[paired_mask & gene_mask].reset_index(drop=True)
+
+
+def _load_mouse_cdr3_corpus() -> pd.DataFrame:
+    """Load the real, paired mouse CDR3 validation corpus.
+
+    Reads ``conga/data/mouse_tcr_db_for_matching.tsv``, resolving the path
+    via ``conga.util.path_to_data`` rather than a hardcoded string, and
+    keeps only rows that are both (1) complete alpha-beta pairs (both
+    ``cdr3a`` and ``cdr3b`` non-null and non-empty) and (2) fully
+    gene-resolvable: ``va``, ``vb``, ``ja``, and ``jb`` must each be
+    non-null *and* an exact key in ``all_genes['mouse']`` for the matching
+    chain/region (``va`` -> chain='A', region='V'; ``vb`` -> chain='B',
+    region='V'; ``ja`` -> chain='A', region='J'; ``jb`` -> chain='B',
+    region='J'). Beyond missing J-gene calls, this file also contains real
+    gene-name formatting mismatches against the active gene database (e.g.
+    missing allele suffixes like ``TRAV6-1`` vs. ``TRAV6-1*01``, or
+    different separator conventions like ``TRAV13D-1:01`` vs. ``*01``), so
+    the CDR3-only filter alone passes through rows that would raise a
+    ``KeyError`` (or silently mis-encode) in ``encode_tcrs``'s exact
+    dict-key gene lookup. Those gene-name mismatches are not normalized or
+    fuzzy-matched here -- doing so risks introducing an incorrect mapping --
+    rows with an unresolvable gene id are simply excluded from the corpus.
+
+    Column naming convention
+    -------------------------
+    Same matching-db schema as :func:`_load_human_cdr3_corpus`:
+    ``va``/``vb``/``ja``/``jb``/``cdr3a``/``cdr3b``. This file additionally
+    has one extra leading unnamed index column in its header (confirmed by
+    direct inspection), which pandas' default ``read_csv(sep='\\t')`` assigns
+    an auto-generated positional column name to (e.g. ``'Unnamed: 0'``);
+    that column -- and every other column this function does not use -- is
+    dropped by selecting only the needed columns below.
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns ``cdr3a``, ``cdr3b``, ``va``, ``vb``, ``ja``, ``jb``, one row
+        per complete, gene-resolvable paired clonotype.
+    """
+    # Lazy import gene database, matching this module's existing convention
+    # (see germline_code_table).
+    from .all_genes import all_genes
+
+    data_file = util.path_to_data / 'mouse_tcr_db_for_matching.tsv'
+    df = pd.read_csv(data_file, sep='\t')
+
+    columns = ['cdr3a', 'cdr3b', 'va', 'vb', 'ja', 'jb']
+    df = df[columns]
+
+    paired_mask = (
+        df['cdr3a'].notna() & (df['cdr3a'].astype(str).str.len() > 0)
+        & df['cdr3b'].notna() & (df['cdr3b'].astype(str).str.len() > 0)
+    )
+
+    genes_dict = all_genes['mouse']
+    va_ids = {g.id for g in genes_dict.values() if g.chain == 'A' and g.region == 'V'}
+    ja_ids = {g.id for g in genes_dict.values() if g.chain == 'A' and g.region == 'J'}
+    vb_ids = {g.id for g in genes_dict.values() if g.chain == 'B' and g.region == 'V'}
+    jb_ids = {g.id for g in genes_dict.values() if g.chain == 'B' and g.region == 'J'}
+
+    gene_mask = (
+        df['va'].isin(va_ids) & df['vb'].isin(vb_ids)
+        & df['ja'].isin(ja_ids) & df['jb'].isin(jb_ids)
+    )
+
+    return df.loc[paired_mask & gene_mask].reset_index(drop=True)
+
+
+def _load_rhesus_cdr3_corpus() -> pd.DataFrame:
+    """Load the real, paired rhesus CDR3 validation corpus.
+
+    Reads ``conga/data/rhesus_clones.tsv``, resolving the path via
+    ``conga.util.path_to_data`` rather than a hardcoded string. All 450 rows
+    in this file are already complete alpha-beta pairs (confirmed by direct
+    inspection: no null/empty values across the relevant columns), so unlike
+    :func:`_load_human_cdr3_corpus` and :func:`_load_mouse_cdr3_corpus`, no
+    paired-row filtering is applied here.
+
+    Column naming convention
+    -------------------------
+    This file uses the *clones-file* schema, not the matching-db schema the
+    two loaders above use: V/J gene calls are named ``va_gene``/``vb_gene``/
+    ``ja_gene``/``jb_gene`` (not ``va``/``vb``/``ja``/``jb``). CDR3 columns
+    are still named ``cdr3a``/``cdr3b``, matching the other two loaders.
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns ``cdr3a``, ``cdr3b``, ``va_gene``, ``ja_gene``, ``vb_gene``,
+        ``jb_gene``, one row per clonotype. As with the other two loaders,
+        this function returns a plain DataFrame in this file's native column
+        naming; projecting to the common tuple shape is the caller's
+        (Validation_Harness's) responsibility.
+    """
+    data_file = util.path_to_data / 'rhesus_clones.tsv'
+    df = pd.read_csv(data_file, sep='\t')
+
+    columns = ['cdr3a', 'cdr3b', 'va_gene', 'ja_gene', 'vb_gene', 'jb_gene']
+    return df[columns].reset_index(drop=True)
+
+
+def _build_synthetic_cdr3_corpus(
+    organism: str,
+    n: int,
+    random_seed: int,
+) -> list[tuple[tuple, tuple]]:
+    """Generate a synthetic paired-CDR3 corpus for Tier 3 validation.
+
+    This is the Synthetic_CDR3_Generator used to validate organisms with no
+    real, species-matched paired CDR3 data available in this repository
+    (e.g. ``cat``, ``dog``, ``ferret``, ``rabbit``, ``sheep``, and rhesus's
+    gamma-delta/Ig receptor types). It is a decision-support tool for the
+    Validation_Harness, not a biologically faithful simulator.
+
+    Algorithm
+    ---------
+    1. Build one pooled per-residue amino-acid frequency table (20 amino
+       acids, normalized counts) from :func:`_load_human_cdr3_corpus`'s
+       ``cdr3a`` and ``cdr3b`` columns combined, pooled across all positions
+       and all lengths. This is the only real amino-acid-content model used,
+       regardless of ``organism``.
+    2. Sample a CDR3 length for each generated chain from the empirical
+       length distribution observed in the same human corpus. This function
+       pools ``cdr3a`` and ``cdr3b`` lengths together into one distribution
+       and draws both the alpha and beta chain lengths from that pooled
+       distribution (rather than sampling alpha length from ``cdr3a``
+       lengths and beta length from ``cdr3b`` lengths separately); either
+       choice is acceptable per the design, and this is the one implemented
+       here.
+    3. Build each synthetic CDR3 of its sampled length ``L`` by drawing
+       ``L`` independent residues from the pooled frequency table in step 1.
+    4. Sample V and J gene identifiers for each chain uniformly and
+       independently from ``all_genes[organism]`` (lazily imported, matching
+       this module's existing lazy-import convention), filtered to
+       ``chain='A'``/``region='V'`` or ``'J'`` for the alpha chain and
+       ``chain='B'``/``region='V'`` or ``'J'`` for the beta chain. This
+       guarantees every sampled gene id is a real key in
+       ``germline_code_table``'s own gene list for that organism, which
+       ``encode_tcrs``'s bare ``gene_to_row[v_gene]`` dict lookup requires.
+
+    There is no species-specific CDR3 length distribution available anywhere
+    in this repository for any organism (germline V/J segments do not
+    determine junction length -- that is set by V(D)J recombination, a
+    cellular process, not a germline sequence property), so the human
+    length distribution is used for every synthetic organism. This is a
+    documented property of the validation method, not a per-species
+    shortfall.
+
+    Parameters
+    ----------
+    organism : str
+        Organism identifier to sample V/J genes for (e.g. ``'cat'``,
+        ``'dog_gd'``, ``'rabbit_ig'``). Must be a key in ``all_genes``.
+    n : int
+        Number of synthetic paired clonotypes to generate.
+    random_seed : int
+        Seed for ``np.random.default_rng``, used for reproducibility.
+        The global ``np.random`` state is never touched.
+
+    Returns
+    -------
+    list[tuple[tuple, tuple]]
+        ``n`` tuples of the form
+        ``((va_gene, ja_gene, cdr3a, ''), (vb_gene, jb_gene, cdr3b, ''))``,
+        matching the input shape ``encode_tcrs`` and ``accuracy_report``
+        already accept per their docstrings (nucseq left as an empty
+        string, since synthetic sequences have no real nucleotide calls).
+    """
+    # Lazy import gene database, matching this module's existing convention
+    from .all_genes import all_genes
+
+    if organism not in all_genes:
+        raise ValueError(f"Organism '{organism}' not found in gene database")
+
+    rng = np.random.default_rng(random_seed)
+
+    # Step 1: pooled per-residue amino acid frequency table from human CDR3s
+    human_corpus = _load_human_cdr3_corpus()
+    all_residues = ''.join(human_corpus['cdr3a']) + ''.join(human_corpus['cdr3b'])
+    aa_counts = np.array([all_residues.count(aa) for aa in amino_acids], dtype=np.float64)
+    aa_probs = aa_counts / aa_counts.sum()
+
+    # Step 2: pooled empirical CDR3 length distribution from human CDR3s
+    lengths = np.concatenate([
+        human_corpus['cdr3a'].str.len().to_numpy(),
+        human_corpus['cdr3b'].str.len().to_numpy(),
+    ])
+
+    # Step 4 (gene pools): V/J genes for each chain, filtered by chain+region
+    genes_dict = all_genes[organism]
+    va_genes = [g.id for g in genes_dict.values() if g.chain == 'A' and g.region == 'V']
+    ja_genes = [g.id for g in genes_dict.values() if g.chain == 'A' and g.region == 'J']
+    vb_genes = [g.id for g in genes_dict.values() if g.chain == 'B' and g.region == 'V']
+    jb_genes = [g.id for g in genes_dict.values() if g.chain == 'B' and g.region == 'J']
+
+    for gene_list, label in (
+        (va_genes, f"organism '{organism}' chain 'A' region 'V'"),
+        (ja_genes, f"organism '{organism}' chain 'A' region 'J'"),
+        (vb_genes, f"organism '{organism}' chain 'B' region 'V'"),
+        (jb_genes, f"organism '{organism}' chain 'B' region 'J'"),
+    ):
+        if not gene_list:
+            raise ValueError(f"No genes found for {label}")
+
+    def _sample_cdr3(length: int) -> str:
+        return ''.join(rng.choice(amino_acids, size=length, p=aa_probs))
+
+    corpus: list[tuple[tuple, tuple]] = []
+    for _ in range(n):
+        len_a, len_b = rng.choice(lengths, size=2)
+        cdr3a = _sample_cdr3(int(len_a))
+        cdr3b = _sample_cdr3(int(len_b))
+
+        va_gene = rng.choice(va_genes)
+        ja_gene = rng.choice(ja_genes)
+        vb_gene = rng.choice(vb_genes)
+        jb_gene = rng.choice(jb_genes)
+
+        corpus.append((
+            (va_gene, ja_gene, cdr3a, ''),
+            (vb_gene, jb_gene, cdr3b, ''),
+        ))
+
+    return corpus
 
 
 def store_vectorized_tcr_in_adata(

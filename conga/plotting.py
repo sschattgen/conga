@@ -1,4 +1,5 @@
 ################################################################################
+import logging
 import matplotlib
 #matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -32,6 +33,8 @@ from scipy.spatial import distance
 import time
 import random
 import base64
+
+logger = logging.getLogger(__name__)
 
 
 default_logo_genes = {
@@ -501,10 +504,20 @@ or arguments to the conga.plotting.make_logo_plots function.
                 lit_matches = None
 
     if logo_genes is None:
-        logo_genes = default_logo_genes[organism]
+        logo_genes = default_logo_genes.get(organism, [])
+        if not logo_genes:
+            logger.warning(
+                f"No default logo genes configured for organism {organism!r}; "
+                f"logo gene panel will be empty for this plot."
+            )
 
     if gex_header_genes is None:
-        header2_genes = default_gex_header_genes[organism]
+        header2_genes = default_gex_header_genes.get(organism, [])
+        if not header2_genes:
+            logger.warning(
+                f"No default GEX header genes configured for organism "
+                f"{organism!r}; header gene panel will be empty for this plot."
+            )
     else:
         header2_genes = gex_header_genes[:]
     if gex_header_tcr_score_names:
@@ -537,10 +550,11 @@ or arguments to the conga.plotting.make_logo_plots function.
             print('WARNING nndists_gex not found in adata.obs')
             header2_genes.remove('nndists_gex')
 
-    gene_width = gene_logo_width
-
-
-    assert len(logo_genes) == 3*gene_width - 2
+    if logo_genes:
+        gene_width = gene_logo_width
+        assert len(logo_genes) == 3*gene_width - 2
+    else:
+        gene_width = 1  # smallest valid width; logo panel renders empty
 
     # for making the tcr logos
     tcrdist_calculator = TcrDistCalculator(organism)

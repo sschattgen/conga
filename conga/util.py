@@ -75,13 +75,46 @@ IG_VDJ_TYPE = 'IG_VDJ_TYPE'
 organism2vdj_type = {
     'human':TCR_AB_VDJ_TYPE,
     'mouse':TCR_AB_VDJ_TYPE,
+    'cat':TCR_AB_VDJ_TYPE,
+    'dog':TCR_AB_VDJ_TYPE,
+    'ferret':TCR_AB_VDJ_TYPE,
+    'rabbit':TCR_AB_VDJ_TYPE,
+    'sheep':TCR_AB_VDJ_TYPE,
     'human_gd':TCR_GD_VDJ_TYPE,
     'mouse_gd':TCR_GD_VDJ_TYPE,
+    'cat_gd':TCR_GD_VDJ_TYPE,
+    'dog_gd':TCR_GD_VDJ_TYPE,
+    'ferret_gd':TCR_GD_VDJ_TYPE,
+    'rabbit_gd':TCR_GD_VDJ_TYPE,
     'human_ig':IG_VDJ_TYPE,
     'mouse_ig':IG_VDJ_TYPE,
+    'cat_ig':IG_VDJ_TYPE,
+    'dog_ig':IG_VDJ_TYPE,
+    'ferret_ig':IG_VDJ_TYPE,
+    'rabbit_ig':IG_VDJ_TYPE,
     'rhesus':TCR_AB_VDJ_TYPE,
     'rhesus_gd':TCR_GD_VDJ_TYPE,
+    'rhesus_ig':IG_VDJ_TYPE,
 }
+
+
+def get_vdj_type(organism: str) -> str:
+    """Look up the VDJ_Type for an organism string.
+
+    Raises
+    ------
+    ValueError
+        If `organism` is not a key in `organism2vdj_type`, naming the
+        organism and the supported set -- replacing the bare `KeyError`
+        every direct-subscript call site previously risked.
+    """
+    try:
+        return organism2vdj_type[organism]
+    except KeyError:
+        raise ValueError(
+            f"Organism {organism!r} is not supported. "
+            f"Supported organisms: {sorted(organism2vdj_type)}"
+        ) from None
 
 # Shared constants for vectorized TCRdist implementation
 # These are read by all three CLI scripts for consistent defaults
@@ -196,7 +229,7 @@ def _list_available_tcr_representations(adata) -> list[str]:
 def is_vdj_gene( gene_upper, organism, include_constant_regions=False ):
     # for filtering out TR or IG gene names from GEX prior to processing
     # or for skipping such genes in the graph_vs_features analysis
-    vdj_type = organism2vdj_type[organism]
+    vdj_type = get_vdj_type(organism)
 
     gene = gene_upper.lower()
     if vdj_type == TCR_AB_VDJ_TYPE:

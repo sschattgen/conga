@@ -1,0 +1,273 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "4. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "fd0ebf81-e68f-48da-86b5-3472f3fa66ed",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790917936345
+      },
+      {
+        "executionId": "fd0ebf81-e68f-48da-86b5-3472f3fa66ed",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790963807889
+      },
+      {
+        "executionId": "fd0ebf81-e68f-48da-86b5-3472f3fa66ed",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790964174624
+      }
+    ],
+    "7. Checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "fd0ebf81-e68f-48da-86b5-3472f3fa66ed",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790917936377
+      },
+      {
+        "executionId": "fd0ebf81-e68f-48da-86b5-3472f3fa66ed",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790965856221
+      },
+      {
+        "executionId": "fd0ebf81-e68f-48da-86b5-3472f3fa66ed",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790966123409
+      }
+    ],
+    "10. Build the Validation_Harness script": [
+      {
+        "executionId": "fd0ebf81-e68f-48da-86b5-3472f3fa66ed",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790917936407
+      },
+      {
+        "executionId": "3050f823-7a56-47af-92cb-2c97dc1fb6dd",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791217569500
+      },
+      {
+        "executionId": "3050f823-7a56-47af-92cb-2c97dc1fb6dd",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791224725310
+      }
+    ],
+    "11. Run the Validation_Harness against all 18 combinations and record results in design.md": [
+      {
+        "executionId": "fd0ebf81-e68f-48da-86b5-3472f3fa66ed",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790917936440
+      },
+      {
+        "executionId": "3050f823-7a56-47af-92cb-2c97dc1fb6dd",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791224729688
+      },
+      {
+        "executionId": "3050f823-7a56-47af-92cb-2c97dc1fb6dd",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791228007406
+      }
+    ],
+    "14. Final checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "fd0ebf81-e68f-48da-86b5-3472f3fa66ed",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790917936465
+      },
+      {
+        "executionId": "3050f823-7a56-47af-92cb-2c97dc1fb6dd",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791229851032
+      },
+      {
+        "executionId": "3050f823-7a56-47af-92cb-2c97dc1fb6dd",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791230641243
+      }
+    ],
+    "1. Swap the active database and verify the Gene_Database loads every organism": [
+      {
+        "executionId": "fd0ebf81-e68f-48da-86b5-3472f3fa66ed",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790917953959
+      },
+      {
+        "executionId": "fd0ebf81-e68f-48da-86b5-3472f3fa66ed",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790917972076
+      },
+      {
+        "executionId": "fd0ebf81-e68f-48da-86b5-3472f3fa66ed",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790956127578
+      }
+    ],
+    "2. Fix the `get_ab_from_10x_chain` crash and extend its organism lists": [
+      {
+        "executionId": "fd0ebf81-e68f-48da-86b5-3472f3fa66ed",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790956139014
+      },
+      {
+        "executionId": "fd0ebf81-e68f-48da-86b5-3472f3fa66ed",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790957489218
+      }
+    ],
+    "3. Add `get_vdj_type` helper to `conga/util.py` and extend `organism2vdj_type`, fixing the three bare-`KeyError` call sites": [
+      {
+        "executionId": "fd0ebf81-e68f-48da-86b5-3472f3fa66ed",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790957490142
+      },
+      {
+        "executionId": "fd0ebf81-e68f-48da-86b5-3472f3fa66ed",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790963797826
+      }
+    ],
+    "5. Update CLI `--organism` choices in both scripts": [
+      {
+        "executionId": "fd0ebf81-e68f-48da-86b5-3472f3fa66ed",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790964178587
+      },
+      {
+        "executionId": "fd0ebf81-e68f-48da-86b5-3472f3fa66ed",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790965849605
+      }
+    ],
+    "6. Make marker-gene lookups in `conga/plotting.py` degrade gracefully": [
+      {
+        "executionId": "fd0ebf81-e68f-48da-86b5-3472f3fa66ed",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790964179249
+      },
+      {
+        "executionId": "fd0ebf81-e68f-48da-86b5-3472f3fa66ed",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790965850123
+      }
+    ],
+    "8. Remove the dead duplicate `accuracy_report` definition in `conga/tcrdist/vectorized.py`": [
+      {
+        "executionId": "fd0ebf81-e68f-48da-86b5-3472f3fa66ed",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790966127340
+      },
+      {
+        "executionId": "fd0ebf81-e68f-48da-86b5-3472f3fa66ed",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790974061366
+      }
+    ],
+    "9. Implement the four validation data-source functions in `conga/tcrdist/vectorized.py`": [
+      {
+        "executionId": "fd0ebf81-e68f-48da-86b5-3472f3fa66ed",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1790974064820
+      },
+      {
+        "executionId": "3050f823-7a56-47af-92cb-2c97dc1fb6dd",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791217565738
+      }
+    ],
+    "12. Hand-edit `SUPPORTED_ORGANISMS` based on the recorded harness results": [
+      {
+        "executionId": "3050f823-7a56-47af-92cb-2c97dc1fb6dd",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791228011210
+      },
+      {
+        "executionId": "3050f823-7a56-47af-92cb-2c97dc1fb6dd",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791228501155
+      }
+    ],
+    "13. Implement the Tier 3 Validation_Warning in `encode_tcrs`": [
+      {
+        "executionId": "3050f823-7a56-47af-92cb-2c97dc1fb6dd",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791228504702
+      },
+      {
+        "executionId": "3050f823-7a56-47af-92cb-2c97dc1fb6dd",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791229848035
+      }
+    ],
+    "1.1 Write unit test confirming Gene_Database coverage after the swap": [
+      {
+        "executionId": "3050f823-7a56-47af-92cb-2c97dc1fb6dd",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791230652384
+      }
+    ],
+    "2.1 Write unit tests for `get_ab_from_10x_chain`": [
+      {
+        "executionId": "3050f823-7a56-47af-92cb-2c97dc1fb6dd",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791230653475
+      }
+    ],
+    "3.1 Write unit tests for `get_vdj_type`": [
+      {
+        "executionId": "3050f823-7a56-47af-92cb-2c97dc1fb6dd",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791230654229
+      }
+    ],
+    "5.1 Write CLI argparse smoke tests": [
+      {
+        "executionId": "3050f823-7a56-47af-92cb-2c97dc1fb6dd",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791230655443
+      }
+    ],
+    "6.1 Write unit test for the missing-organism graceful fallback": [
+      {
+        "executionId": "3050f823-7a56-47af-92cb-2c97dc1fb6dd",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791230656019
+      }
+    ],
+    "6.2 Write regression test for existing curated organisms": [
+      {
+        "executionId": "3050f823-7a56-47af-92cb-2c97dc1fb6dd",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791230656777
+      }
+    ],
+    "8.1 Write unit test confirming exactly one `accuracy_report` symbol remains": [
+      {
+        "executionId": "3050f823-7a56-47af-92cb-2c97dc1fb6dd",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791230657904
+      }
+    ],
+    "9.1 Write property test for validation-corpus gene-id resolution": [
+      {
+        "executionId": "3050f823-7a56-47af-92cb-2c97dc1fb6dd",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791230658934
+      }
+    ],
+    "12.1 Write unit test for SUPPORTED_ORGANISMS/Results-table agreement": [
+      {
+        "executionId": "3050f823-7a56-47af-92cb-2c97dc1fb6dd",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791230659675
+      }
+    ],
+    "13.1 Write unit test for once-per-process Validation_Warning behavior": [
+      {
+        "executionId": "3050f823-7a56-47af-92cb-2c97dc1fb6dd",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791230660368
+      }
+    ]
+  }
+}

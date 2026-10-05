@@ -12,7 +12,7 @@ import random
 from ..convert_svg_to_png import convert_svg_to_png, MONOSPACE_FONT_FAMILY
 
 # combo dbs for tr and ig
-db_file = 'combo_xcr_2023-12-30.tsv' # now including mouse_ig
+db_file = 'combo_xcr_2026-08-06.tsv' # adds cat/dog/ferret/rabbit/sheep + rhesus_ig
 #db_file = 'combo_xcr.tsv'
 #db_file = 'combo_db.tsv'
 #db_file = 'alphabeta_db.tsv'

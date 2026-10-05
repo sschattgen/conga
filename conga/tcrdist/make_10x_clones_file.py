@@ -7,7 +7,7 @@ from collections import Counter
 from itertools import chain
 import sys
 import pandas as pd
-from ..util import organism2vdj_type, IG_VDJ_TYPE
+from ..util import organism2vdj_type, get_vdj_type, IG_VDJ_TYPE
 
 MIN_CDR3_LEN = 6 # otherwise tcrdist barfs; actually we could also set this to 5 and be OK
 
@@ -57,24 +57,29 @@ def fixup_gene_name( gene, gene_suffix, expected_gene_names ):
 def get_ab_from_10x_chain(chain, organism):
     ''' Returns None if the chain is not valid for this 'organism'
     '''
-    if organism in ['human', 'mouse', 'rhesus']:
+    if organism in ['human', 'mouse', 'rhesus', 'cat', 'dog', 'ferret', 'rabbit', 'sheep']:
         if chain in ['TRA','TRB']:
             return chain[2]
         else:
             return None
-    elif organism in ['human_gd','mouse_gd', 'rhesus_gd']:
+    elif organism in ['human_gd', 'mouse_gd', 'rhesus_gd', 'cat_gd', 'dog_gd', 'ferret_gd', 'rabbit_gd']:
         if chain in ['TRA','TRG','TRD']:
             return 'A' if chain=='TRG' else 'B'
         else:
             return None
-    elif organism in ['human_ig','mouse_ig']:
+    elif organism in ['human_ig', 'mouse_ig', 'rhesus_ig', 'cat_ig', 'dog_ig', 'ferret_ig', 'rabbit_ig']:
         if chain in ['IGH', 'IGK', 'IGL']:
             return 'B' if chain=='IGH' else 'A'
         else:
             return None
     else:
-        print('unrecognized organism in get_ab_from_10x_chain:', organism)
-        sys.exit()
+        raise ValueError(
+            f"Unrecognized organism {organism!r} in get_ab_from_10x_chain. "
+            f"Supported organisms: ['human', 'mouse', 'rhesus', 'cat', 'dog', "
+            f"'ferret', 'rabbit', 'sheep', 'human_gd', 'mouse_gd', 'rhesus_gd', "
+            f"'cat_gd', 'dog_gd', 'ferret_gd', 'rabbit_gd', 'human_ig', "
+            f"'mouse_ig', 'rhesus_ig', 'cat_ig', 'dog_ig', 'ferret_ig', 'rabbit_ig']"
+        )
 
 
 def read_tcr_data(
@@ -101,7 +106,7 @@ def read_tcr_data(
 
 
     if prefix_clone_ids_with_tcr_type:
-        if organism2vdj_type[organism] == IG_VDJ_TYPE:
+        if get_vdj_type(organism) == IG_VDJ_TYPE:
             clone_id_prefix = 'bcr_'
         else:
             clone_id_prefix = 'tcr_'
@@ -293,7 +298,7 @@ def read_tcr_data_batch(
     md = pd.read_csv(metadata_file, sep=sep, dtype=str)
 
     if prefix_clone_ids_with_tcr_type:
-        if organism2vdj_type[organism] == IG_VDJ_TYPE:
+        if get_vdj_type(organism) == IG_VDJ_TYPE:
             clone_id_prefix = 'bcr_'
         else:
             clone_id_prefix = 'tcr_'
