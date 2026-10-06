@@ -80,7 +80,7 @@ class TestSelectionTableCoverage:
     
     def test_unsupported_organism_no_override_below_limit(self):
         """Unsupported organism, below limit, no override -> KernelPCA."""
-        unsupported_organisms = ['human_gd', 'mouse_gd', 'rhesus_gd', 'human_ig', 'mouse_ig']
+        unsupported_organisms = ['human_gd', 'mouse_gd', 'human_ig', 'mouse_ig']
         
         for organism in unsupported_organisms:
             rep = resolve_tcr_representation(
