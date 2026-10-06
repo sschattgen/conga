@@ -96,6 +96,15 @@ parser.add_argument('--tcr_database_tsvfile',
                     ' with imgt-recognized allele names; default is'
                     ' conga/data/new_paired_tcr_db_for_matching_nr.tsv')
 parser.add_argument('--tcr_clumping', action='store_true')
+parser.add_argument('--match_metaconga_aaclusters',
+                    choices=['cd4', 'cd8', 'CD4', 'CD8', None], default=None,
+                    help='Match clonotypes against pretrained CDR3aa-bias-'
+                    ' cluster signatures (human only); must be paired with'
+                    ' the matching --subset_to_CD4_cells/--subset_to_CD8_cells'
+                    ' flag')
+parser.add_argument('--match_metaconga_clumps', action='store_true',
+                    help='Match TCRs against the curated metaconga TCR'
+                    ' clump database (human only)')
 parser.add_argument('--find_hotspot_features', action='store_true')
 
 
@@ -357,6 +366,68 @@ if args.force_variable_genes and (args.batch_key or args.batch_integration_metho
     sys.exit('ERROR: --force_variable_genes (Fixed_HVG_Pathway) and'
               ' --batch_key/--batch_integration_method (Full_Integration_Pathway)'
               ' are mutually exclusive')
+
+# Metaconga validation (Requirements 5, 6, 7). Order matters: the
+# mutual-exclusion extension (a) must run before Auto_Injection_Behavior
+# (d) ever has a chance to inject --force_variable_genes, so a user who
+# would otherwise rely on auto-injection AND who also requested batch
+# integration gets one clear mutual-exclusion error instead of a
+# confusing silent auto-injection followed by a later, unrelated error.
+if args.match_metaconga_aaclusters is not None:
+    args.match_metaconga_aaclusters = args.match_metaconga_aaclusters.lower()
+
+# (a) Fixed_HVG_Pathway / Full_Integration_Pathway mutual exclusion,
+# extended to also fire when --match_metaconga_aaclusters is set, since
+# that flag implies the Fixed_HVG_Pathway via Auto_Injection_Behavior
+# even when the user never typed --force_variable_genes themselves.
+if args.match_metaconga_aaclusters is not None and \
+   (args.batch_key or args.batch_integration_method):
+    sys.exit('ERROR: --match_metaconga_aaclusters (Fixed_HVG_Pathway, via'
+              ' auto-injected --force_variable_genes) and'
+              ' --batch_key/--batch_integration_method (Full_Integration_Pathway)'
+              ' are mutually exclusive;'
+              f' got --match_metaconga_aaclusters={args.match_metaconga_aaclusters!r}'
+              f' --batch_key={args.batch_key!r}'
+              f' --batch_integration_method={args.batch_integration_method!r}')
+
+# (b) CD_Subset_Pairing_Rule (Requirement 6): hard-fail instead of
+# Source_Branch's non-blocking warning banner.
+if args.match_metaconga_aaclusters == 'cd4' and not args.subset_to_CD4_cells:
+    sys.exit('ERROR: --match_metaconga_aaclusters cd4 requires'
+              ' --subset_to_CD4_cells; got'
+              f' --match_metaconga_aaclusters={args.match_metaconga_aaclusters!r}'
+              f' --subset_to_CD4_cells={args.subset_to_CD4_cells!r}')
+
+if args.match_metaconga_aaclusters == 'cd8' and not args.subset_to_CD8_cells:
+    sys.exit('ERROR: --match_metaconga_aaclusters cd8 requires'
+              ' --subset_to_CD8_cells; got'
+              f' --match_metaconga_aaclusters={args.match_metaconga_aaclusters!r}'
+              f' --subset_to_CD8_cells={args.subset_to_CD8_cells!r}')
+
+# (c) Metaconga_Organism_Gate (Requirement 7): fail-fast against
+# args.organism directly, before adata is constructed -- deliberately
+# not following the --match_to_tcr_database precedent of a silent
+# conditional skip evaluated later against adata.uns['organism'].
+if args.match_metaconga_aaclusters is not None and args.organism != 'human':
+    sys.exit('ERROR: --match_metaconga_aaclusters requires --organism human;'
+              f' got --match_metaconga_aaclusters={args.match_metaconga_aaclusters!r}'
+              f' --organism={args.organism!r}')
+
+if args.match_metaconga_clumps and args.organism != 'human':
+    sys.exit('ERROR: --match_metaconga_clumps requires --organism human;'
+              f' got --match_metaconga_clumps={args.match_metaconga_clumps!r}'
+              f' --organism={args.organism!r}')
+
+# (d) Auto_Injection_Behavior (Requirement 5): only reached once (a)-(c)
+# have confirmed no conflicting flags, organism, or subset-pairing issues
+# exist, so this can never silently proceed into a state one of the
+# checks above would otherwise have blocked.
+if args.match_metaconga_aaclusters is not None and not args.force_variable_genes:
+    variable_genes_file = (
+        util.path_to_data / 'metaconga' / 'hsgenes_1000_plus_cdr3aa_bias_top30_degs.tsv')
+    args.force_variable_genes = str(variable_genes_file)
+    print('WARNING: --match_metaconga_aaclusters',
+          'adding --force_variable_genes', variable_genes_file)
 
 # Flag conflict detection
 encoding_flags_set = [
@@ -1216,6 +1287,22 @@ if args.tcr_clumping: #########################################################
         min_cluster_size_for_logos=args.min_cluster_size_for_tcr_clumping_logos,
         pvalue_threshold_for_logos=args.pvalue_threshold_for_tcr_clumping,
         )
+
+
+if args.match_metaconga_aaclusters is not None: ###############################
+    # cd48 is guaranteed to be 'cd4' or 'cd8' here: lowercased by argparse
+    # choices + the explicit .lower() call in the early validation block,
+    # and paired with the matching --subset_to_CD4_cells/--subset_to_CD8_cells
+    # flag by the CD_Subset_Pairing_Rule check in that same block.
+    cd48 = args.match_metaconga_aaclusters
+    matches = conga.metaconga_match.find_aacluster_matches(adata, cd48)
+    conga.metaconga_match.plot_aacluster_matches(
+        adata, matches, args.outfile_prefix)
+
+
+if args.match_metaconga_clumps: ################################################
+    conga.metaconga_match.find_clump_matches(adata)
+    conga.metaconga_match.plot_clump_matches(adata, args.outfile_prefix)
 
 
 if args.graph_vs_graph_stats: #################################################
