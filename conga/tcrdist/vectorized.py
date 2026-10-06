@@ -39,12 +39,18 @@ amino acid embedding. Performance degrades gracefully for mouse and rhesus
 
 Supported Organisms
 -------------------
-- human (alpha-beta TCRs)
-- mouse (alpha-beta TCRs)  
-- rhesus (alpha-beta TCRs)
+18 organisms are currently supported (see conga.tcrdist.vectorized.SUPPORTED_ORGANISMS
+for the authoritative, current list, since this set is periodically re-validated and
+extended as new reference data becomes available):
 
-Gamma-delta TCRs and Ig sequences are not supported. Use KernelPCA representation 
-(X_pca_tcr) or exact TCRdist path for these receptor types.
+- human, mouse, rhesus (alpha-beta TCRs)
+- rhesus, cat, dog, ferret, rabbit (gamma-delta TCRs: rhesus_gd, cat_gd, dog_gd, ferret_gd, rabbit_gd)
+- rhesus, cat, dog, ferret, rabbit (Ig/B cell receptors: rhesus_ig, cat_ig, dog_ig, ferret_ig, rabbit_ig)
+- cat, dog, ferret, rabbit, sheep (alpha-beta TCRs)
+
+Notably NOT supported by this vectorized path: human_gd, human_ig, mouse_gd, mouse_ig.
+These four remain usable through CoNGA's KernelPCA representation (X_pca_tcr) or the
+exact TCRdist path, just not through vectorized encoding.
 
 Memory and Performance
 ----------------------
@@ -81,13 +87,15 @@ indices, enabling GPU-accelerated neighbor search on large TCR datasets:
 Usage Guidelines
 ----------------
 **When to use vectorized encoding**:
-- Alpha-beta TCRs from supported organisms (human/mouse/rhesus)
+- Any organism/receptor-type combination in SUPPORTED_ORGANISMS (18 organisms as of
+  this writing -- see the module docstring's Supported Organisms section above)
 - Large datasets (N > 5,000) where KernelPCA memory usage prohibitive
 - Analyses requiring fast neighbor search or clustering
 - Integration with external vector similarity tools
 
 **When to use alternatives**:
-- Gamma-delta TCRs or B cell receptors → use X_pca_tcr or exact path
+- Gamma-delta TCRs or B cell receptors for organisms NOT in SUPPORTED_ORGANISMS
+  (currently human_gd, human_ig, mouse_gd, mouse_ig) → use X_pca_tcr or exact path
 - Small datasets (N < 1,000) where exact TCRdist is fast → use exact path  
 - Analyses requiring perfect TCRdist fidelity → use exact path
 - Legacy workflows → use X_pca_tcr for backward compatibility

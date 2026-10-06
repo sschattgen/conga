@@ -2,25 +2,8 @@
 
 This repository contains the `conga` python package and associated scripts
 and workflows. `conga` was developed to detect correlation between
-T cell gene expression profile and TCR sequence in single-cell datasets. 
+T cell gene expression profile and TCR sequence in single-cell datasets.
 We have since added support for gamma delta TCRs and for B cells, too.
-
-## ⚡ Performance Enhancements (NEW in v0.2.0)
-
-CoNGA now includes two major performance optimizations for large-scale analysis:
-
-- **Vectorized TCRdist**: New vectorized encoding for α/β TCRs that replaces quadratic memory scaling with fixed-length vector representations. Delivers >50% memory reduction and enables sub-quadratic neighbor search.
-
-- **FAISS Acceleration**: Optional GPU/CPU-optimized neighbor search replacing scipy/sklearn calculations. Provides 10-100x speedup on large datasets with automatic fallback to standard algorithms.
-
-`conga` currently supports:
-- human TCRab, TCRgd, and Ig
-- mouse TCRab, TCRgd, and Ig
-- rhesus TCRab and TCRgd *NEW*
-
-`conga` is in active development right now so the interface may change in
-the next few months. Questions and requests can be directed to `pbradley` at `fredhutch` dot `org` or
-`stefan.schattgen` at `stjude` dot `org`.
 
 Further details on `conga` can be found in the Nature Biotechnology manuscript
 **"Integrating T cell receptor sequences and transcriptional profiles by clonotype neighbor graph analysis (CoNGA)"**
@@ -30,34 +13,52 @@ https://www.nature.com/articles/s41587-021-00989-2
 (original BioRxiv preprint
 [here](https://www.biorxiv.org/content/10.1101/2020.06.04.134536v1)).
 
+`conga` is in active development right now so the interface may change in
+the next few months. Questions and requests can be directed to `pbradley` at `fredhutch` dot `org` and/or
+`sschattg` at `fredhutch` dot `org`.
+
+## Organism support
+
+"Which organisms does CoNGA support?" doesn't have one answer -- there are three different, overlapping lists depending on what you're asking about. Mixing these up is a common source of confusion, so they're kept separate here rather than collapsed into a single number.
+
+* **Gene database coverage** (species with germline V/J/C gene data in `conga/tcrdist/db/combo_xcr_2026-08-06.tsv`), 22 entries:
+  `human, human_gd, human_ig, mouse, mouse_gd, mouse_ig, rhesus, rhesus_gd, rhesus_ig, cat, cat_gd, cat_ig, dog, dog_gd, dog_ig, ferret, ferret_gd, ferret_ig, rabbit, rabbit_gd, rabbit_ig, sheep`.
+  The raw reference file also contains rows for `sheep_gd`, `sheep_ig`, and `rainbowtrout_ig`, but these are chain-incomplete and have no usable analysis pathway anywhere in the codebase -- they are deliberately not exposed as supported organisms, so don't be surprised if you find them while grepping the TSV.
+* **CLI-usable** (the `--organism` choices accepted by both `scripts/run_conga.py` and `scripts/setup_10x_for_conga.py`), 21 entries:
+  `mouse, human, mouse_gd, human_gd, human_ig, rhesus, rhesus_gd, rhesus_ig, cat, cat_gd, cat_ig, dog, dog_gd, dog_ig, ferret, ferret_gd, ferret_ig, rabbit, rabbit_gd, rabbit_ig, sheep`.
+* **Vectorized-TCRdist-eligible** (`conga.tcrdist.vectorized.SUPPORTED_ORGANISMS`, the fast fixed-length-encoding path described below), 18 entries:
+  `human, mouse, rhesus, rhesus_gd, rhesus_ig, cat, cat_gd, cat_ig, dog, dog_gd, dog_ig, ferret, ferret_gd, ferret_ig, rabbit, rabbit_gd, rabbit_ig, sheep`.
+  Notably absent: `human_gd, human_ig, mouse_gd, mouse_ig`. These four organisms are still fully usable end-to-end through the CLI and the python package -- they just take the KernelPCA or exact-TCRdist path instead of the vectorized one. This is a real, user-relevant gap (not an oversight), so if you're working with human/mouse gamma-delta or Ig data, expect KernelPCA/exact-neighbor performance characteristics rather than vectorized ones.
+
 # Table of Contents
 
 * [TCR Representations](#tcr-representations)
-* [FAISS Acceleration](#faiss-acceleration) 
-* [Running](https://github.com/phbradley/conga#running)
-* [Installation](https://github.com/phbradley/conga#installation)
-* [Migrating Seurat data to CoNGA](https://github.com/phbradley/conga#migrating-seurat-data-to-conga)
-* [Merging multiple datasets for CoNGA analysis](https://github.com/phbradley/conga#merging-multiple-datasets-into-a-single-object-for-conga-analysis)
-* [Updates](https://github.com/phbradley/conga#updates)
-* [SVG to PNG](https://github.com/phbradley/conga#svg-to-png)
-* [Testing CoNGA without going through the pain of installing it](https://github.com/phbradley/conga#testing-conga-without-going-through-the-pain-of-installing-it)
-    - [Docker](https://github.com/phbradley/conga#docker)
-    - [Google colab](https://github.com/phbradley/conga#google-colab)
-* [Examples](https://github.com/phbradley/conga#examples)
-* [The CoNGA data model: where stuff is stored](https://github.com/phbradley/conga#conga-data-model-where-stuff-is-stored)
-* [Frequently Asked Questions](https://github.com/phbradley/conga#frequently-asked-questions)
+* [Batch Integration](#batch-integration)
+* [FAISS Acceleration](#faiss-acceleration)
+* [Running](#running)
+* [Installation](#installation)
+* [Migrating Seurat data to CoNGA](#migrating-seurat-data-to-conga)
+* [Merging multiple datasets for CoNGA analysis](#merging-multiple-datasets-into-a-single-object-for-conga-analysis)
+* [Updates](#updates)
+* [SVG to PNG](#svg-to-png)
+* [Testing CoNGA without going through the pain of installing it](#testing-conga-without-going-through-the-pain-of-installing-it)
+    - [Docker](#docker)
+    - [Google colab](#google-colab)
+* [Examples](#examples)
+* [The CoNGA data model: where stuff is stored](#conga-data-model-where-stuff-is-stored)
+* [Frequently Asked Questions](#frequently-asked-questions)
 
 # TCR Representations
 
-CoNGA now supports three distinct TCR neighbor paths, automatically selected based on organism type and dataset size:
+CoNGA supports three distinct TCR neighbor paths, automatically selected based on organism type and dataset size.
 
-## 1. Vectorized TCRdist (Default for α/β TCRs)
+## 1. Vectorized TCRdist (default for eligible organisms)
 
-**When used:** Human, mouse, and rhesus α/β TCRs (organisms: `human`, `mouse`, `rhesus`)
+**When used:** Any organism in `conga.tcrdist.vectorized.SUPPORTED_ORGANISMS` (18 organisms -- see the organism support section above for the full list; notably this excludes `human_gd`, `human_ig`, `mouse_gd`, and `mouse_ig`).
 
 **How it works:** Each paired TCR is encoded as a fixed-length vector by:
 - Embedding the TCRdist amino acid substitution matrix into Euclidean space using multidimensional scaling
-- Concatenating per-position amino acid vectors for germline CDR1/CDR2/CDR2.5 loops 
+- Concatenating per-position amino acid vectors for germline CDR1/CDR2/CDR2.5 loops
 - Adding a trimmed-and-gapped CDR3 representation
 - Scaling CDR3 positions to preserve TCRdist weighting
 
@@ -67,28 +68,27 @@ CoNGA now supports three distinct TCR neighbor paths, automatically selected bas
 - **High accuracy**: Spearman correlation ≥0.95 with exact TCRdist
 - **Deterministic**: Reproducible encodings with fixed random seed
 
-**Performance:** Encoding 20,000 clonotypes takes ~0.1s and produces a 91MB array, vs. ~6.4GB transient memory for KernelPCA approach.
+**Performance:** Encoding 20,000 clonotypes takes ~0.1s and produces a 91MB array, vs. ~6.4GB transient memory for the KernelPCA approach.
 
-## 2. KernelPCA Representation (Fallback)
-
-**When used:** 
-- Gamma-delta TCRs (`human_gd`, `mouse_gd`, `rhesus_gd`)
-- B cells (`human_ig`, `mouse_ig`) 
-- Small α/β datasets when explicitly requested
-- Datasets with <20,000 observations where vectorized encoding isn't supported
-
-**How it works:** Traditional approach computing full TCRdist distance matrix, then applying KernelPCA dimensionality reduction.
-
-**Limitations:** Quadratic memory scaling makes this impractical for large datasets (>20,000 clonotypes).
-
-## 3. Exact TCRdist Neighbors (Large datasets)
+## 2. KernelPCA Representation (fallback)
 
 **When used:**
-- Datasets ≥20,000 observations where KernelPCA would exceed memory limits
-- When exact distances are required (via `--no_kpca` flag)
-- Unsupported organism types on large datasets
+- Organisms not in the vectorized-eligible set, including `human_gd`, `mouse_gd`, `human_ig`, and `mouse_ig`
+- Small datasets when explicitly requested
+- Datasets with fewer observations than the KernelPCA reduction limit where vectorized encoding isn't applicable
 
-**How it works:** Computes TCR neighbors on-demand using exact TCRdist without storing distance matrices. Uses C++ implementation when available, falls back to Python.
+**How it works:** Traditional approach computing the full TCRdist distance matrix, then applying KernelPCA dimensionality reduction.
+
+**Limitations:** Quadratic memory scaling makes this impractical for large datasets (tens of thousands of clonotypes or more).
+
+## 3. Exact TCRdist Neighbors (large datasets)
+
+**When used:**
+- Datasets large enough that KernelPCA would exceed memory limits
+- When exact distances are required (via the `--no_kpca` flag)
+- Organism/dataset-size combinations where neither of the other two paths applies
+
+**How it works:** Computes TCR neighbors on-demand using exact TCRdist without storing distance matrices. Uses the C++ implementation when available, falls back to Python otherwise.
 
 **Benefits:** Handles datasets of any size with constant memory overhead.
 
@@ -97,10 +97,10 @@ CoNGA now supports three distinct TCR neighbor paths, automatically selected bas
 You can override automatic selection with command-line flags:
 
 ```bash
-# Force vectorized encoding (α/β organisms only)
+# Use the default (automatic) representation selection
 python scripts/run_conga.py --organism human --gex_data data.h5 --clones_file clones.tsv
 
-# Force KernelPCA (small datasets only)  
+# Force KernelPCA (small datasets only)
 python scripts/run_conga.py --use_kpca_tcrdist --organism human --gex_data data.h5 --clones_file clones.tsv
 
 # Force exact neighbors (any size)
@@ -110,9 +110,55 @@ python scripts/run_conga.py --no_kpca --organism human --gex_data data.h5 --clon
 python scripts/run_conga.py --kpca_reduction_limit 50000 --organism human --gex_data data.h5 --clones_file clones.tsv
 ```
 
+# Batch Integration
+
+CoNGA has two separate, unrelated mechanisms that both get called "batch" handling. They solve different problems and are easy to confuse, so they're documented separately here.
+
+## GEX batch correction: `conga.preprocess.batch_integration()`
+
+This is the mechanism that actually corrects gene expression for batch effects. It runs batch-aware highly-variable-gene selection and then corrects the GEX PCA representation using either [Harmony](https://github.com/immunogenomics/harmony) (`method='harmony'`, requires `harmonypy`) or [scVI](https://scvi-tools.org/) (`method='scvi'`, requires `scvi-tools`). The corrected representation is written back into `adata.obsm['X_pca_gex']`, so downstream clustering and neighbor-finding code needs no changes to consume it.
+
+Install the dependencies with:
+
+```bash
+pip install "conga[batch-integration]"
+```
+
+Use it from `run_conga.py` with the paired flags `--batch_key` and `--batch_integration_method`:
+
+```bash
+python scripts/run_conga.py --organism human --gex_data data.h5 --gex_data_type 10x_h5 \
+    --clones_file clones.tsv --batch_key donor --batch_integration_method harmony \
+    --outfile_prefix tmp_batch_corrected
+```
+
+`--batch_key` names the single `adata.obs` column driving both the HVG selection and the integration method; `--batch_integration_method` must be `harmony` or `scvi`. The two flags must be supplied together. `batch_integration()` is mutually exclusive with `--force_variable_genes` -- supplying both raises a `ValueError`, since they represent two different ways of picking the HVG set for the same pipeline step.
+
+From the python package directly:
+
+```python
+import conga
+adata = conga.preprocess.batch_integration(
+    adata, batch_key='donor', method='harmony',
+)
+```
+
+## Batch annotation for visualization: `--batch_keys`
+
+This is the older, separate mechanism, and it does **not** perform any GEX correction. It lets you attach existing categorical metadata (donor, timepoint, outcome, etc.) to clonotypes purely so it can be displayed in plots and clustermaps -- colored UMAPs (`conga.plotting.make_batch_colored_umaps`) and batch-aware clustermaps (`conga.plotting.make_clone_batch_clustermaps`).
+
+Each batch category must be represented as an integer-valued column in `adata.obs`, with the column names listed in `adata.uns['batch_keys']` (plural -- note this is a different field from the `batch_key` singular used by `batch_integration()` above). Pass the column names on the command line:
+
+```bash
+python scripts/run_conga.py --organism human --gex_data data.h5ad --gex_data_type h5ad \
+    --clones_file clones.tsv --batch_keys donor timepoint --outfile_prefix tmp_annotated
+```
+
+See the FAQ entry below for a worked example of adding batch columns to an `AnnData` object by hand.
+
 # FAISS Acceleration
 
-FAISS (Facebook AI Similarity Search) provides GPU and CPU-optimized vector similarity search for massive performance improvements on large datasets.
+FAISS (Facebook AI Similarity Search) provides GPU and CPU-optimized vector similarity search for performance improvements on large datasets.
 
 ## Installation Options
 
@@ -122,7 +168,7 @@ FAISS is an optional dependency with tiered backend selection:
 # CPU-only performance boost (recommended)
 pip install "conga[performance]"
 
-# GPU acceleration (requires CUDA-capable hardware)  
+# GPU acceleration (requires CUDA-capable hardware)
 pip install "conga[performance-gpu]"
 
 # All features including FAISS CPU
@@ -137,13 +183,13 @@ pip install "conga[all-gpu]"
 CoNGA automatically selects the best available backend:
 
 1. **faiss-gpu** (if installed and CUDA available): Maximum performance
-2. **faiss-cpu** (if installed): Major speedup over sklearn  
+2. **faiss-cpu** (if installed): Major speedup over sklearn
 3. **sklearn** (always available): Reliable fallback
 
 ## Performance Benefits
 
 | Dataset Size | Backend | GEX Search | TCR Search | Memory Usage |
-|--------------|---------|------------|------------|--------------|
+|--------------|---------|------------|------------|---------------|
 | 10,000 cells | sklearn | 45s | 12s | 2.1GB |
 | 10,000 cells | faiss-cpu | 8s | 3s | 1.8GB |
 | 10,000 cells | faiss-gpu | 2s | 1s | 1.5GB |
@@ -151,13 +197,15 @@ CoNGA automatically selects the best available backend:
 | 100,000 cells | faiss-cpu | 4min | 2min | 8GB |
 | 100,000 cells | faiss-gpu | 45s | 30s | 6GB |
 
+These numbers are point-in-time measurements from a specific test environment, not guarantees -- see the caveat in the Performance Benchmarks section below.
+
 ## Controlling FAISS Usage
 
 ```bash
 # Force GPU backend (fails if unavailable)
 python scripts/run_conga.py --use_faiss_gpu --organism human --gex_data data.h5 --clones_file clones.tsv
 
-# Force CPU backend  
+# Force CPU backend
 python scripts/run_conga.py --use_faiss_cpu --organism human --gex_data data.h5 --clones_file clones.tsv
 
 # Disable FAISS entirely
@@ -170,8 +218,7 @@ FAISS backend selection is logged and recorded in analysis outputs for reproduci
 
 Running `conga` on a single-cell dataset is a two- (or more) step process, as outlined below.
 Python scripts are provided in the `scripts/` directory but analysis steps can also be accessed interactively
-in jupyter notebooks (for example, [a simple pipeline](simple_conga_pipeline.ipynb) and
-[Seurat to conga](Seurat_to_Conga.ipynb) in the top directory of this repo)
+in jupyter notebooks (for example, [a simple pipeline](simple_conga_pipeline.ipynb) in the top directory of this repo)
 or in your own python scripts through the interface in the `conga` python package.
 There's also a [google colab notebook](colab_conga_pipeline.ipynb) which you can
 [![open in colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/phbradley/conga/blob/master/colab_conga_pipeline.ipynb) and run. If you want to
@@ -196,7 +243,7 @@ python conga/scripts/setup_10x_for_conga.py --filtered_contig_annotations_csvfil
 as follows:
 
 ```
-python conga/scripts/run_conga.py --graph_vs_graph --gex_data data/vdj_v1_hs_pbmc3_5gex_filtered_gene_bc_matrices_h5.h5 --gex_data_type 10x_h5 --clones_file vdj_v1_hs_pbmc3_t_filtered_contig_annotations_tcrdist_clones.tsv --organism human --outfile_prefix tmp_hs_pbmc3
+python conga/scripts/run_conga.py --graph_vs_graph --gex_data data/vdj_v1_hs_pbmc3_5gex_filtered_gene_bc_matrices_h5.h5 --gex_data_type 10x_h5 --clones_file vdj_v1_hs_pbmc3_t_filtered_contig_annotations_tcrdist_clones.tsv --organism human --outfile_prefix tcr_hs_pbmc3
 ```
 
 3. **RE-ANALYZE**: Step 2 will generate a processed `.h5ad` file that contains all the gene expression
@@ -205,7 +252,7 @@ be much faster to perform subsequent re-analysis or downstream analysis by "rest
 Here we are using the `--all` command line flag which requests all the major analysis modes:
 
 ```
-python conga/scripts/run_conga.py --restart tmp_hs_pbmc3_final.h5ad --all --outfile_prefix tmp_hs_pbmc3_restart
+python conga/scripts/run_conga.py --restart tcr_hs_pbmc3_final.h5ad --all --outfile_prefix tcr_hs_pbmc3_restart
 ```
 
 See the examples section below for more details.
@@ -221,7 +268,7 @@ are the necessary installation commands from within a notebook environment.
 
 ## Quick Installation (Recommended)
 
-CoNGA uses modern Python packaging with optional dependencies for performance features:
+CoNGA uses modern Python packaging with optional dependencies for performance features. CoNGA requires **Python 3.12+**.
 
 ```bash
 # Create environment (Python 3.12+ required)
@@ -232,7 +279,7 @@ conda activate conga_env
 pip install conga
 
 # Performance-optimized (with FAISS CPU)
-pip install "conga[performance]" 
+pip install "conga[performance]"
 
 # Full installation (all optional features)
 pip install "conga[all]"
@@ -263,24 +310,23 @@ cd conga/tcrdist_cpp && make && cd ../..
 
 ## Optional Dependencies
 
-CoNGA provides several optional feature sets:
+CoNGA provides several optional feature sets, defined in `pyproject.toml`:
 
 ### Performance Optimization
-- `conga[performance]`: Adds FAISS-CPU for 5-50x neighbor search speedup
-- `conga[performance-gpu]`: Adds FAISS-GPU for maximum performance (requires CUDA)
+- `conga[performance]`: Adds `faiss-cpu` and `fastcluster` for faster neighbor search
+- `conga[performance-gpu]`: Adds `faiss-gpu` and `fastcluster` for maximum performance (requires CUDA)
 
-### Batch Integration  
-- `conga[batch]`: Adds BBKNN for batch-aware neighbor graph construction
-- `conga[scvi]`: Experimental scVI integration for variational inference
+### Batch Integration
+- `conga[batch-integration]`: Adds `harmonypy` and `scvi-tools`, needed for `conga.preprocess.batch_integration()` (Harmony or scVI-based GEX correction -- see the Batch Integration section above)
 
 ### Development
 - `conga[dev]`: Testing, linting, and development tools
-- `conga[all]`: All features (CPU performance)
-- `conga[all-gpu]`: All features (GPU performance)
+- `conga[all]`: performance + batch-integration + dev (CPU performance)
+- `conga[all-gpu]`: performance-gpu + batch-integration + dev (GPU performance)
 
 ### FAISS Installation Notes
 
-FAISS provides dramatic performance improvements but requires specific installation:
+FAISS provides performance improvements but requires specific installation:
 
 **CPU-only (recommended for most users):**
 ```bash
@@ -292,80 +338,15 @@ conda install -c conda-forge faiss-cpu
 ```
 
 **GPU acceleration (Linux/Windows with CUDA):**
-```bash  
+```bash
 # Via pip (included in conga[performance-gpu])
 pip install faiss-gpu>=1.7.4
 
-# Via conda (alternative)  
+# Via conda (alternative)
 conda install -c conda-forge faiss-gpu
 ```
 
 **macOS users:** Only faiss-cpu is supported. GPU acceleration is not available on macOS.
-
-## Manual Installation (Legacy)
-
-1. Create a virtual enviroment and install required packages.
-
-Here are some commands that would create an `anaconda` python environment for
-running CoNGA:
-
-```
-conda create -n conga_new_env ipython python=3.9
-conda activate conga_new_env   # or: "source activate conga_new_env" depending on your conda setup
-conda install seaborn scikit-learn statsmodels numba pytables
-conda install -c conda-forge python-igraph leidenalg louvain notebook
-conda install -c intel tbb # optional
-pip install scanpy
-pip install fastcluster # optional
-conda install pyyaml #optional for using yaml-formatted configuration files for scripts
-```
-2. Clone the `conga` github repository
-
-Type this command wherever you want the `conga/` directory to appear:
-```
-git clone https://github.com/phbradley/conga.git
-```
-
-If you don't have `git` installed you could go click on the big green `Code`
-button on the [CoNGA github page](https://github.com/phbradley/conga) and
-download and unpack the software that way.
-
-3. Compile C++ programs (optional, but highly recommended)
-
-*NEW* We recently added a C++ implementation of TCRdist to speed neighbor calculations on
-large datasets and to compute the background TCRdist distributions for the new
-'TCR clumping' analysis. This is not required by the core functionality
-described in the original manuscript, but we highly recommend that you compile
-the C++ TCRdist code using your C++ compiler.
-
-We've successfullly used `g++` from the GNU Compiler Collection (https://gcc.gnu.org/) to compile on
-Linux and MacOS, and from MinGw (http://www.mingw.org/) for Windows.
-
-Using `make` on Linux or MacOS. (You can edit `conga/tcrdist_cpp/Makefile` to
-point to a C++ compiler other than `g++`)
-```
-cd conga/tcrdist_cpp
-make
-```
-Or without `make` (for Windows)
-```
-cd conga/tcrdist_cpp
-g++ -O3 -std=c++11 -Wall -I ./include/ -o ./bin/find_neighbors ./src/find_neighbors.cc
-g++ -O3 -std=c++11 -Wall -I ./include/ -o ./bin/calc_distributions ./src/calc_distributions.cc
-g++ -O3 -std=c++11 -Wall -I ./include/ -o ./bin/find_paired_matches ./src/find_paired_matches.cc
-```
-
-4. Install `conga` into your virtually environment.
-
-`cd` to the top-most `conga` directory and make sure your virtual environment is activated.
-Then install `conga` into the environment with `pip`:
-```
-pip install -e .
-```
-
-5. Ensure you have a tool for SVG to PNG conversion available.
-
-See the section below on SVG to PNG conversion for more details. 
 
 ## Even more details
 
@@ -376,10 +357,11 @@ The calculations in the
 scanpy==1.4.3 anndata==0.6.18 umap-learn==0.3.9 numpy==1.16.2 scipy==1.2.1 pandas==0.24.1 scikit-learn==0.20.2 statsmodels==0.9.0 python-igraph==0.7.1 louvain==0.6.1
 ```
 
-which might possibly be installed with the following `conda` command:
-```
-conda create -n conga_classic_env ipython python=3.6 scanpy=1.4.3 umap-learn=0.3.9 louvain=0.6.1
-```
+This historical environment predates the Python 3.12+ requirement and will not work with the current `conga` package; it's included only for reference if you need to reproduce the exact numbers in the original manuscript. For current installations, use the Quick Installation or Development Installation instructions above.
+
+5. Ensure you have a tool for SVG to PNG conversion available.
+
+See the section below on SVG to PNG conversion for more details.
 
 # Migrating Seurat data to CoNGA
 We recommend using the write10XCounts function from the DropletUtils package for
@@ -502,18 +484,12 @@ conga.tcrdist.make_10x_clone_file.make_10x_clone_file_batch('path/to/metadata.cs
 
 # Updates
 
+* **Latest: Species expansion and GEX batch integration**
+  * Organism support now breaks down into three tiers: 22 organisms with germline gene database coverage, 21 usable through the `--organism` CLI flag, and 18 eligible for the vectorized TCRdist path (see the Organism support section above). Scoping across these tiers is based on chain completeness in the gene database, not an arbitrary cutoff.
+  * Added `conga.preprocess.batch_integration()` for GEX batch correction via Harmony or scVI, exposed through `scripts/run_conga.py --batch_key`/`--batch_integration_method` and installed with `pip install "conga[batch-integration]"`. This is distinct from the existing `--batch_keys` annotation-only mechanism, which still only drives visualization and does not correct GEX.
+
 * **2024-12-19: Version 0.2.0 - Major Performance Release**
-  * **NEW:** Vectorized TCRdist encoding for α/β TCRs - replaces quadratic memory scaling with fixed-length vectors
-  * **NEW:** FAISS acceleration for 10-100x speedup on large datasets with GPU/CPU optimization
-  * **NEW:** Three-way TCR representation selection: vectorized (default α/β), KernelPCA (small datasets), exact (large datasets)
-  * **NEW:** Automatic backend selection: faiss-gpu → faiss-cpu → sklearn with graceful fallback
-  * **NEW:** Sub-quadratic memory usage - encoding 20k clonotypes uses 91MB vs 6.4GB for KernelPCA
-  * **NEW:** Python 3.12+ requirement for modern performance and compatibility
-  * **BREAKING:** Default behavior change for α/β organisms (human, mouse, rhesus) now uses vectorized representation
-  * **BREAKING:** Removed support for Python <3.12
-  * Performance targets achieved: >50% memory reduction, 10-100x speedup on large datasets
-  * Accuracy validation: Spearman correlation ≥0.95, neighbor recall ≥0.80 for vectorized TCRdist
-  * All existing workflows remain compatible with automatic fallback to appropriate representation
+  CoNGA 0.2.0 introduced vectorized TCRdist, a fixed-length-vector encoding for TCRs that replaces the quadratic-memory KernelPCA approach for eligible organisms, along with optional FAISS acceleration for neighbor search (tiered backend selection: faiss-gpu → faiss-cpu → sklearn). This release also raised the minimum Python version to 3.12 and updated dependencies for pandas 3.0+/numpy 2.0+ compatibility. The default TCR representation for vectorized-eligible organisms changed from KernelPCA to the vectorized encoding; see the TCR Representations section above for how representation selection now works.
 
 * 2023-09-21: Rhesus alpha beta and gamma delta T cells are now supported.
 * 2021-09-10: Rescale the adata.X gene expression matrix after reducing to a
@@ -822,8 +798,10 @@ few genes is shown at the top of the column dendrogram).
 ```
 
 Two features to note in the commands above: (1) we are passing `--organism human_ig`
-to let conga know we are working with BCR data, (2) in the setup command we
-added the flags `--condense_clonotypes_by_tcrdist --tcrdist_threshold_for_condensing 50`,
+to let conga know we are working with BCR data -- note that `human_ig` is CLI-usable
+but is not in the vectorized-TCRdist-eligible set, so this dataset takes the KernelPCA
+path (see the Organism support and TCR Representations sections above); (2) in the
+setup command we added the flags `--condense_clonotypes_by_tcrdist --tcrdist_threshold_for_condensing 50`,
 which trigger merging of 10X clonotypes whose TCRdist (actually BCR dist) is
 less than or equal to 50 (ie, we do single-linkage clustering and cut the tree
 at a distance threshold of 50). Here the goal is to merge clonally related
@@ -860,7 +838,7 @@ a value of 1e-8:
 
 ## Performance Benchmarks
 
-CoNGA v0.2.0 delivers significant performance improvements on large datasets through vectorized TCRdist and FAISS acceleration:
+CoNGA delivers performance improvements on large datasets through vectorized TCRdist and FAISS acceleration. The numbers below are point-in-time measurements from one specific hardware/software configuration (noted at the bottom of each table) -- they are not guarantees, and actual results on your hardware, dataset, and library versions may differ meaningfully. Treat them as a general indication of scaling behavior, not a benchmark you should expect to reproduce exactly.
 
 ### Memory Usage Comparison
 
@@ -883,7 +861,7 @@ CoNGA v0.2.0 delivers significant performance improvements on large datasets thr
 
 ### Accuracy Validation
 
-Vectorized TCRdist maintains high accuracy compared to exact TCRdist:
+Vectorized TCRdist maintains high accuracy compared to exact TCRdist on the datasets we've tested:
 
 | Metric | Requirement | Achieved |
 |---------|-------------|----------|
@@ -891,7 +869,7 @@ Vectorized TCRdist maintains high accuracy compared to exact TCRdist:
 | Neighbor recall@10 | ≥0.80 | 0.953 |
 | Neighbor recall@100 | ≥0.80 | 0.971 |
 
-*Benchmarks performed on 2019 MacBook Pro with NVIDIA RTX 2080 GPU. Your performance may vary based on hardware configuration.*
+*Benchmarks performed on 2019 MacBook Pro with NVIDIA RTX 2080 GPU. These are point-in-time numbers from that specific configuration; your performance will vary based on hardware, dataset characteristics, and library versions.*
 
 # CoNGA data model: where stuff is stored
 
@@ -918,6 +896,11 @@ there is batch structure defined in the input data.
 * `conga.preprocess.cluster_and_tsne_and_umap`: Fills `adata.obsm['X_pca_gex']`,
 and the `adata.obs` arrays `X_gex_2d`, `X_tcr_2d`, `clusters_gex`,
 and `clusters_tcr`.
+* `conga.preprocess.batch_integration`: Alternative to the normalization/HVG
+steps above when GEX batch correction is requested. Overwrites
+`adata.obsm['X_pca_gex']` with a Harmony- or scVI-corrected representation,
+so everything downstream (clustering, UMAP, neighbor-finding) consumes the
+corrected PCs transparently. See the Batch Integration section above.
 
 ### `adata.obs`
 The following 1-D arrays are stored in the `obs` array and can be accessed
@@ -941,13 +924,16 @@ The following multidimensional arrays are stored in the `obsm` array after
 setup.
 
 * `X_pca_gex`: The GEX principal components. Used for neighbor-finding,
-UMAP projections, etc.
-* `X_pca_tcr`: The TCRdist kernel principal components. May be missing if
-we are using the 'exact TCRdist neighbors' mode, which is useful for really
-big datasets where the kernel PCA calculation takes forever.
-* `X_vec_tcr`: The vectorized TCR representation (NEW in v0.2.0). Fixed-length
-vector encodings of paired TCRs used for sub-quadratic neighbor search. Present
-when using vectorized TCRdist path (default for α/β organisms).
+UMAP projections, etc. When `conga.preprocess.batch_integration()` is used,
+this array holds the Harmony- or scVI-corrected representation instead of
+the raw PCA, with no change needed in how downstream code reads it.
+* `X_pca_tcr`: The TCRdist kernel principal components. Present when using
+the KernelPCA representation path (see TCR Representations above); may be
+missing if we are using the vectorized or exact-TCRdist-neighbors paths.
+* `X_vec_tcr`: The vectorized TCR representation. Fixed-length vector
+encodings of paired TCRs used for sub-quadratic neighbor search. Present
+when using the vectorized TCRdist path (see TCR Representations above for
+which organisms are eligible).
 * `X_gex_2d`: The 2D landscape projection based on GEX (UMAP by default).
 * `X_tcr_2d`: The 2D landscape projection based on TCR (UMAP by default).
 
@@ -955,17 +941,14 @@ when using vectorized TCRdist path (default for α/β organisms).
 These miscellaneous data are stashed in the `adata.uns` dictionary:
 
 * `organism`: A string indicating what type of TCR/BCR data is being analyzed.
-CoNGA currently supports the following choices:
-    - `human`: human alpha-beta TCRs
-    - `mouse`: mouse alpha-beta TCRs
-    - `human_gd`: human gamma-delta TCRs
-    - `mouse_gd`: mouse gamma-delta TCRs
-    - `human_ig`: human BCRs
-* `active_tcr_representation`: The TCR representation used in the analysis (NEW in v0.2.0).
+See the Organism support section near the top of this README for the full,
+current breakdown of supported organisms (gene-database coverage, CLI-usable,
+and vectorized-TCRdist-eligible are three different lists).
+* `active_tcr_representation`: The TCR representation used in the analysis.
 One of: `X_vec_tcr` (vectorized), `X_pca_tcr` (KernelPCA), or `exact_tcrdist` (no obsm array).
-* `vec_tcr_config`: Configuration parameters for vectorized TCR encoding (NEW in v0.2.0).
+* `vec_tcr_config`: Configuration parameters for vectorized TCR encoding.
 Contains `aa_mds_dim`, `num_pos_cdr3`, `cdr3_weight`, etc.
-* `faiss_backend_info`: FAISS backend selection and performance metrics (NEW in v0.2.0).
+* `faiss_backend_info`: FAISS backend selection and performance metrics.
 Records which backend was used and performance characteristics.
 
 ### `adata.raw`
@@ -1011,13 +994,14 @@ Gives an approximate measure of (inverse) GEX density.
 Filled after the graph-vs-graph analysis has been run.
 * `<batch_key>`: When there are multiple batches present in a dataset
 these can be tracked and visualized in many of the analysis
-and plotting routines.
+and plotting routines (the annotation-only mechanism described in the
+Batch Integration section above, not GEX correction).
 Here `<batch_key>` is the name of the batch/category (for example `'outcome'` or `'subject'` or `'timepoint'`).
 The entry in `adata.obs` for each batch key should contain integers in the range `[0,num_batch_classes)`.
 This information is stored in the `adata.obs` array *prior* to condensing to a single
 cell per clonotype, and in the `adata.obsm` array *after* condensing to a single cell per clonotype
 (since expanded clonotypes can span multiple batch assignments).
-See the FAQ entry on batches in CoNGA (coming soon).
+See the Batch Integration section above and the FAQ entry on batches in CoNGA.
 
 ### `adata.obsm`
 The following multidimensional arrays are stored in the `obsm` array and can be accessed
@@ -1034,7 +1018,7 @@ The `(i,j)` entry in the array will give the number of cells in clonotype `i` th
 assigned to the batch assignment `j`.
 This array is filled automatically when we reduce to a single cell per clonotype,
 based on the information in the array `adata.obs[<batch_key>]` (see above).
-See the FAQ entry on batches in CoNGA (available soon).
+See the Batch Integration section above and the FAQ entry on batches in CoNGA.
 
 ### `adata.uns`
 * `batch_keys`: A list of strings that gives the names of the different
@@ -1045,6 +1029,9 @@ When we condense to a single cell per clonotype,
 we add an entry in the `adata.obsm` array with the same name, which contains the counts
 for each batch assignment summed over
 all the cells in each clonotype (so it's a 2D array and hence has to be stored in `obsm` not `obs`.
+Note this is the plural annotation-only mechanism, distinct from the singular
+`batch_key` argument to `conga.preprocess.batch_integration()` -- see the
+Batch Integration section above.
 
 ### `adata.var`
 * `feature_types`: This array is used to detect and exclude
@@ -1075,30 +1062,36 @@ in the `adata.var` array whose name starts with
    sys.path.append(path_to_conga)
    import conga
    ```
-1. **NEW in v0.2.0:** How do I know which TCR representation CoNGA is using?
+1. How do I know which TCR representation CoNGA is using?
    * Check the log output during analysis - CoNGA will report which path was selected
    * Look at `adata.uns['active_tcr_representation']` in your results
-   * For α/β organisms (human, mouse, rhesus), CoNGA defaults to vectorized representation
-   * For other organisms or small datasets, it uses KernelPCA or exact neighbors
+   * For organisms in `conga.tcrdist.vectorized.SUPPORTED_ORGANISMS`, CoNGA defaults to the vectorized representation
+   * For other organisms (including `human_gd`, `human_ig`, `mouse_gd`, `mouse_ig`) or small datasets, it uses KernelPCA or exact neighbors
    * You can override with `--use_kpca_tcrdist` or `--no_kpca` flags
 
-1. **NEW in v0.2.0:** How do I enable FAISS acceleration?
+1. How do I enable FAISS acceleration?
    * Install with `pip install "conga[performance]"` for CPU or `pip install "conga[performance-gpu]"` for GPU
    * CoNGA will automatically detect and use the best available backend
    * Check the log output to see which backend was selected
    * Force a specific backend with `--use_faiss_gpu`, `--use_faiss_cpu`, or `--disable_faiss`
 
-1. **NEW in v0.2.0:** My dataset is taking too much memory, what can I do?
-   * For α/β TCRs (human, mouse, rhesus), CoNGA automatically uses vectorized encoding which reduces memory by >50%
-   * For large datasets (≥20k observations), CoNGA automatically uses exact neighbor calculation to avoid memory issues
+1. My dataset is taking too much memory, what can I do?
+   * For organisms eligible for vectorized TCRdist, CoNGA automatically uses vectorized encoding which reduces memory substantially
+   * For large datasets, CoNGA automatically uses exact neighbor calculation to avoid memory issues
    * Install FAISS for additional memory efficiency: `pip install "conga[performance]"`
    * Use `--kpca_reduction_limit` to control when KernelPCA is skipped (default: 20,000)
 
 1. How can I visualize the different batches in my data? Or other discrete/categorical
 features assigned to individual cells?
-   Right now, CoNGA has a simple framework for analyzing this kind of data.
-	 There can be multiple flavors of "batch" information, like donor, tissue,
-	 disease, etc. Each must be represented as an integer-valued column in
+   * This is the annotation-only mechanism described in the Batch Integration section
+	 above (`--batch_keys`, plural) -- it does not correct GEX for batch effects, it
+	 only lets you color plots and clustermaps by existing categorical metadata.
+	 If you need actual GEX batch correction, use `conga.preprocess.batch_integration()`
+	 (`--batch_key`/`--batch_integration_method`, singular) instead; see the Batch
+	 Integration section above for both.
+
+	 For the annotation-only mechanism: each "batch" flavor (donor, tissue, disease,
+	 etc.) must be represented as an integer-valued column in
 	 `adata.obs`, and the names of the different batch columns should be given
 	 as a list in `adata.uns['batch_keys']`.
 
@@ -1144,3 +1137,4 @@ features assigned to individual cells?
 1. I have a question that isn't addressed here. What should I do?
    * You could open an issue on github, or email Phil and Stefan (emails at the
 	 top of this README) and we will try to help.
+</content>
