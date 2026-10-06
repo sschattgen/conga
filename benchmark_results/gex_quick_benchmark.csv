@@ -1,3 +1,0 @@
-backend,data_type,n_samples,n_features,query_time_sec,index_time_sec,peak_memory_mb,memory_efficiency_mb_per_1k,speedup_vs_sklearn,accuracy_vs_baseline,notes
-faiss-cpu,gex,10000,2000,0.61503005027771,3.0994415283203125e-06,301.8125,30.18125,2.9555012496012014,0.9999345,Success
-sklearn,gex,10000,2000,1.8177220821380615,9.5367431640625e-07,2169.765625,216.9765625,1.0,,Success

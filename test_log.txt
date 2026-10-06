@@ -1,2 +1,0 @@
-sys.argv: scripts/run_conga.py --aa_mds_dim 8 --outfile_prefix test --organism human --all
-hostname: D2CHYJ72QV

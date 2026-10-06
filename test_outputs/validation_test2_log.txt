@@ -1,5 +1,0 @@
-sys.argv: scripts/run_conga.py --gex_data test_data/SC5v2_humanPBMCs_5Kcells_Connect_single_channel_SC5v2_humanPBMCs_5Kcells_Connect_single_channel_count_sample_feature_bc_matrix.h5 --gex_data_type 10x_h5 --clones_file test_data/classic_clones.tsv --organism human --use_kpca_tcrdist --graph_vs_graph --outfile_prefix test_outputs/validation_test2
-hostname: D2CHYJ72QV
-nbr_frac_for_nndists: 0.01
-TCR representation: X_pca_tcr - KernelPCA requested by override (N=1390 < limit 20000)
-run_conga took 0.375 minutes
