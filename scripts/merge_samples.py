@@ -3,6 +3,7 @@ from os.path import exists
 import sys
 import os
 import numpy as np
+import anndata as ad
 
 
 parser = argparse.ArgumentParser(description="Merge multiple datasets and generate a single clones_file and gex_data file for subsequent CoNGA analysis. Each individual dataset should be previously setup to run through conga. Use the --samples argument to provide a tsv file with three rows that give, for each dataset, the location of the clones file and gex datafile and the format of the gex data" )
@@ -117,7 +118,7 @@ if len(all_data)==1:
 else:
     for x in all_data:
         x[2].var_names_make_unique()
-    new_adata = all_data[0][2].concatenate(*[x[2] for x in all_data[1:]])
+    new_adata = ad.concat([x[2] for x in all_data])
 
 # this all assumes that when scanpy concatenates it adds '-N' to the Nth datasets barcodes
 if args.condense_clonotypes_by_tcrdist:

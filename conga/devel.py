@@ -4,7 +4,7 @@
 ##  or otherwise under development / not ready for prime time
 ##
 ##
-
+import anndata as ad
 import numpy as np
 import matplotlib
 #matplotlib.use('Agg')
@@ -2383,14 +2383,17 @@ def split_into_cd4_and_cd8_subsets(
 
         # make new adatas
         dfl = []
-        for ad in [ad4,ad8]:
-            ad.uns['organism'] = adata.uns['organism']
-            assign_cd4_and_cd8_by_clusters(ad, verbose=verbose, strict=strict)
+        for subset in [ad4, ad8]:
+            subset.uns['organism'] = adata.uns['organism']
+            assign_cd4_and_cd8_by_clusters(subset, verbose=verbose, strict=strict)
 
-        ad4_new = ad4[ad4.obs.cd4_or_cd8 == 'cd4'].concatenate(
-            ad8[ad8.obs.cd4_or_cd8 == 'cd4'], index_unique=None)
-        ad8_new = ad8[ad8.obs.cd4_or_cd8 == 'cd8'].concatenate(
-            ad4[ad4.obs.cd4_or_cd8 == 'cd8'], index_unique=None)
+        ad4_new = ad.concat(
+            [ad4[ad4.obs.cd4_or_cd8 == 'cd4'],
+             ad8[ad8.obs.cd4_or_cd8 == 'cd4']], index_unique=None)
+        ad8_new = ad.concat(
+            [ad8[ad8.obs.cd4_or_cd8 == 'cd8'],
+             ad4[ad4.obs.cd4_or_cd8 == 'cd8']], index_unique=None)
+
 
         # convergence?
         old_cd8_barcodes = set(ad8.obs.index)
