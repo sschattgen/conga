@@ -820,7 +820,7 @@ if args.restart is None: ################################## load GEX/TCR data
         # cell per clonotype
         print('make_clone_plots: cluster_and_tsne_and_umap')
         adata = conga.preprocess.cluster_and_tsne_and_umap(
-            adata, skip_tcr=True)
+            adata, skip_tcr=True, random_seed=args.random_seed)
 
         conga.plotting.make_clone_gex_umap_plots(adata, args.outfile_prefix)
 
@@ -841,7 +841,8 @@ if args.restart is None: ################################## load GEX/TCR data
 
     print('run reduce_to_single_cell_per_clone'); sys.stdout.flush()
     adata = conga.preprocess.reduce_to_single_cell_per_clone(
-        adata, average_clone_gex=args.average_clone_gex )
+        adata, average_clone_gex=args.average_clone_gex,
+        random_seed=args.random_seed )
 
     if adata.shape[0] < args.min_clones:
         print('ERROR too few clonotypes:', adata.shape[0])
@@ -886,7 +887,8 @@ if args.restart is None: ################################## load GEX/TCR data
     print('run cluster_and_tsne_and_umap'); sys.stdout.flush()
     adata = conga.preprocess.cluster_and_tsne_and_umap(
         adata, clustering_resolution = clustering_resolution,
-        clustering_method=args.clustering_method)
+        clustering_method=args.clustering_method,
+        random_seed=args.random_seed)
 
     ###########################################################################
 else: ### restarting from a previous conga run
@@ -950,7 +952,8 @@ else: ### restarting from a previous conga run
         # need to redo the cluster/tsne/umap
         adata = conga.preprocess.cluster_and_tsne_and_umap(
             adata, clustering_method=args.clustering_method,
-            clustering_resolution=args.clustering_resolution)
+            clustering_resolution=args.clustering_resolution,
+            random_seed=args.random_seed)
 
 
     if args.shuffle_tcr_kpcs:
@@ -1031,7 +1034,8 @@ if args.exclude_gex_clusters:
 
     adata = conga.preprocess.cluster_and_tsne_and_umap(
         adata, clustering_method=args.clustering_method,
-        clustering_resolution=args.clustering_resolution)
+        clustering_resolution=args.clustering_resolution,
+        random_seed=args.random_seed)
 
 if args.subset_to_CD4 or args.subset_to_CD8:
     assert not (args.subset_to_CD4 and args.subset_to_CD8)
@@ -1041,7 +1045,8 @@ if args.subset_to_CD4 or args.subset_to_CD8:
 
     adata = conga.preprocess.cluster_and_tsne_and_umap(
         adata, clustering_method=args.clustering_method,
-        clustering_resolution=args.clustering_resolution)
+        clustering_resolution=args.clustering_resolution,
+        random_seed=args.random_seed)
 
 # Resolve TCR representation using three-way selection.
 # NOTE: this must happen before the "need_to_compute_tcrdist_umap" /
@@ -1132,7 +1137,8 @@ if need_to_compute_tcrdist_umap or need_to_compute_tcrdist_clusters:
         adata, num_nbrs,
         tmpfile_prefix=args.outfile_prefix,
         umap_key_added=umap_key_added,
-        cluster_key_added=cluster_key_added)
+        cluster_key_added=cluster_key_added,
+        random_seed=args.random_seed)
 
 # optionally save a checkpoint h5-formatted AnnData object
 if args.checkpoint:

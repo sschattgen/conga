@@ -1281,7 +1281,7 @@ def analyze_proteins(
         cluster_key_added = 'louvain_'+tag
         resolution = 1.0
         print('leiden:', tag)  # Updated to use modern clustering
-        sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added)
+        sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added, flavor='igraph', n_iterations=2, directed=False)
         adata.obs['clusters_'+tag] = np.copy(adata.obs[cluster_key_added]).astype(int)
         adata.obsm['X_{}_2d'.format(tag)] = adata.obsm['X_umap_'+tag]
 
@@ -2253,7 +2253,7 @@ def assign_cd4_and_cd8_by_clusters(
 
     cluster_key_added = 'leiden_gex_for_cd4_vs_cd8'
 
-    sc.tl.leiden(adata, resolution=clustering_resolution, key_added=cluster_key_added)
+    sc.tl.leiden(adata, resolution=clustering_resolution, key_added=cluster_key_added, flavor='igraph', n_iterations=2, directed=False)
 
 
     clusters_gex = np.array(adata.obs[cluster_key_added].astype(int))
@@ -2524,11 +2524,11 @@ def run_umap_and_clustering_from_indices_distances(
         sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added)
         print('ran louvain clustering:', resolution, cluster_key_added)
     elif clustering_method=='leiden':
-        sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added)
+        sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added, flavor='igraph', n_iterations=2, directed=False)
         print('ran leiden clustering:', resolution, cluster_key_added)
     else: # try both, prefer modern leiden first
         try:
-            sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added)
+            sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added, flavor='igraph', n_iterations=2, directed=False)
             print('ran leiden clustering:', resolution, cluster_key_added)
         except ImportError: # fallback to louvain if leiden unavailable
             sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added)

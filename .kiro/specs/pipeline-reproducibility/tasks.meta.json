@@ -1,0 +1,175 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "6. Checkpoint: run full test suite after `conga/preprocess.py` changes": [
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791391401039
+      },
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791395822116
+      },
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791396076064
+      }
+    ],
+    "8. Checkpoint: run full test suite after CLI wiring": [
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791391401062
+      },
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791398630772
+      },
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791398921007
+      }
+    ],
+    "9. Write the end-to-end `Reproducibility_Test` (Requirements 6-7)": [
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791391401085
+      },
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791398925275
+      },
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791400503916
+      }
+    ],
+    "10. Final checkpoint: run full test suite": [
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791391401105
+      },
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791400507302
+      },
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791401329010
+      }
+    ],
+    "1. Seed `cluster_and_tsne_and_umap` (Component 1)": [
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791391414703
+      },
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791391438160
+      },
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791393455263
+      }
+    ],
+    "2. Seed `calc_tcrdist_nbrs_umap_clusters_cpp` (Component 2)": [
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791391415734
+      },
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791391442805
+      },
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791393856962
+      }
+    ],
+    "3. Seed `reduce_to_single_cell_per_clone` (Component 3)": [
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791391416897
+      },
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791391443841
+      },
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791394496663
+      }
+    ],
+    "4. Seed the diagnostic sampling in `calc_X_pca_gex_including_protein_features` (Component 4)": [
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791391417943
+      },
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791391444942
+      },
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791395050505
+      }
+    ],
+    "5. Seed both `KernelPCA` call sites (Component 5)": [
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791391418596
+      },
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791391445786
+      },
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791395817702
+      }
+    ],
+    "7. Wire `--random_seed` through `scripts/run_conga.py` (Component 6)": [
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791391419342
+      },
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791396080187
+      },
+      {
+        "executionId": "6fde7993-2a8f-4516-9aa8-4536331b97d7",
+        "chatSessionId": "sess_cf64703f-3baa-4aac-9c41-39692bc77753",
+        "timestamp": 1791398627005
+      }
+    ]
+  }
+}

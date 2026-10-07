@@ -1107,6 +1107,7 @@ def calc_X_pca_gex_including_protein_features(
         n_components_gex=40,
         n_components_prot=20,
         compare_distance_distributions=False, # debugging/qc
+        random_seed=util.DEFAULT_RANDOM_SEED,
 ):
     ''' run pca on the protein data
 
@@ -1147,7 +1148,8 @@ def calc_X_pca_gex_including_protein_features(
 
     if compare_distance_distributions:
         nrandom = min(1000, num_clones)
-        inds = np.random.permutation(adata.shape[0])[:nrandom]
+        rng = np.random.default_rng(random_seed)
+        inds = rng.permutation(adata.shape[0])[:nrandom]
         D_prot = pairwise_distances(X_pca_prot[inds,:])
         D_gex = pairwise_distances(X_pca_gex[inds,:])
         print('gex_dists: ', describe(D_gex.ravel()))
@@ -1169,12 +1171,13 @@ def cluster_and_tsne_and_umap(
         recompute_pca_gex=False, # force recomputing X_pca_gex even if present
         skip_tsne=True, # yes this is silly
         skip_tcr=False,
-        clustering_method=None,
+        clustering_method='leiden',
         n_neighbors=10, # used for umap and clustering
         n_gex_pcs=40, # only used if we have to compute them
         make_1d_umaps=True,
         umap_min_dist=0.5, # these are the scanpy defaults
         umap_spread=1.0,
+        random_seed=util.DEFAULT_RANDOM_SEED,
 ):
     '''calculates neighbors, tsne, louvain for both GEX and TCR
 
@@ -1198,7 +1201,8 @@ def cluster_and_tsne_and_umap(
         # re-run now that we have reduced to a single cell per clone
         print('computing X_pca_gex using sc.tl.pca')
         n_gex_pcs = min(ncells-1, n_gex_pcs)
-        sc.tl.pca(adata, svd_solver='arpack', n_comps=n_gex_pcs)
+        sc.tl.pca(adata, svd_solver='arpack', n_comps=n_gex_pcs,
+                  random_state=random_seed)
         adata.obsm['X_pca_gex'] = adata.obsm['X_pca']
 
     assert 'X_pca_gex' in adata.obsm
@@ -1250,16 +1254,18 @@ def cluster_and_tsne_and_umap(
         adata.obsm['X_pca'] = adata.obsm[obsm_key]
         n_pcs = adata.obsm['X_pca'].shape[1]
         #n_pcs = n_gex_pcs_for_neighbors if tag=='gex' else n_tcr_pcs_for_neighbors
-        sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs)
+        sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs,
+                         random_state=random_seed)
         if not skip_tsne:
             sc.tl.tsne(adata, n_pcs=n_pcs)
             adata.obsm['X_tsne_'+tag] = adata.obsm['X_tsne']
-        sc.tl.umap(adata, min_dist=umap_min_dist, spread=umap_spread)
+        sc.tl.umap(adata, min_dist=umap_min_dist, spread=umap_spread,
+                   random_state=random_seed)
         adata.obsm['X_umap_'+tag] = adata.obsm['X_umap']
         if make_1d_umaps:
             try: # this used to fail in the adata obsm-stashing phase...
                 print('running 1D UMAP', tag)
-                sc.tl.umap(adata, n_components=1)
+                sc.tl.umap(adata, n_components=1, random_state=random_seed)
                 adata.obsm[f'X_{tag}_1d'] = adata.obsm['X_umap']
             except:
                 print('ERROR cluster_and_tsne_and_umap: 1D UMAP failed')
@@ -1270,20 +1276,24 @@ def cluster_and_tsne_and_umap(
             warnings.warn("Louvain clustering is deprecated since scanpy 1.12.0. Consider using 'leiden' instead.", 
                          DeprecationWarning, stacklevel=2)
             cluster_key_added = 'louvain_'+tag
-            sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added)
+            sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added,
+                          random_state=random_seed)
             print('ran louvain clustering:', cluster_key_added)
         elif clustering_method=='leiden':
             cluster_key_added = 'leiden_'+tag
-            sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added)
+            sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added,
+                         random_state=random_seed, flavor='igraph', n_iterations=2, directed=False)
             print('ran leiden clustering:', cluster_key_added)
         else: # try both, prefer modern leiden first
             try:
                 cluster_key_added = 'leiden_'+tag
-                sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added)
+                sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added,
+                             random_state=random_seed, flavor='igraph', n_iterations=2, directed=False)
                 print('ran leiden clustering:', cluster_key_added)
             except ImportError: # fallback to louvain if leiden unavailable
                 cluster_key_added = 'louvain_'+tag
-                sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added)
+                sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added,
+                             random_state=random_seed, flavor='igraph', n_iterations=2, directed=False)
                 print('ran leiden clustering:', cluster_key_added)
 
         ## set better obsm keys and data types
@@ -1341,6 +1351,7 @@ def reduce_to_single_cell_per_clone(
         n_pcs=50,
         average_clone_gex=False,
         use_existing_pca_obsm_tag=None,
+        random_seed=util.DEFAULT_RANDOM_SEED,
 ):
     ''' returns adata
 
@@ -1359,7 +1370,8 @@ def reduce_to_single_cell_per_clone(
         print('compute pca to find rep cell for each clone', adata.shape)
         # switch to arpack for better reproducibility
         sc.tl.pca(adata, svd_solver='arpack',
-                  n_comps=min(adata.shape[0]-1, n_pcs))
+                  n_comps=min(adata.shape[0]-1, n_pcs),
+                  random_state=random_seed)
         pca_tag = 'X_pca'
     else:
         pca_tag = use_existing_pca_obsm_tag
@@ -2741,6 +2753,7 @@ def make_tcrdist_kernel_pcs_file_from_clones_file(
         force_tcrdist_cpp = False,
         tcrs = None,
         return_pcs = False, # default is to write to a file
+        random_seed=util.DEFAULT_RANDOM_SEED,
 ):
     if (not return_pcs) and outfile is None:
         # this is the name expected by read_dataset above
@@ -2781,7 +2794,8 @@ def make_tcrdist_kernel_pcs_file_from_clones_file(
     print(f'running KernelPCA with {kernel} kernel distance matrix',
           f'shape= {D.shape} D.max()= {D.max()} force_Dmax= {force_Dmax}')
 
-    pca = KernelPCA(kernel='precomputed', n_components=n_components)
+    pca = KernelPCA(kernel='precomputed', n_components=n_components,
+                     random_state=random_seed)
 
     if kernel is None:
         if force_Dmax is None:
@@ -2993,6 +3007,7 @@ def calc_tcrdist_nbrs_umap_clusters_cpp(
         n_components_umap = 2,
         make_1d_umaps = True,
         umap_1d_key_added = 'X_tcr_1d',
+        random_seed=util.DEFAULT_RANDOM_SEED,
 ):
 
     if tmpfile_prefix is None:
@@ -3111,18 +3126,19 @@ def calc_tcrdist_nbrs_umap_clusters_cpp(
     # as far as I can tell, these are only used if there are too many connected
     # components in the nbr graph... see the infinite while loop up above.
     print('temporarily putting random pca vectors into adata...')
-    fake_pca = np.random.randn(adata.shape[0], 10)
+    rng = np.random.default_rng(random_seed)
+    fake_pca = rng.standard_normal((adata.shape[0], 10))
     adata.obsm['X_pca'] = fake_pca
 
     print('running umap', adata.shape)
-    sc.tl.umap(adata, n_components=n_components_umap)
+    sc.tl.umap(adata, n_components=n_components_umap, random_state=random_seed)
     print('DONE running umap')
     adata.obsm[umap_key_added] = adata.obsm['X_umap']
 
     if make_1d_umaps:
         try: # this used to fail in the adata obsm-stashing phase...
             print('running 1D UMAP')
-            sc.tl.umap(adata, n_components=1)
+            sc.tl.umap(adata, n_components=1, random_state=random_seed)
             adata.obsm[umap_1d_key_added] = adata.obsm['X_umap']
         except:
             print('ERROR calc_tcrdist_nbrs_umap_clusters_cpp: 1D UMAP failed')
@@ -3132,17 +3148,21 @@ def calc_tcrdist_nbrs_umap_clusters_cpp(
         import warnings
         warnings.warn("Louvain clustering is deprecated since scanpy 1.12.0. Consider using 'leiden' instead.", 
                      DeprecationWarning, stacklevel=2)
-        sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added)
+        sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added,
+                      random_state=random_seed)
         print('ran louvain clustering:', resolution, cluster_key_added)
     elif clustering_method=='leiden':
-        sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added)
+        sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added,
+                     random_state=random_seed, flavor='igraph', n_iterations=2, directed=False)
         print('ran leiden clustering:', resolution, cluster_key_added)
     else: # try both, prefer modern leiden first
         try:
-            sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added)
+            sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added,
+                         random_state=random_seed, flavor='igraph', n_iterations=2, directed=False)
             print('ran leiden clustering:', resolution, cluster_key_added)
         except ImportError: # fallback to louvain if leiden unavailable
-            sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added)
+            sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added,
+                          random_state=random_seed)
             print('ran louvain clustering:', resolution, cluster_key_added)
 
     adata.obs[cluster_key_added] = np.copy(adata.obs[cluster_key_added]).astype(int)
@@ -3413,6 +3433,7 @@ def make_tcrdist_kernel_pcs_file_from_clones_file_V2(
         gaussian_kernel_sdev=100.0, #unused unless kernel=='gaussian'
         verbose = False,
         force_Dmax = None,
+        random_seed=util.DEFAULT_RANDOM_SEED,
 ):
 
 
@@ -3434,7 +3455,8 @@ def make_tcrdist_kernel_pcs_file_from_clones_file_V2(
 
     print(f'running KernelPCA with {kernel} kernel distance matrix shape= {D.shape} D.max()= {D.max()} force_Dmax= {force_Dmax}')
 
-    pca = KernelPCA(kernel='precomputed', n_components=n_components)
+    pca = KernelPCA(kernel='precomputed', n_components=n_components,
+                     random_state=random_seed)
 
     if kernel is None:
         if force_Dmax is None:
