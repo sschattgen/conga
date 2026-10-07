@@ -957,12 +957,31 @@ def _run_harmony_integration(
 
     tmp_key = 'tmp_batch_key' # make sure it's a category or we get an error
     adata.obs[tmp_key] = adata.obs[batch_key].astype('category')
-    sc.external.pp.harmony_integrate(
-        adata,
-        tmp_key,
-        basis='X_pca',
-        adjusted_basis=util.OBSM_KEY_PCA_GEX_INTEGRATED,
-    )
+
+    # Call harmonypy directly rather than going through
+    # scanpy.external.pp.harmony_integrate: that wrapper unconditionally
+    # transposes harmonypy's returned Z_corr (`harmony_out.Z_corr.T`),
+    # which was correct for harmonypy<2.1.0's (n_pcs, n_cells) convention
+    # but produces a transposed, wrong-shape array against harmonypy
+    # >=2.1.0, which returns Z_corr already as (n_cells, n_pcs). Checking
+    # the shape directly here (rather than branching on harmonypy's
+    # __version__) keeps this correct regardless of which convention a
+    # future harmonypy release uses.
+    n_cells = adata.shape[0]
+    harmony_out = harmonypy.run_harmony(
+        adata.obsm['X_pca'], adata.obs, tmp_key)
+    z_corr = np.asarray(harmony_out.Z_corr)
+    if z_corr.shape[0] == n_cells:
+        integrated = z_corr  # already (n_cells, n_pcs)
+    elif z_corr.shape[1] == n_cells:
+        integrated = z_corr.T  # (n_pcs, n_cells) -> transpose
+    else:
+        raise ValueError(
+            'batch_integration: harmonypy.run_harmony returned Z_corr with '
+            f'shape {z_corr.shape}, which matches neither axis of the '
+            f'expected cell count ({n_cells}); cannot determine orientation.'
+        )
+    adata.obsm[util.OBSM_KEY_PCA_GEX_INTEGRATED] = integrated
     del adata.obs[tmp_key]
 
     adata.obsm['X_pca_gex'] = adata.obsm[util.OBSM_KEY_PCA_GEX_INTEGRATED]

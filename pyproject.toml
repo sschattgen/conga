@@ -62,7 +62,7 @@ performance-gpu = [
 
 # Batch integration (Harmony/scVI-based GEX correction; see conga.preprocess.batch_integration)
 batch-integration = [
-    "harmonypy>=0.0.10",
+    "harmonypy>=2.1.0",
     "scvi-tools>=1.1.0",
 ]
 
