@@ -120,7 +120,7 @@ def read_tcr_data(
 
     #_, lines = parse_csv_file(contig_annotations_csvfile)
     df = pd.read_csv(contig_annotations_csvfile)
-    df['productive'] = df['productive'].astype(str) #sometimes it already is if there are 'Nones' in there...
+    df['productive'] = df['productive'].fillna('None').astype(str) #sometimes it already is if there are 'Nones' in there...
     clonotype2barcodes = {}
     clonotype2tcrs_backup = {} ## in case we dont have a consensus_annotations_csvfile
 
@@ -206,7 +206,7 @@ def read_tcr_data(
 
         assert exists(consensus_annotations_csvfile)
         df = pd.read_csv( consensus_annotations_csvfile )
-        df['productive'] = df['productive'].astype(str) #sometimes it already is if there are 'Nones' in there...
+        df['productive'] = df['productive'].fillna('None').astype(str) #sometimes it already is if there are 'Nones' in there...
 
 
         ## first get clonotypes with one alpha and one beta
@@ -352,7 +352,7 @@ def read_tcr_data_batch(
     # barcode,is_cell,contig_id,high_confidence,length,chain,v_gene,d_gene,j_gene,c_gene,full_length,productive,cdr3,cdr3_nt,reads,umis,raw_clonotype_id,raw_consensus_id
     # AAAGATGGTCTTCTCG-1,True,AAAGATGGTCTTCTCG-1_contig_1,True,695,TRB,TRBV5-1*01,TRBD2*02,TRBJ2-3*01,TRBC2*01,True,True,CASSPLAGYAADTQYF,TGCGCCAGCAGCCCCCTAGCGGGATACGCAGCAGATACGCAGTATTTT,9427,9,clonotype14,clonotype14_consensus_1
 
-    df['productive'] = df['productive'].astype(str)
+    df['productive'] = df['productive'].fillna('None').astype(str)
     clonotype2tcrs = {}
     clonotype2barcodes = {}
     for l in df.itertuples():

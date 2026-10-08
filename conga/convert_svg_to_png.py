@@ -145,11 +145,11 @@ def convert_with_magick(svgfile, pngfile, verbose=False):
     return False
 
 CONVERT_MAP = OrderedDict([
+    ('magick', convert_with_magick),
     ('convert', convert_with_convert),
     ('inkscape', convert_with_inkscape),
     ('rsvg', convert_with_rsvg),
     ('cairosvg', convert_with_cairosvg),
-    ('magick', convert_with_magick),
 ])
 
 def convert_svg_to_png(

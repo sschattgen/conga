@@ -260,7 +260,7 @@ See the examples section below for more details.
 # Installation
 
 We *highly* recommend installing CoNGA in a virtual environment, for example using the
-`anaconda` package manager. Linux folks can check out the
+`mamba` or `conda`. Linux folks can check out the
 [Dockerfile](Dockerfile) for a minimal set of installation commands. At the
 top of the [google colab jupyter notebook](colab_conga_pipeline.ipynb)
 ([link to the notebook on colab](https://colab.research.google.com/github/phbradley/conga/blob/master/colab_conga_pipeline.ipynb))
@@ -272,8 +272,8 @@ CoNGA uses modern Python packaging with optional dependencies for performance fe
 
 ```bash
 # Create environment (Python 3.12+ required)
-conda create -n conga_env python=3.12
-conda activate conga_env
+mamba create -n conga_env python=3.12
+mamba activate conga_env
 
 # Basic installation
 pip install conga
@@ -333,8 +333,8 @@ FAISS provides performance improvements but requires specific installation:
 # Via pip (included in conga[performance])
 pip install faiss-cpu>=1.7.4
 
-# Via conda (alternative)
-conda install -c conda-forge faiss-cpu
+# Via mamba (alternative)
+mamba install -c conda-forge faiss-cpu
 ```
 
 **GPU acceleration (Linux/Windows with CUDA):**
@@ -342,8 +342,8 @@ conda install -c conda-forge faiss-cpu
 # Via pip (included in conga[performance-gpu])
 pip install faiss-gpu>=1.7.4
 
-# Via conda (alternative)
-conda install -c conda-forge faiss-gpu
+# Via mamba (alternative)
+mamba install -c conda-forge faiss-gpu
 ```
 
 **macOS users:** Only faiss-cpu is supported. GPU acceleration is not available on macOS.

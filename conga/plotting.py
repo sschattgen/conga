@@ -1991,6 +1991,11 @@ def make_clone_batch_clustermaps(
             return
         batch_keys = adata.uns['batch_keys']
 
+    if conga_scores is not None:
+        conga_scores = np.asarray(conga_scores)
+    if tcr_clumping_pvalues is not None:
+        tcr_clumping_pvalues = np.asarray(tcr_clumping_pvalues)
+
     cmap_for_row_scores = plt.get_cmap(cmap_for_row_scores)
 
     num_clones = adata.shape[0]
@@ -2096,7 +2101,7 @@ def make_clone_batch_clustermaps(
             cdr3a, cdr3b = tcrs[ii][0][2], tcrs[ii][1][2]
 
             clone_labels.append('{:3d}  {:{}s} {:{}s} {:18s} {:{}s} {:{}s} {:18s}'\
-                                .format(clone_sizes.iloc[ii],
+                                .format(clone_sizes[ii],
                                         va, max_valen, ja, max_jalen, cdr3a,
                                         vb, max_vblen, jb, max_jblen, cdr3b))
 

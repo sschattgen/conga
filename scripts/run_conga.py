@@ -1497,9 +1497,9 @@ if 'batch_keys' in adata.uns:
 
     conga_scores, tcr_clumping_pvalues = None, None
     if args.graph_vs_graph:
-        conga_scores = adata.obs['conga_scores']
+        conga_scores = adata.obs['conga_scores'].to_numpy()
     if args.tcr_clumping:
-        tcr_clumping_pvalues = adata.obs['tcr_clumping_pvalues']
+        tcr_clumping_pvalues = adata.obs['tcr_clumping_pvalues'].to_numpy()
     conga.plotting.make_clone_batch_clustermaps(
         adata, args.outfile_prefix, adata.uns['batch_keys'],
         conga_scores = conga_scores,
