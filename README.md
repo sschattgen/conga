@@ -127,9 +127,14 @@ pip install "conga[batch-integration]"
 Use it from `run_conga.py` with the paired flags `--batch_key` and `--batch_integration_method`:
 
 ```bash
-python scripts/run_conga.py --organism human --gex_data data.h5 --gex_data_type 10x_h5 \
-    --clones_file clones.tsv --batch_key donor --batch_integration_method harmony \
-    --outfile_prefix tmp_batch_corrected
+python scripts/run_conga.py \
+--organism human \
+--gex_data data.h5 \
+--gex_data_type 10x_h5 \
+--clones_file clones.tsv \
+--batch_key donor \
+--batch_integration_method harmony \
+--outfile_prefix tmp_batch_corrected
 ```
 
 `--batch_key` names the single `adata.obs` column driving both the HVG selection and the integration method; `--batch_integration_method` must be `harmony` or `scvi`. The two flags must be supplied together. `batch_integration()` is mutually exclusive with `--force_variable_genes` -- supplying both raises a `ValueError`, since they represent two different ways of picking the HVG set for the same pipeline step.
@@ -515,23 +520,33 @@ variable in that python file (see comments at the top of the file).
 # Testing CoNGA without going through the pain of installing it
 If you want to test CoNGA without taking the time to install it, here are some options.
 ## Docker
-There is a [Dockerfile](Dockerfile) and also a preliminary CoNGA
-[Docker image](https://hub.docker.com/repository/docker/pbradley/congatest1).
+There is a [Dockerfile](Dockerfile) in the repository root that builds a
+self-contained image with CoNGA (including FAISS-CPU acceleration), the
+compiled `tcrdist_cpp` executables, and ImageMagick for SVG-to-PNG
+conversion. Build it from the repository root:
+```
+docker build -t conga .
+```
 Erick Matsen has a nice [mini intro to docker](http://erick.matsen.org/2018/04/19/docker.html)
 that describes, among other things, how to run an image and make folders visible
 inside the image (so you can run the conga scripts on your data). For example,
 if you have your data in the folder `/path/to/datasets/` you could type these
 commands at the command prompt (aka terminal window on mac)
 ```
-docker pull pbradley/congatest1
-docker run -v /path/to/datasets:/datasets -it pbradley/congatest1 /bin/bash
+docker run -v /path/to/datasets:/data -it conga /bin/bash
 ```
 and then within the new docker shell that opens:
 ```
-root@d0fa5d83e40d:/# python3 gitrepos/conga/scripts/setup_10x_for_conga.py --filtered_contig_annotations_csvfile datasets/filtered_contig_annotations.csv --organism human
-root@d0fa5d83e40d:/# mkdir datasets/output/
-root@d0fa5d83e40d:/# python3 gitrepos/conga/scripts/run_conga.py --all --organism human --clones_file datasets/filtered_contig_annotations_tcrdist_clones.tsv --gex_data datasets/filtered_gene_bc_matrices_h5.h5 --gex_data_type 10x_h5 --outfile_prefix datasets/output/conga_test1
-root@d0fa5d83e40d:/# exit
+root@d0fa5d83e40d:/opt/conga# python scripts/setup_10x_for_conga.py --filtered_contig_annotations_csvfile /data/filtered_contig_annotations.csv --organism human
+root@d0fa5d83e40d:/opt/conga# mkdir /data/output/
+root@d0fa5d83e40d:/opt/conga# python scripts/run_conga.py --all --organism human --clones_file /data/filtered_contig_annotations_tcrdist_clones.tsv --gex_data /data/filtered_gene_bc_matrices_h5.h5 --gex_data_type 10x_h5 --outfile_prefix /data/output/conga_test1
+root@d0fa5d83e40d:/opt/conga# exit
+```
+You can also skip the interactive shell and run `conga info` directly to
+sanity-check the installation (confirms FAISS, the compiled C++ TCRdist
+binaries, and core dependency versions):
+```
+docker run --rm conga conga info
 ```
 (changing the filenames and `--outfile_prefix` as needed). This would put the output
 into a folder `output` in the `/path/to/datasets/` folder (so you can see it

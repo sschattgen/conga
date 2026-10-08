@@ -1,0 +1,26 @@
+.git
+.gitignore
+.hypothesis
+.pytest_cache
+__pycache__
+**/__pycache__
+*.pyc
+.DS_Store
+**/.DS_Store
+
+# Local environments / editor config
+.kiro
+.vscode
+*.egg-info
+
+# Test fixtures and generated data (can be large; not needed to build the image)
+tests/fixtures/*.h5ad
+
+# Docs/images not needed at runtime
+_images
+docs
+*.ipynb
+
+# Build artifacts
+tcrdist_cpp/bin/*
+!tcrdist_cpp/bin/.gitignore

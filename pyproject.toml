@@ -45,6 +45,7 @@ dependencies = [
     "joblib>=1.3.0",
     "numba>=0.58.0",
     "tables>=3.9.0",
+    "psutil>=5.9.0",
 ]
 
 [project.optional-dependencies]
