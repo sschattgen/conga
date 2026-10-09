@@ -9,3 +9,9 @@
 *_backup.py
 /temp_*.py
 /debug_*.py
+
+# Generated outputs from scripts/test_modernization_results.py runs
+# (inputs like SC5v2_humanPBMCs_*, classic_clones*, *_tcrs.tsv, test_run_clones*
+# remain tracked; these are regenerated artifacts, not fixtures)
+test_data/end_to_end_test_*
+test_data/simple_test_*
