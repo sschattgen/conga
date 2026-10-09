@@ -6,7 +6,7 @@ CoNGA v0.2.0 uses modern Python packaging with optional performance enhancements
 
 ### Prerequisites
 
-- **Python 3.12+** (required for compatibility with pandas 3.0 and numpy 2.0)
+- **Python 3.12+** (required for compatibility with pandas 3.0 and numpy 2.0); the full test suite has been run and passes on **3.12 and 3.14** (3.13 is expected to work based on dependency metadata but has not been directly tested)
 - **C++ compiler** (optional, for maximum performance)
 - **CUDA-capable GPU** (optional, for FAISS-GPU acceleration)
 
@@ -28,6 +28,12 @@ CoNGA v0.2.0 introduces major performance improvements:
 - **FAISS Acceleration**: 10-100x speedup with automatic GPU/CPU selection
 - **Python 3.12+ Required**: For modern performance and pandas 3.0/numpy 2.0 compatibility
 
+**Note:** CoNGA is not currently published on PyPI, so all installation
+options below install from a local clone of the repository with
+`pip install -e .` rather than `pip install conga`. (An unrelated package
+named `CONGA` already exists on PyPI; package names there are
+case-insensitive, so that name is unavailable regardless.)
+
 ### Option 1: Performance-Optimized (Recommended)
 
 For best performance with CPU acceleration:
@@ -36,12 +42,15 @@ For best performance with CPU acceleration:
 mamba create -n conga python=3.12
 mamba activate conga
 
-# Install with FAISS CPU acceleration 
-pip install "conga[performance]"
+# Clone the repository
+git clone https://github.com/phbradley/conga.git
+cd conga
+
+# Install with FAISS CPU acceleration
+pip install -e ".[performance]"
 
 # Optional: compile C++ components for exact TCRdist
-git clone https://github.com/phbradley/conga.git
-cd conga/conga/tcrdist_cpp && make && cd ../../..
+cd tcrdist_cpp && make && cd ..
 ```
 
 ### Option 2: GPU-Accelerated (Maximum Performance)
@@ -52,12 +61,15 @@ For maximum performance with GPU acceleration:
 mamba create -n conga python=3.12
 mamba activate conga
 
+# Clone the repository
+git clone https://github.com/phbradley/conga.git
+cd conga
+
 # Install with FAISS GPU acceleration (requires CUDA)
-pip install "conga[performance-gpu]"
+pip install -e ".[performance-gpu]"
 
 # Optional: compile C++ components
-git clone https://github.com/phbradley/conga.git  
-cd conga/conga/tcrdist_cpp && make && cd ../../..
+cd tcrdist_cpp && make && cd ..
 ```
 
 ### Option 3: Full Development Environment
@@ -84,21 +96,25 @@ cd ..
 ### Option 3: Install with specific optional features
 
 ```bash
-# Create minimal environment
-mamba env create -f environment-minimal.yml
+# Create environment from environment.yml, then install from a local clone
+mamba env create -f environment.yml
 mamba activate conga-dev
 
-# Install with performance optimization (FAISS-CPU + fast clustering)
+# Install with performance optimization (FAISS-CPU + fastcluster)
 pip install -e ".[performance]"
 
 # Or install with GPU performance (requires CUDA-capable GPU)
 pip install -e ".[performance-gpu]"
 
-# Or install with batch integration support
-pip install -e ".[batch]"
+# Or install with batch integration support (Harmony/scVI GEX correction)
+pip install -e ".[batch-integration]"
 
-# Or install with scVI support (experimental)
-pip install -e ".[scvi]"
+# Or install development tools (pytest, ruff, mypy, etc.)
+pip install -e ".[dev]"
+
+# Or install the legacy louvain clustering extra (Python 3.12 only --
+# see "Louvain clustering" under Optional Dependencies below)
+pip install -e ".[legacy-clustering]"
 
 # Or install everything (includes CPU FAISS by default)
 pip install -e ".[all]"
@@ -110,16 +126,23 @@ pip install -e ".[all-gpu]"
 **Feature Groups:**
 - `performance`: faiss-cpu + fastcluster (recommended for >10k cells)
 - `performance-gpu`: faiss-gpu + fastcluster (for large datasets with CUDA GPU)
-- `batch`: bbknn + batch correction tools
-- `scvi`: scVI-tools for variational inference (experimental)
-- `all`: All optional features with CPU FAISS
-- `all-gpu`: All optional features with GPU FAISS (requires CUDA)
+- `batch-integration`: harmonypy + scvi-tools, for `conga.preprocess.batch_integration()` GEX batch correction
+- `legacy-clustering`: louvain, for the deprecated `--clustering_method louvain` option (Python 3.12 only)
+- `dev`: pytest, ruff, mypy, and other development tools
+- `all`: performance + batch-integration + dev (CPU FAISS)
+- `all-gpu`: performance-gpu + batch-integration + dev (GPU FAISS)
 
 ---
 
 ## Python Version Requirement
 
-**CoNGA requires Python 3.12 or later.**
+**CoNGA requires Python 3.12 or later.** The full test suite has been run
+and passes on Python 3.12 and 3.14 (3.13 is expected to work based on
+dependency metadata but has not been directly tested). The one exception
+is the legacy, deprecated `--clustering_method louvain` option
+(`conga[legacy-clustering]`), which is only installable on Python 3.12 --
+see the "Louvain clustering" entry under Optional Dependencies below. The
+default `leiden` clustering method has no such restriction.
 
 ---
 
@@ -232,12 +255,22 @@ export CUDA_VISIBLE_DEVICES=0,1
 export FAISS_GPU_MEM_FRACTION=0.9  # Use 90% of GPU memory
 ```
 
-### BBKNN (for batch correction)
+### Louvain clustering (legacy, optional, Python 3.12 only)
 
-Already included in `environment.yml`. For manual installation:
+CoNGA defaults to `leiden` clustering (via `leidenalg`, a core dependency).
+The older `--clustering_method louvain` option is deprecated upstream in
+scanpy and is kept as an optional extra for existing pipelines that still
+request it explicitly:
 ```bash
-mamba install -c bioconda bbknn
+pip install conga[legacy-clustering]
+# or directly:
+pip install louvain
 ```
+This is **only installable on Python 3.12** -- conda-forge has no `louvain`
+build for Python 3.13+, and building it from source fails there against
+modern compilers (the package's vendored igraph C core trips
+`-Werror=uninitialized-const-pointer`). Most users do not need this at all
+since `leiden` is the default and has no such restriction.
 
 ### scVI-tools (experimental integration learning)
 

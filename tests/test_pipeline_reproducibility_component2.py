@@ -68,6 +68,22 @@ PREPROCESS_SOURCE_PATH = REPO_ROOT / 'conga' / 'preprocess.py'
 RANDOM_SEED = 42
 NON_DEFAULT_RANDOM_SEED = 1234
 
+
+def _louvain_package_available() -> bool:
+    """`louvain` is an optional dependency (conga[legacy-clustering]) as
+    of the Python 3.13+/3.14 compatibility work: conda-forge has no build
+    past Python 3.12, and building it from source fails against modern
+    compilers. `sc.tl.louvain` is always importable as a function (scanpy
+    exposes it regardless), but calling it raises ImportError internally
+    if the louvain package itself isn't installed -- which is exactly
+    what the runtime test below needs to actually run.
+    """
+    try:
+        import louvain  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
 # Real human V/J alleles + CDR3 sequences, same source list used by
 # tests/test_metaconga_match_dispatch.py's Representative_Human_Fixture.
 _VA_JA_CDR3A = [
@@ -193,11 +209,36 @@ class TestCalcTcrdistNbrsSourceWiresRandomSeed:
         """Confirms this function's fallback branch calls `sc.tl.louvain`
         (not `sc.tl.leiden` again, unlike Component 1's equivalent
         branch) -- nothing to "fix" here, only random_state= is added.
+
+        There are now two `except ImportError` blocks in this function:
+        this fallback one, and a separate one added when
+        `clustering_method=='louvain'` is explicitly requested but the
+        optional `louvain` package isn't installed. This test anchors on
+        the fallback's `else: # try both` comment to find the right one
+        rather than the first `except ImportError` in the function.
         """
         source = self._function_source()
-        except_region_start = source.index('except ImportError')
+        fallback_region_start = source.index('else: # try both')
+        except_region_start = source.index(
+            'except ImportError', fallback_region_start)
         except_region = source[except_region_start:except_region_start + 300]
         assert 'sc.tl.louvain(' in except_region
+
+    def test_explicit_louvain_request_wraps_import_error_with_actionable_message(self):
+        """The explicit `clustering_method=='louvain'` branch wraps the
+        `sc.tl.louvain` call in its own `try/except ImportError`, distinct
+        from the pre-existing leiden/louvain fallback branch's
+        `except ImportError` checked by
+        test_fallback_branch_already_correct_not_modified above. This one
+        re-raises with a message naming the optional
+        `conga[legacy-clustering]` extra, since `louvain` is no longer a
+        core dependency (see pyproject.toml/environment.yml).
+        """
+        source = self._function_source()
+        louvain_branch_start = source.index("clustering_method=='louvain'")
+        louvain_branch = source[louvain_branch_start:louvain_branch_start + 800]
+        assert 'except ImportError' in louvain_branch
+        assert 'legacy-clustering' in louvain_branch
 
 
 @pytest.mark.skipif(
@@ -247,6 +288,11 @@ class TestCalcTcrdistNbrsRuntimeSeedWiring:
             _, kwargs = call
             assert kwargs['random_state'] == NON_DEFAULT_RANDOM_SEED
 
+    @pytest.mark.skipif(
+        not _louvain_package_available(),
+        reason="optional 'louvain' package not installed (conga[legacy-clustering]); "
+               'not available for Python 3.13+ -- see pyproject.toml',
+    )
     def test_louvain_receives_random_seed(self, tmp_path):
         adata = _make_tcr_adata(tmp_path=tmp_path)
         real_louvain = sc.tl.louvain

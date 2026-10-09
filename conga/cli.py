@@ -238,12 +238,6 @@ def show_info():
     
     try:
         import importlib.metadata
-        print(f"  ✓ bbknn: {importlib.metadata.version('bbknn')}")
-    except (ImportError, importlib.metadata.PackageNotFoundError):
-        print("  - bbknn: not installed (optional, for batch integration)")
-    
-    try:
-        import importlib.metadata
         print(f"  ✓ scvi-tools: {importlib.metadata.version('scvi-tools')}")
     except (ImportError, importlib.metadata.PackageNotFoundError):
         print("  - scvi-tools: not installed (optional, experimental)")

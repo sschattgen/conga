@@ -1295,8 +1295,17 @@ def cluster_and_tsne_and_umap(
             warnings.warn("Louvain clustering is deprecated since scanpy 1.12.0. Consider using 'leiden' instead.", 
                          DeprecationWarning, stacklevel=2)
             cluster_key_added = 'louvain_'+tag
-            sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added,
-                          random_state=random_seed)
+            try:
+                sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added,
+                              random_state=random_seed)
+            except ImportError as e:
+                raise ImportError(
+                    "--clustering_method louvain requires the optional 'louvain' package, which is "
+                    "not installed. Install it with `pip install conga[legacy-clustering]` (Python "
+                    "<=3.12 only; conda-forge has no build and it fails to compile from source against "
+                    "modern compilers on newer Python versions). Consider using --clustering_method leiden "
+                    "instead, which does not have this limitation."
+                ) from e
             print('ran louvain clustering:', cluster_key_added)
         elif clustering_method=='leiden':
             cluster_key_added = 'leiden_'+tag
@@ -3167,8 +3176,17 @@ def calc_tcrdist_nbrs_umap_clusters_cpp(
         import warnings
         warnings.warn("Louvain clustering is deprecated since scanpy 1.12.0. Consider using 'leiden' instead.", 
                      DeprecationWarning, stacklevel=2)
-        sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added,
-                      random_state=random_seed)
+        try:
+            sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added,
+                          random_state=random_seed)
+        except ImportError as e:
+            raise ImportError(
+                "--clustering_method louvain requires the optional 'louvain' package, which is "
+                "not installed. Install it with `pip install conga[legacy-clustering]` (Python "
+                "<=3.12 only; conda-forge has no build and it fails to compile from source against "
+                "modern compilers on newer Python versions). Consider using --clustering_method leiden "
+                "instead, which does not have this limitation."
+            ) from e
         print('ran louvain clustering:', resolution, cluster_key_added)
     elif clustering_method=='leiden':
         sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added,
@@ -3180,8 +3198,16 @@ def calc_tcrdist_nbrs_umap_clusters_cpp(
                          random_state=random_seed, flavor='igraph', n_iterations=2, directed=False)
             print('ran leiden clustering:', resolution, cluster_key_added)
         except ImportError: # fallback to louvain if leiden unavailable
-            sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added,
-                          random_state=random_seed)
+            try:
+                sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added,
+                              random_state=random_seed)
+            except ImportError as e:
+                raise ImportError(
+                    'cluster_and_tsne_and_umap: neither the leiden nor the louvain clustering '
+                    "backend is available. Install leidenalg (conga's core dependency; this likely "
+                    'indicates a broken environment) or, on Python 3.12 only, the optional '
+                    '`conga[legacy-clustering]` extra for louvain.'
+                ) from e
             print('ran louvain clustering:', resolution, cluster_key_added)
 
     adata.obs[cluster_key_added] = np.copy(adata.obs[cluster_key_added]).astype(int)

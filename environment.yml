@@ -4,7 +4,7 @@ channels:
   - bioconda
 dependencies:
   # Python
-  - python=3.12
+  - python=3.14
 
   # Core scientific stack
   - numpy>=1.26
@@ -27,7 +27,15 @@ dependencies:
   - setuptools>=68,<81
   - python-igraph>=0.11
   - leidenalg>=0.10
-  - louvain>=0.8
+  # louvain is intentionally NOT included here. It backs the legacy
+  # --clustering_method louvain path (deprecated upstream in scanpy and in
+  # conga's own code in favor of 'leiden', which is already covered by
+  # leidenalg above). conda-forge has not shipped a louvain build past
+  # Python 3.12, and building it from source fails on modern compilers
+  # (clang 21: -Werror=uninitialized-const-pointer in its vendored igraph
+  # C core). If you specifically need the louvain clustering path on
+  # Python 3.12, install it separately with:
+  #   mamba install -c conda-forge louvain  (or: pip install louvain)
   
   # Performance
   - numba>=0.58
@@ -38,10 +46,6 @@ dependencies:
   # Optional performance boost
   - faiss-cpu>=1.7.4  # Fast similarity search (CPU version, for GPU see installation docs)
   - fastcluster>=1.2
-  
-  # Batch integration (optional)
-  - bbknn>=1.6
-  - cython  # Required by bbknn
   
   # C++ compiler for tcrdist_cpp
   - cxx-compiler

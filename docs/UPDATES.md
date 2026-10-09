@@ -1,8 +1,41 @@
 # Updates
 
-* **Latest: Species expansion and GEX batch integration**
+## Since v0.1 (2021): what's changed
+
+CoNGA has gone through a major performance and packaging overhaul since the
+original 0.1 release. The short version:
+
+* **Much faster on large datasets.** Vectorized TCRdist replaces the old
+  KernelPCA approach for most organisms, cutting memory use from gigabytes
+  to tens of megabytes. Optional FAISS acceleration speeds up neighbor
+  search by 10-100x, with automatic fallback to sklearn if it's not
+  installed.
+* **Modernized under the hood.** CoNGA now requires Python 3.12+ and has
+  been updated for pandas 3.0+ and numpy 2.0+. Packaging moved to
+  `pyproject.toml`, so installation and optional feature sets
+  (`[performance]`, `[batch-integration]`, etc.) work the normal pip way.
+* **Many more organisms.** Support grew from a handful of species to over
+  20, including gamma-delta T cells and B cell receptors across human,
+  mouse, rhesus, and others.
+* **New analysis capabilities.** TCR clumping, TCR database matching,
+  Hotspot-based feature discovery, multi-sample merging, and GEX batch
+  correction (Harmony/scVI) were all added after 0.1.
+* **Easier to run.** Docker support and a dedicated CLI (`conga` command)
+  were added alongside the packaging modernization.
+
+See the full version-by-version breakdown in [CHANGELOG.md](../CHANGELOG.md)
+for exact details on any of the above.
+
+---
+
+* **Latest: Python 3.14 support**
+  * The full test suite has been run and passes on Python 3.12 and 3.14 (`environment.yml` installs 3.14 by default for development). `requires-python` in `pyproject.toml` remains `>=3.12`. Python 3.13 is expected to work based on dependency metadata but has not been directly tested.
+  * The `louvain` package (backing the deprecated `--clustering_method louvain` option) is now an optional `conga[legacy-clustering]` extra rather than a core dependency, and is only installable on Python 3.12 -- conda-forge has no build for 3.13+, and building it from source fails there against modern compilers (its vendored igraph C core trips `-Werror=uninitialized-const-pointer`). The default `--clustering_method leiden` (backed by `leidenalg`, unaffected) has no such restriction, so most users will not notice this change.
+  * `bbknn` was removed from `environment.yml` entirely. It had the same conda-forge Python-version ceiling as `louvain`, and was never actually wired to any code path: `conga.preprocess.batch_integration()` only supports `method='harmony'` or `method='scvi'` and explicitly rejects `'bbknn'`.
+
+* **Species expansion and GEX batch integration**
   * Organism support now breaks down into three tiers: 22 organisms with germline gene database coverage, 21 usable through the `--organism` CLI flag, and 18 eligible for the vectorized TCRdist path (see the Organism support section above). Scoping across these tiers is based on chain completeness in the gene database, not an arbitrary cutoff.
-  * Added `conga.preprocess.batch_integration()` for GEX batch correction via Harmony or scVI, exposed through `scripts/run_conga.py --batch_key`/`--batch_integration_method` and installed with `pip install "conga[batch-integration]"`. This is distinct from the existing `--batch_keys` annotation-only mechanism, which still only drives visualization and does not correct GEX.
+  * Added `conga.preprocess.batch_integration()` for GEX batch correction via Harmony or scVI, exposed through `scripts/run_conga.py --batch_key`/`--batch_integration_method` and installed with `pip install -e ".[batch-integration]"` (from a local clone -- CoNGA is not published on PyPI). This is distinct from the existing `--batch_keys` annotation-only mechanism, which still only drives visualization and does not correct GEX.
 
 * **2024-12-19: Version 0.2.0 - Major Performance Release**
   CoNGA 0.2.0 introduced vectorized TCRdist, a fixed-length-vector encoding for TCRs that replaces the quadratic-memory KernelPCA approach for eligible organisms, along with optional FAISS acceleration for neighbor search (tiered backend selection: faiss-gpu → faiss-cpu → sklearn). This release also raised the minimum Python version to 3.12 and updated dependencies for pandas 3.0+/numpy 2.0+ compatibility. The default TCR representation for vectorized-eligible organisms changed from KernelPCA to the vectorized encoding; see the TCR Representations section above for how representation selection now works.

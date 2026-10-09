@@ -57,6 +57,22 @@ RANDOM_SEED = 42
 NON_DEFAULT_RANDOM_SEED = 1234
 
 
+def _louvain_package_available() -> bool:
+    """`louvain` is an optional dependency (conga[legacy-clustering]) as
+    of the Python 3.13+/3.14 compatibility work: conda-forge has no build
+    past Python 3.12, and building it from source fails against modern
+    compilers. `sc.tl.louvain` is always importable as a function (scanpy
+    exposes it regardless), but calling it raises ImportError internally
+    if the louvain package itself isn't installed -- which is exactly
+    what the runtime test below needs to actually run.
+    """
+    try:
+        import louvain  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
 def _make_gex_counts(n_cells: int, n_genes: int,
                       rng: np.random.Generator) -> np.ndarray:
     """Build a small, dense-then-sparsified integer counts matrix with no
@@ -147,8 +163,23 @@ class TestClusterAndTsneAndUmapSourceWiresRandomSeed:
         assert source.count(
             'sc.tl.louvain(adata, resolution=resolution, '
             'key_added=cluster_key_added,\n'
-            '                          random_state=random_seed)'
+            '                              random_state=random_seed)'
         ) == 1
+
+    def test_explicit_louvain_request_wraps_import_error_with_actionable_message(self):
+        """The explicit `clustering_method=='louvain'` branch wraps the
+        `sc.tl.louvain` call in its own `try/except ImportError`, distinct
+        from the pre-existing leiden/louvain fallback branch's
+        `except ImportError` checked by `test_fallback_bug_left_untouched`
+        below. This one re-raises with a message naming the optional
+        `conga[legacy-clustering]` extra, since `louvain` is no longer a
+        core dependency (see pyproject.toml/environment.yml).
+        """
+        source = self._function_source()
+        louvain_branch_start = source.index("clustering_method=='louvain'")
+        louvain_branch = source[louvain_branch_start:louvain_branch_start + 800]
+        assert 'except ImportError' in louvain_branch
+        assert 'legacy-clustering' in louvain_branch
 
     def test_leiden_call_sites_both_wire_random_seed(self):
         """Both leiden occurrences -- the primary 'leiden' branch and the
@@ -177,10 +208,23 @@ class TestClusterAndTsneAndUmapSourceWiresRandomSeed:
     def test_fallback_bug_left_untouched(self):
         """Confirms this feature did not fix the pre-existing
         leiden/louvain fallback mislabeling bug: the `except ImportError`
-        branch must still call `sc.tl.leiden`, not `sc.tl.louvain`.
+        branch inside the "try leiden first" fallback (triggered when
+        `clustering_method` is unspecified) must still call
+        `sc.tl.leiden`, not `sc.tl.louvain`.
+
+        There are now two `except ImportError` blocks in this function:
+        this fallback one, and a separate one added when
+        `clustering_method=='louvain'` is explicitly requested but the
+        optional `louvain` package isn't installed (see
+        test_explicit_louvain_request_wraps_import_error_with_actionable_message
+        above). This test anchors on the fallback's `else: # try both`
+        comment to find the right one rather than the first
+        `except ImportError` in the function.
         """
         source = self._function_source()
-        except_region_start = source.index('except ImportError')
+        fallback_region_start = source.index('else: # try both')
+        except_region_start = source.index(
+            'except ImportError', fallback_region_start)
         except_region = source[except_region_start:except_region_start + 300]
         assert 'sc.tl.leiden(' in except_region
         assert 'sc.tl.louvain(' not in except_region
@@ -239,6 +283,11 @@ class TestClusterAndTsneAndUmapRuntimeSeedWiring:
             _, kwargs = call
             assert kwargs['random_state'] == NON_DEFAULT_RANDOM_SEED
 
+    @pytest.mark.skipif(
+        not _louvain_package_available(),
+        reason="optional 'louvain' package not installed (conga[legacy-clustering]); "
+               'not available for Python 3.13+ -- see pyproject.toml',
+    )
     def test_louvain_receives_random_seed(self):
         adata = _make_adata_with_pca_gex()
         real_louvain = sc.tl.louvain

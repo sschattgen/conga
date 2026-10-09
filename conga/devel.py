@@ -2524,7 +2524,16 @@ def run_umap_and_clustering_from_indices_distances(
         import warnings
         warnings.warn("Louvain clustering is deprecated since scanpy 1.12.0. Consider using 'leiden' instead.", 
                      DeprecationWarning, stacklevel=2)
-        sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added)
+        try:
+            sc.tl.louvain(adata, resolution=resolution, key_added=cluster_key_added)
+        except ImportError as e:
+            raise ImportError(
+                "--clustering_method louvain requires the optional 'louvain' package, which is "
+                "not installed. Install it with `pip install conga[legacy-clustering]` (Python "
+                "<=3.12 only; conda-forge has no build and it fails to compile from source against "
+                "modern compilers on newer Python versions). Consider using --clustering_method leiden "
+                "instead, which does not have this limitation."
+            ) from e
         print('ran louvain clustering:', resolution, cluster_key_added)
     elif clustering_method=='leiden':
         sc.tl.leiden(adata, resolution=resolution, key_added=cluster_key_added, flavor='igraph', n_iterations=2, directed=False)

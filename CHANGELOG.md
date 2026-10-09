@@ -21,8 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New CLI flags `--batch_key` and `--batch_integration_method` (`harmony` or `scvi`) on `scripts/run_conga.py`, required together and mutually exclusive with `--force_variable_genes`
 - This is distinct from the pre-existing `--batch_keys` (plural) annotation-only mechanism, which still only drives visualization (`make_batch_colored_umaps`, `make_clone_batch_clustermaps`) and does not correct GEX
 
+#### Python 3.14 Support
+- Full test suite run and passing on Python 3.12 and 3.14 (`environment.yml` now installs 3.14 by default for development); `requires-python` in `pyproject.toml` remains `>=3.12`. Python 3.13 is expected to work based on dependency metadata (all required packages ship 3.13 wheels/conda builds) but has not been directly tested.
+
 ### Changed
 - New optional dependency extra `batch-integration` (`harmonypy`, `scvi-tools`) backs `batch_integration()`
+- `louvain` moved from a core dependency to a new optional `legacy-clustering` extra, backing the deprecated `--clustering_method louvain` option. Only installable on Python 3.12: conda-forge has no build for 3.13+, and building from source there fails against modern compilers (its vendored igraph C core trips `-Werror=uninitialized-const-pointer`). The default `--clustering_method leiden` (backed by the core `leidenalg` dependency) is unaffected. Explicitly requesting `--clustering_method louvain` without the extra installed now raises an actionable `ImportError` instead of a bare scanpy stack trace.
+- `bbknn` removed from `environment.yml` entirely: it had the same conda-forge Python-version ceiling as `louvain`, and was never wired into any code path (`conga.preprocess.batch_integration()` only supports `method='harmony'` or `'scvi'` and explicitly rejects `'bbknn'`)
 
 ## [0.2.0] - 2024-12-19
 

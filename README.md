@@ -118,10 +118,11 @@ CoNGA has two separate, unrelated mechanisms that both get called "batch" handli
 
 This is the mechanism that actually corrects gene expression for batch effects. It runs batch-aware highly-variable-gene selection and then corrects the GEX PCA representation using either [Harmony](https://github.com/immunogenomics/harmony) (`method='harmony'`, requires `harmonypy`) or [scVI](https://scvi-tools.org/) (`method='scvi'`, requires `scvi-tools`). The corrected representation is written back into `adata.obsm['X_pca_gex']`, so downstream clustering and neighbor-finding code needs no changes to consume it.
 
-Install the dependencies with:
+Install the dependencies with (from a local clone, see the Installation
+section below -- CoNGA is not published on PyPI):
 
 ```bash
-pip install "conga[batch-integration]"
+pip install -e ".[batch-integration]"
 ```
 
 Use it from `run_conga.py` with the paired flags `--batch_key` and `--batch_integration_method`:
@@ -167,20 +168,22 @@ FAISS (Facebook AI Similarity Search) provides GPU and CPU-optimized vector simi
 
 ## Installation Options
 
-FAISS is an optional dependency with tiered backend selection:
+FAISS is an optional dependency with tiered backend selection. Install it as
+an extra from a local clone (see the Installation section below -- CoNGA is
+not published on PyPI):
 
 ```bash
 # CPU-only performance boost (recommended)
-pip install "conga[performance]"
+pip install -e ".[performance]"
 
 # GPU acceleration (requires CUDA-capable hardware)
-pip install "conga[performance-gpu]"
+pip install -e ".[performance-gpu]"
 
 # All features including FAISS CPU
-pip install "conga[all]"
+pip install -e ".[all]"
 
 # All features including FAISS GPU
-pip install "conga[all-gpu]"
+pip install -e ".[all-gpu]"
 ```
 
 ## Automatic Backend Selection
@@ -273,25 +276,44 @@ are the necessary installation commands from within a notebook environment.
 
 ## Quick Installation (Recommended)
 
-CoNGA uses modern Python packaging with optional dependencies for performance features. CoNGA requires **Python 3.12+**.
+CoNGA uses modern Python packaging with optional dependencies for performance features. CoNGA requires **Python 3.12+**; the full test suite has been run and passes on both **3.12 and 3.14** (3.13 is expected to work based on dependency metadata but has not been directly tested).
+
+CoNGA is not currently published on PyPI, so `pip install conga` will not
+work (and note that an unrelated package named `CONGA` already exists there
+-- PyPI package names are case-insensitive, so that name is taken). Install
+from source instead:
 
 ```bash
-# Create environment (Python 3.12+ required)
-mamba create -n conga_env python=3.12
+# Create environment (Python 3.12, 3.13, or 3.14)
+mamba create -n conga_env python=3.14
 mamba activate conga_env
 
+# Clone the repository
+git clone https://github.com/phbradley/conga.git
+cd conga
+
 # Basic installation
-pip install conga
+pip install -e .
 
 # Performance-optimized (with FAISS CPU)
-pip install "conga[performance]"
+pip install -e ".[performance]"
 
 # Full installation (all optional features)
-pip install "conga[all]"
+pip install -e ".[all]"
 
 # GPU-accelerated (requires CUDA)
-pip install "conga[all-gpu]"
+pip install -e ".[all-gpu]"
 ```
+
+**Note on the legacy `louvain` clustering method:** CoNGA defaults to `leiden`
+clustering (via `leidenalg`, a core dependency with no version restrictions).
+The older `--clustering_method louvain` option is deprecated upstream in
+scanpy and is kept as an optional `conga[legacy-clustering]` extra -- it is
+**only installable on Python 3.12**. The `louvain` package has no
+conda-forge build for Python 3.13+ and fails to compile from source there
+against modern compilers. Most users do not need to think about this at all
+since `leiden` is the default; it only matters if you explicitly pass
+`--clustering_method louvain`.
 
 ## Development Installation
 
@@ -809,7 +831,7 @@ in the `adata.var` array whose name starts with
    * You can override with `--use_kpca_tcrdist` or `--no_kpca` flags
 
 1. How do I enable FAISS acceleration?
-   * Install with `pip install "conga[performance]"` for CPU or `pip install "conga[performance-gpu]"` for GPU
+   * Install with `pip install -e ".[performance]"` for CPU or `pip install -e ".[performance-gpu]"` for GPU (from a local clone -- CoNGA is not published on PyPI)
    * CoNGA will automatically detect and use the best available backend
    * Check the log output to see which backend was selected
    * Force a specific backend with `--use_faiss_gpu`, `--use_faiss_cpu`, or `--disable_faiss`
@@ -817,7 +839,7 @@ in the `adata.var` array whose name starts with
 1. My dataset is taking too much memory, what can I do?
    * For organisms eligible for vectorized TCRdist, CoNGA automatically uses vectorized encoding which reduces memory substantially
    * For large datasets, CoNGA automatically uses exact neighbor calculation to avoid memory issues
-   * Install FAISS for additional memory efficiency: `pip install "conga[performance]"`
+   * Install FAISS for additional memory efficiency: `pip install -e ".[performance]"` (from a local clone)
    * Use `--kpca_reduction_limit` to control when KernelPCA is skipped (default: 20,000)
 
 1. How can I visualize the different batches in my data? Or other discrete/categorical
