@@ -13,6 +13,34 @@ You can download a [zip file](https://www.dropbox.com/s/r7rpsftbtxl89y5/conga_ex
 containing all three datasets. Or access them individually from the 10x website
 at the locations given below.
 
+## Example notebooks
+
+The repository root also includes several Jupyter notebooks walking through
+the `conga` Python API interactively. Their committed source files have no
+embedded outputs (plots, tables), to keep clones of this repository
+lightweight -- rendered versions with the original output intact are hosted
+separately:
+
+* [`simple_tcrdist_example.ipynb`](../simple_tcrdist_example.ipynb)
+  ([rendered](https://sschattgen.github.io/conga/simple_tcrdist_example.html)) --
+  minimal walkthrough of the `TcrDistCalculator` API and the gene reference
+  database; no external datasets required.
+* [`simple_conga_pipeline.ipynb`](../simple_conga_pipeline.ipynb)
+  ([rendered](https://sschattgen.github.io/conga/simple_conga_pipeline.html)) --
+  end-to-end CoNGA run on a single 10x human PBMC dataset.
+* [`fancy_conga_pipeline_with_batches_and_gammadelta_tcrs.ipynb`](../fancy_conga_pipeline_with_batches_and_gammadelta_tcrs.ipynb)
+  ([rendered](https://sschattgen.github.io/conga/fancy_conga_pipeline_with_batches_and_gammadelta_tcrs.html)) --
+  multi-sample batch integration across 22 samples, covering both TCRαβ and
+  TCRγδ lineages.
+* [`colab_conga_pipeline.ipynb`](../colab_conga_pipeline.ipynb) -- meant to be
+  run live on [Google Colab](https://colab.research.google.com/github/phbradley/conga/blob/master/colab_conga_pipeline.ipynb)
+  rather than viewed statically, so no rendered version is hosted for this one.
+
+To regenerate a rendered version yourself after running a notebook:
+```bash
+jupyter nbconvert --to html your_notebook.ipynb
+```
+
 ## Human PBMC dataset
 
 ```

@@ -226,7 +226,9 @@ FAISS backend selection is logged and recorded in analysis outputs for reproduci
 
 Running `conga` on a single-cell dataset is a two- (or more) step process, as outlined below.
 Python scripts are provided in the `scripts/` directory but analysis steps can also be accessed interactively
-in jupyter notebooks (for example, [a simple pipeline](simple_conga_pipeline.ipynb) in the top directory of this repo)
+in jupyter notebooks (for example, [a simple pipeline](simple_conga_pipeline.ipynb) in the top directory of this repo --
+see the [rendered version](https://sschattgen.github.io/conga/simple_conga_pipeline.html) to view its output
+without running it yourself, since the notebook source files in this repo have outputs stripped to keep clones lightweight)
 or in your own python scripts through the interface in the `conga` python package.
 There's also a [google colab notebook](colab_conga_pipeline.ipynb) which you can
 [![open in colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/phbradley/conga/blob/master/colab_conga_pipeline.ipynb) and run. If you want to
