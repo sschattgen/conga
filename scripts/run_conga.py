@@ -331,6 +331,7 @@ matplotlib.use('Agg') # for remote calcs
 import matplotlib.pyplot as plt
 import conga
 from conga import util
+from conga.compatibility import check_environment_compatibility, CompatibilityError
 from conga.preprocess import resolve_tcr_representation, TcrRepresentation
 import scanpy as sc
 import scanpy.neighbors
@@ -338,6 +339,21 @@ from sklearn.metrics import pairwise_distances
 import numpy as np
 import pandas as pd
 from pathlib import Path
+
+# Validate pandas/NumPy/scanpy/anndata environment compatibility before doing
+# any real work. This surfaces clear, actionable errors for incompatible
+# environments (e.g. pandas <3.0 copy-on-write semantics, removed NumPy 2.0
+# legacy dtype aliases) instead of letting the pipeline fail deep inside a
+# multi-minute analysis with a confusing stack trace.
+try:
+    check_environment_compatibility(verbose=True)
+except CompatibilityError as e:
+    sys.stderr.write(f"\nERROR: Incompatible environment detected:\n{e}\n")
+    sys.stderr.write(
+        "See README.md 'Compatibility' section for supported pandas/NumPy/"
+        "Python versions and troubleshooting steps.\n"
+    )
+    sys.exit(1)
 
 start_time = time.time()
 

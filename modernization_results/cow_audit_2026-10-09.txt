@@ -1,0 +1,2655 @@
+Pandas 3.0 Copy-on-Write Pattern Audit Report
+============================================================
+
+Summary:
+  Files with issues: 25
+  Total issues found: 421
+
+Issues by risk level:
+  HIGH: 249
+  MEDIUM: 172
+
+Issues by pattern type:
+  ast_analysis: 119
+  chained_assignment: 300
+  mixed_indexing: 1
+  query_chaining: 1
+
+Detailed Issues:
+----------------------------------------
+
+📁 File: conga/benchmark.py
+  🔴 Line 1261:13 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: iteration_results['backends'][backend] = backend_results
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1261:13 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: iteration_results['backends'][backend] = backend_results
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1323:17 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: scaling_results[data_type][backend] = backend_scaling
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1323:17 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: scaling_results[data_type][backend] = backend_scaling
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1387:29 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: memory_analysis[data_type][backend] = {
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1387:29 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: memory_analysis[data_type][backend] = {
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1478:13 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: recommendations['hardware_specific']['gpu'] = "FAISS-GPU recommended for large datasets with high-end GPU"
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1478:13 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: recommendations['hardware_specific']['gpu'] = "FAISS-GPU recommended for large datasets with high-end GPU"
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1480:13 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: recommendations['hardware_specific']['gpu'] = "FAISS-GPU available but limited GPU memory may cause fallbacks"
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1480:13 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: recommendations['hardware_specific']['gpu'] = "FAISS-GPU available but limited GPU memory may cause fallbacks"
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1482:13 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: recommendations['hardware_specific']['gpu'] = "No FAISS-GPU available, use CPU backends"
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1482:13 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: recommendations['hardware_specific']['gpu'] = "No FAISS-GPU available, use CPU backends"
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1485:13 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: recommendations['hardware_specific']['cpu'] = f"FAISS-CPU available with {hw.cpu_cores} cores"
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1485:13 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: recommendations['hardware_specific']['cpu'] = f"FAISS-CPU available with {hw.cpu_cores} cores"
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1490:13 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: recommendations['dataset_size_specific'][data_type] = {}
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1490:13 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: recommendations['dataset_size_specific'][data_type] = {}
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1506:25 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: recommendations['dataset_size_specific'][data_type][backend] = \
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1509:25 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: recommendations['dataset_size_specific'][data_type][backend] = \
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+
+📁 File: conga/compatibility.py
+  🔴 Line 294:9 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: overall_status['python']['compatible'] = python_compatible
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 294:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: overall_status['python']['compatible'] = python_compatible
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 316:9 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: overall_status['scanpy']['compatible'] = scanpy_compatible
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 316:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: overall_status['scanpy']['compatible'] = scanpy_compatible
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 325:9 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: overall_status['anndata']['compatible'] = anndata_compatible
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 325:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: overall_status['anndata']['compatible'] = anndata_compatible
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+
+📁 File: conga/correlations.py
+  🔴 Line 544:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][table_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 544:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][table_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🟡 Line 652:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs['conga_scores'] = conga_scores
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 653:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs['conga_fdr_values'] = fdr_values
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 686:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][table_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 686:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][table_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🟡 Line 745:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs[rg_tag] = vals
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 840:12 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: assert X.shape[0] == N
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1095:12 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: assert X.shape[1] == len(genes)
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 1391:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][table_tag] = results_df
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1391:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][table_tag] = results_df
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1392:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][table_tag+HELP_SUFFIX] = tcr_graph_help_message
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1392:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][table_tag+HELP_SUFFIX] = tcr_graph_help_message
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1433:15 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][table_tag] = results_df
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1433:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][table_tag] = results_df
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1439:15 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][table_tag+HELP_SUFFIX]=tcr_genes_help_message
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1439:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][table_tag+HELP_SUFFIX]=tcr_genes_help_message
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1483:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][table_tag] = results_df
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1483:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][table_tag] = results_df
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1484:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][table_tag+HELP_SUFFIX] = gex_graph_help_message
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1484:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][table_tag+HELP_SUFFIX] = gex_graph_help_message
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🟡 Line 1661:8 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: if df.shape[0]==0:
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 1799:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][table_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1799:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][table_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+
+📁 File: conga/devel.py
+  🟡 Line 121:12 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: if aclusters.shape[0] == 0:
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 145:16 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: assert acounts.shape[0] == num_a
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 146:16 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: assert bcounts.shape[0] == num_b
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 653:13 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs[rg_tag] = vals
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 752:12 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: if df.shape[0] == 0:
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 879:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs[obs_tag] = [str(x) for x in adata.obs['clusters_gex']]
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 994:8 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: if adata.uns['organism'] == 'human_ig':
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1087:20 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: assert l.feature_type[3:] == '_nbrs_vs_graph'
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 1089:13 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: nbrhood_pvals[tag][l.clone_index] = min(
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1089:13 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: nbrhood_pvals[tag][l.clone_index] = min(
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🟡 Line 1146:16 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: assert l.feature_type[3:] == '_nbrs_vs_graph'
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 1148:9 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: nbrhood_pvals[tag][l.clone_index] = min(
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1148:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: nbrhood_pvals[tag][l.clone_index] = min(
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🟡 Line 1244:32 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: prot_mask = np.array(adata.raw.var[ft_varname] == 'Antibody Capture')
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1273:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_pca'] = X_pca
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1274:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm[f'X_pca_{tag}'] = np.copy(X_pca) # force copy
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1280:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_umap_'+tag] = adata.obsm['X_umap']
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1285:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs['clusters_'+tag] = np.copy(adata.obs[cluster_key_added]).astype(int)
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1286:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_{}_2d'.format(tag)] = adata.obsm['X_umap_'+tag]
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2059:12 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: if results_df.shape[0] == 0:
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2246:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_pca_gex'] = adata.obsm['X_pca']
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2249:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_pca'] = adata.obsm['X_pca_gex']
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2264:8 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: if adata.uns['organism'] == 'human':
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2311:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs[key_added] = cd48s
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2326:29 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: old_cd4_mask = (adata.obs[key_added] == 'cd4')
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2327:29 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: old_cd8_mask = (adata.obs[key_added] == 'cd8')
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2334:13 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs[key_added] = cd48s
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2387:13 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: subset.uns['organism'] = adata.uns['organism']
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 2436:30 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: if len(counts)>1 and counts[0][1] == counts[1][1] and allow_split_clones:
+     Fix: Use df.loc[mask, col] = value instead
+
+  🟡 Line 2498:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns['neighbors'] = {}
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 2499:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['neighbors']['params']={'n_neighbors': num_nbrs, 'method': 'umap'}
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 2499:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['neighbors']['params']={'n_neighbors': num_nbrs, 'method': 'umap'}
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 2500:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['neighbors']['params']['metric'] = 'tcrdist'# fake metric
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 2507:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['neighbors']['distances'] = distances
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 2507:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['neighbors']['distances'] = distances
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 2508:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['neighbors']['connectivities'] = connectivities
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 2508:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['neighbors']['connectivities'] = connectivities
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🟡 Line 2514:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_pca'] = fake_pca
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2519:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm[umap_key_added] = adata.obsm['X_umap']
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2549:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs[cluster_key_added] = np.copy(adata.obs[cluster_key_added]).astype(int)
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2667:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_gex_2d'] = adata.obsm['X_combo_2d']
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2668:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_tcr_2d'] = adata.obsm['X_combo_2d']
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2678:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_gex_2d'] = X_gex_2d_save
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2679:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_tcr_2d'] = X_tcr_2d_save
+     Fix: Use df.loc[mask, "column"] = value instead
+
+
+📁 File: conga/metaconga_match.py
+  🟡 Line 299:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs[obs_tag] = [str(int(x in inds)) for x in range(adata.shape[0])]
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 310:15 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['log1p']['base'] = None
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 310:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['log1p']['base'] = None
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1324:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1324:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1327:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1327:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+
+📁 File: conga/neighbors.py
+  🟡 Line 965:17 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: self._performance_history[perf_key] = {
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2066:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns[util.UNS_KEY_BACKEND_CONFIG] = json_config
+     Fix: Use df.loc[mask, "column"] = value instead
+
+
+📁 File: conga/plotting.py
+  🟡 Line 493:12 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: if lit_matches.shape[0]==0:
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1497:12 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: assert xy.shape[1] == 2
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1544:8 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: if results_df.shape[0] == 0: # no results to plot
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 1834:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1834:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1837:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1837:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🟡 Line 1862:8 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: if results.shape[0]==0:
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1869:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: results.loc[missing_epitope,'db_epitope'] = results.db_epitope_gene[missing_epitope]
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1872:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: results.loc[missing_epitope, 'db_epitope'] = 'UNKNOWN'
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 1907:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1907:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1910:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1910:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🟡 Line 2019:16 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: assert batch_freqs.shape[0] == num_clones
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2253:16 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: assert nbrs.shape[0] == adata.shape[0]
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2394:30 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: np.array(adata.obs['clusters_gex']==num)).astype(float)
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2398:30 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: np.array(adata.obs['clusters_tcr']==num)).astype(float)
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2429:8 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: if results_df.shape[0]==0:
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2452:20 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: assert nbrs.shape[0] == adata.shape[0]
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 3177:19 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3177:13 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3178:19 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3178:13 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3357:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3357:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3440:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3440:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3505:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3505:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3506:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3506:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3538:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['num_gvg_hit_clonotypes'] = np.sum(good_mask)
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3538:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['num_gvg_hit_clonotypes'] = np.sum(good_mask)
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3539:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['num_gvg_hit_biclusters'] = num_good_biclusters
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3539:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['num_gvg_hit_biclusters'] = num_good_biclusters
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3583:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3583:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3584:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3584:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3692:19 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3692:13 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3693:19 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3693:13 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3704:15 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3704:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3705:15 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3705:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3715:15 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3715:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3716:15 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3716:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3733:15 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3733:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3734:15 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3734:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3751:15 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3751:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3752:15 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3752:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3762:15 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3762:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3763:15 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3763:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3833:27 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3833:21 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3834:27 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = (
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3834:21 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = (
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3894:27 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3894:21 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag] = pngfile
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3895:27 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = (
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3895:21 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][figure_tag+HELP_SUFFIX] = (
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+
+📁 File: conga/pmhc_scoring.py
+  🟡 Line 24:25 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: ab_capture_mask = ( raw.var[ util.get_feature_types_varname( adata )] == 'Antibody Capture' )
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 38:25 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: ab_capture_mask = ( raw.var[ util.get_feature_types_varname( adata )] == 'Antibody Capture' )
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 329:12 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: assert X_pmhc.shape[0] == N
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 417:12 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: assert X_pmhc.shape[0] == N
+     Fix: Use df.loc[mask, "column"] = value instead
+
+
+📁 File: conga/preprocess.py
+  🟡 Line 51:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns[ 'raw_matrix_is_logged' ] = True
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 74:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs[key_added] = (np.array(is_mait) | np.array(is_inkt))
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 110:29 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: ngenes = sum( adata.raw.var[ft_varname] == util.GENE_EXPRESSION_FEATURE_TYPE)
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 113:32 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: ngenes = sum(adata.raw.var[ft_varname] == top_type)
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 189:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs[tag] = [x[i][j] for x in tcrs ]
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 192:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs['cdr3a_nucseq'] = adata.obs.cdr3a_nucseq.str.lower()
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 193:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs['cdr3b_nucseq'] = adata.obs.cdr3b_nucseq.str.lower()
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 276:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['num_cells_w_gex'] = adata.shape[0]
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 276:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['num_cells_w_gex'] = adata.shape[0]
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 277:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['num_features_start'] = adata.shape[1]
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 277:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['num_features_start'] = adata.shape[1]
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 319:15 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['num_cells_w_tcr'] = adata.shape[0]
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 319:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['num_cells_w_tcr'] = adata.shape[0]
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 420:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['num_cells_w_tcr'] = adata.shape[0]
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 420:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['num_cells_w_tcr'] = adata.shape[0]
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🟡 Line 427:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_pca_tcr'] = X_kpca
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 485:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['min_genes_per_cell'] = min_genes_per_cell
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 485:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['min_genes_per_cell'] = min_genes_per_cell
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 486:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['max_genes_per_cell'] = max_genes_per_cell
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 486:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['max_genes_per_cell'] = max_genes_per_cell
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 487:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['max_percent_mito'] = max_percent_mito
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 487:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['max_percent_mito'] = max_percent_mito
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🟡 Line 498:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns['pmhc_var_names'] = new_pmhcs
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 508:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs['percent_mito'] = (np.sum(adata[:, mito_genesA].X, axis=1).A1 /
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 510:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs['n_counts'] = adata.X.sum(axis=1).A1
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 538:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['num_filt_max_genes_per_cell'] = num_filt
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 538:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['num_filt_max_genes_per_cell'] = num_filt
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 544:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['num_filt_max_percent_mito'] = num_filt
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 544:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['num_filt_max_percent_mito'] = num_filt
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🟡 Line 550:17 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: mask = (adata.var[feature_types_colname] ==
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 553:15 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['num_antibody_features'] = np.sum(mask)
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 553:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['num_antibody_features'] = np.sum(mask)
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🟡 Line 572:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.layers['counts'] = adata.raw.X[:, ~np.asarray(mask)].copy()
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 574:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.layers['counts'] = adata.raw.X.copy()
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 618:15 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['fixed_hvg_list_size'] = \
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 618:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['fixed_hvg_list_size'] = \
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 625:15 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['fixed_hvg_list_size'] = int(np.sum(hvg_mask))
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 625:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['fixed_hvg_list_size'] = int(np.sum(hvg_mask))
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🟡 Line 639:13 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs[tmp_key] = adata.obs[hvg_batch_key].astype('category')
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 671:15 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['num_TR_genes'] = num_tr
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 671:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['num_TR_genes'] = num_tr
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 672:15 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['num_TR_genes_in_hvg_set'] = num_variable_tr
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 672:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['num_TR_genes_in_hvg_set'] = num_variable_tr
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 683:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['num_highly_variable_genes'] = adata.shape[1]
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 683:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['num_highly_variable_genes'] = adata.shape[1]
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 685:15 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['fixed_hvg_mask_size'] = adata.shape[1]
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 685:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['fixed_hvg_mask_size'] = adata.shape[1]
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 686:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['num_cells_after_filtering'] = adata.shape[0]
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 686:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['num_cells_after_filtering'] = adata.shape[0]
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🟡 Line 743:6 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: `adata.obs['n_counts'] = adata.X.sum(axis=1).A1` and the mitochondrial
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 861:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm[util.OBSM_KEY_PCA_GEX_UNINTEGRATED] = adata.obsm['X_pca'].copy()
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 873:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm[util.OBSM_KEY_PCA_GEX_INTEGRATED] = latent
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 874:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_pca_gex'] = adata.obsm[util.OBSM_KEY_PCA_GEX_INTEGRATED]
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 877:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns[util.UNS_KEY_BATCH_INTEGRATION_CONFIG] = {
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 956:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm[util.OBSM_KEY_PCA_GEX_UNINTEGRATED] = adata.obsm['X_pca'].copy()
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 959:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs[tmp_key] = adata.obs[batch_key].astype('category')
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 974:8 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: if z_corr.shape[0] == n_cells:
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 976:10 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: elif z_corr.shape[1] == n_cells:
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 984:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm[util.OBSM_KEY_PCA_GEX_INTEGRATED] = integrated
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 987:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_pca_gex'] = adata.obsm[util.OBSM_KEY_PCA_GEX_INTEGRATED]
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 990:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns[util.UNS_KEY_BATCH_INTEGRATION_CONFIG] = {
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1149:32 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: prot_mask = np.array(adata.raw.var[ft_varname] == 'Antibody Capture')
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1181:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_pca_gex_only'] = X_pca_gex
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1182:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_pca_gex'] = X_pca_combo
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1183:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_pca_prot_only'] = X_pca_prot
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1225:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_pca_gex'] = adata.obsm['X_pca']
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1273:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_pca'] = adata.obsm[obsm_key]
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1280:13 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_tsne_'+tag] = adata.obsm['X_tsne']
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1283:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_umap_'+tag] = adata.obsm['X_umap']
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1288:17 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm[f'X_{tag}_1d'] = adata.obsm['X_umap']
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1329:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs['clusters_'+tag] = np.copy(adata.obs[cluster_key_added]).astype(int)
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1330:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_{}_2d'.format(tag)] = adata.obsm['X_umap_'+tag]
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1372:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.layers['scaled'] = sc.pp.scale(adata, max_value=10, copy=True).X
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 1415:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['num_clonotypes'] = num_clones
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1415:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['num_clonotypes'] = num_clones
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🟡 Line 1486:20 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: assert X_pca_clone.shape[0] == clone_size
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1501:17 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.X[rep_cell_index,:] = adata.X[clone_cells,:].sum(axis=0)/clone_size
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1509:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs['clone_sizes'] = np.array( clone_sizes )
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1510:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs['gex_variation'] = np.sqrt(np.array( gex_var ))
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 1511:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['max_clonotype_size'] = np.max(clone_sizes)
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1511:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['max_clonotype_size'] = np.max(clone_sizes)
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1512:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['num_singleton_clonotypes'] = clone_sizes.count(1)
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1512:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['num_singleton_clonotypes'] = clone_sizes.count(1)
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🟡 Line 1534:13 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm[k] = counts
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1540:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_pmhc'] = new_X_pmhc
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1586:12 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: assert D.shape[0] == batch_size
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 2421:17 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: all_nbrs[nbr_frac][itag] = gex_nbrs[nbr_frac]
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 2421:17 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: all_nbrs[nbr_frac][itag] = gex_nbrs[nbr_frac]
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 2448:21 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: all_nbrs[nbr_frac][itag] = tcr_nbrs[nbr_frac]
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 2448:21 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: all_nbrs[nbr_frac][itag] = tcr_nbrs[nbr_frac]
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 2466:21 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: all_nbrs[nbr_frac][itag] = nbrs
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 2466:21 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: all_nbrs[nbr_frac][itag] = nbrs
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 2697:17 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: all_nbrs[nbr_frac][b_start:b_stop,:] = knn_indices[ar,inds]
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 2697:17 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: all_nbrs[nbr_frac][b_start:b_stop,:] = knn_indices[ar,inds]
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🟡 Line 2767:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns['clusters_tcr_names'] = names
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 3134:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns['neighbors'] = {}
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 3135:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['neighbors']['params']={'n_neighbors': num_nbrs, 'method': 'umap'}
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3135:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['neighbors']['params']={'n_neighbors': num_nbrs, 'method': 'umap'}
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3136:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['neighbors']['params']['metric'] = 'tcrdist'# fake metric
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3143:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['neighbors']['distances'] = distances
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3143:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['neighbors']['distances'] = distances
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3144:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['neighbors']['connectivities'] = connectivities
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3144:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['neighbors']['connectivities'] = connectivities
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3145:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['neighbors']['distances_key'] = 'distances'
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3145:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['neighbors']['distances_key'] = 'distances'
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 3146:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['neighbors']['connectivities_key'] = 'connectivities'
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3146:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['neighbors']['connectivities_key'] = 'connectivities'
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🟡 Line 3149:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsp['distances'] = distances
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 3150:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsp['connectivities'] = connectivities
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 3159:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_pca'] = fake_pca
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 3164:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm[umap_key_added] = adata.obsm['X_umap']
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 3170:13 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm[umap_1d_key_added] = adata.obsm['X_umap']
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 3213:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs[cluster_key_added] = np.copy(adata.obs[cluster_key_added]).astype(int)
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 3357:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm[f'X_pca_{tag}'] = X_kpca
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 3464:13 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm[f'X_pca_{tag}'] = X_kpca
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 3535:12 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: assert adata.uns['organism'] == 'human'
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 3606:13 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm[obsm_key] = nbrs
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 3630:13 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: all_nbrs[nbr_frac][ expected_tags.index(tag) ] = adata.obsm[k]
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 3630:13 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: all_nbrs[nbr_frac][ expected_tags.index(tag) ] = adata.obsm[k]
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🟡 Line 3932:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm[obsm_key] = vector_matrix
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 3937:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns[util.UNS_KEY_VEC_TCR_CONFIG] = config_dict
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 3977:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns[util.UNS_KEY_ACTIVE_TCR_REP] = active_representation
+     Fix: Use df.loc[mask, "column"] = value instead
+
+
+📁 File: conga/tcr_clumping.py
+  🟡 Line 354:8 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: if results_df.shape[0] == 0:
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 494:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs['tcr_clumping_pvalues'] = tcr_clumping_pvalues
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 528:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][TCR_CLUMPING+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 528:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][TCR_CLUMPING+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🟡 Line 676:12 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: assert raw_pvalues_sorted.shape[0] == num_comparisons #BIG
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 843:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_results'][table_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 843:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_results'][table_tag+HELP_SUFFIX] = help_message
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🟡 Line 868:12 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: if adata.uns['organism'] == 'human':
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 870:14 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: elif adata.uns['organism'] == 'mouse':
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 905:34 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: clone_bc = adata.obs.index[adata.obs[chain] == row.loc[chain] ].to_list()
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 906:35 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: clone_gex = adata.obs.clusters_gex[adata.obs[chain] == row.loc[chain] ].astype(str).unique().tolist()
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 907:35 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: clone_tcr = adata.obs.clusters_tcr[adata.obs[chain] == row.loc[chain] ].astype(str).unique().tolist()
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 913:13 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: matched_dfs[i][f'{chain}_match_UMI'] = clones
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 913:13 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: matched_dfs[i][f'{chain}_match_UMI'] = clones
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 914:13 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: matched_dfs[i][f'{chain}_match_gex_clusters'] = gex_clusters
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 914:13 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: matched_dfs[i][f'{chain}_match_gex_clusters'] = gex_clusters
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 915:13 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: matched_dfs[i][f'{chain}_match_tcr_clusters'] = tcr_clusters
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 915:13 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: matched_dfs[i][f'{chain}_match_tcr_clusters'] = tcr_clusters
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+
+📁 File: conga/tcr_scoring.py
+  🔴 Line 51:9 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: all_scorevals['A'][tag] = {}
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 51:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: all_scorevals['A'][tag] = {}
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 52:9 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: all_scorevals['B'][tag] = {}
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 52:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: all_scorevals['B'][tag] = {}
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 84:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: all_scorevals[ab][tag][key] = l2e
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 186:36 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: ''' returns  all_locus_order:  all_locus_order[ab][gene] = int(l[1])
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 202:13 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: all_locus_order[ab][gene] = int(l[1])
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 202:13 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: all_locus_order[ab][gene] = int(l[1])
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 345:45 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: cols.append( [float(x[i_ab][i_vj]==name) for x in tcrs])
+     Fix: Use df.loc[mask, col] = value instead
+
+
+📁 File: conga/tcrdist/all_genes.py
+  🔴 Line 55:5 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: all_genes[g.organism][g.id] = g
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 55:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: all_genes[g.organism][g.id] = g
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 274:46 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: g.count_rep = count_rep #allele2mm1_rep_gene_for_counting[ organism ][ allele] = count_rep
+     Fix: Use df.loc[mask, col] = value instead
+
+
+📁 File: conga/tcrdist/make_10x_clones_file.py
+  🔴 Line 246:21 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: clonotype2tcrs[id][ab][ tcr_chain ] = umis
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 592:20 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: assert pt[0][1] == pt[1][1] # same beta chain
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 670:16 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: if tcrs['A'][a1] == tcrs['A'][a2]:
+     Fix: Use df.loc[mask, col] = value instead
+
+
+📁 File: conga/tcrdist/make_really_tall_trees.py
+  🟡 Line 130:16 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: assert extra_tcr_labels_df.shape[0] == N
+     Fix: Use df.loc[mask, "column"] = value instead
+
+
+📁 File: conga/tcrdist/make_tcr_logo.py
+  🔴 Line 408:13 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: all_dists[i][j] = dist
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 408:13 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: all_dists[i][j] = dist
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 409:13 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: all_dists[j][i] = dist
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 409:13 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: all_dists[j][i] = dist
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+
+📁 File: conga/tcrdist/tcr_distances.py
+  🔴 Line 176:17 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: rep_dists[r1][r2] = WEIGHT_V_REGION * \
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 176:17 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: rep_dists[r1][r2] = WEIGHT_V_REGION * \
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 211:7 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: * tcr1[0][0] = V-alpha gene
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 212:7 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: * tcr1[0][2] = CDR3-alpha
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 213:7 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: * tcr1[1][0] = V-beta gene
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 214:7 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: * tcr1[1][2] = CDR3-beta
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 228:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: * tcr1[0][0] = V-alpha gene
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 229:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: * tcr1[0][2] = CDR3-alpha
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 230:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: * tcr1[1][0] = V-beta gene
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 231:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: * tcr1[1][2] = CDR3-beta
+     Fix: Use df.loc[mask, col] = value instead
+
+
+📁 File: conga/tcrdist/util.py
+  🔴 Line 153:19 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: #                 allele2mm1_rep_gene_for_counting[ organism ][ allele] = count_rep
+     Fix: Use df.loc[mask, col] = value instead
+
+
+📁 File: conga/tcrdist/vectorized.py
+  🟡 Line 1587:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm[util.OBSM_KEY_VEC_TCR] = vector_matrix
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1592:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns[util.UNS_KEY_VEC_TCR_CONFIG] = config_dict
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1653:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns[util.UNS_KEY_ACTIVE_TCR_REP] = active_representation
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1762:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns[util.UNS_KEY_ACTIVE_TCR_REP] = active_representation
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2486:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm[util.OBSM_KEY_VEC_TCR] = vector_matrix
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2493:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns[util.UNS_KEY_VEC_TCR_CONFIG] = config_dict
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2573:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: >>> matrix.shape[0] == adata.n_obs  # Row count matches
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2583:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: >>> matrix.shape[1] == expected_length  # Dimensions consistent
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 2752:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: >>> adata.obsm['X_pca_tcr'] = np.random.randn(adata.n_obs, 50)
+     Fix: Use df.loc[mask, "column"] = value instead
+
+
+📁 File: conga/util.py
+  🟡 Line 205:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns[UNS_KEY_ACTIVE_TCR_REP] = representation
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 310:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns['conga_results'] = {}
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 313:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns['conga_stats'] = {}
+     Fix: Use df.loc[mask, "column"] = value instead
+
+
+📁 File: scripts/audit_cow_patterns.py
+  🔴 Line 86:50 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: # Pattern 1: Classic chained assignment (df[col][mask] = value)
+     Fix: Use df.loc[mask, col] = value instead
+
+  🟡 Line 92:36 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: 'suggestion': 'Use df.loc[mask, col] = value instead'
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 98:36 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: 'suggestion': 'Use df.loc[mask, "column"] = value instead'
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 102:38 - HIGH
+     Pattern: query_chaining
+     Issue: Assignment after query() operation
+     Code: # Pattern 2: Query chaining (df.query(...)[col] = value)
+     Fix: Use mask = df.query(...).index; df.loc[mask, col] = value
+
+  🟡 Line 108:64 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: 'suggestion': 'Use mask = df.query(...).index; df.loc[mask, col] = value'
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 128:38 - MEDIUM
+     Pattern: mixed_indexing
+     Issue: Mixed boolean indexing with loc
+     Code: # Pattern 4: Mixed indexing (df[mask].loc[:, col] = value)
+     Fix: Combine conditions: df.loc[mask & condition, col] = value
+
+  🟡 Line 134:52 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: 'suggestion': 'Combine conditions: df.loc[mask & condition, col] = value'
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 262:34 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: 'Use df.loc[row_indexer, col_indexer] = value'
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 425:9 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: report_data['summary']['risk_level_counts'] = risk_counts
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 425:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: report_data['summary']['risk_level_counts'] = risk_counts
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 426:9 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: report_data['summary']['pattern_type_counts'] = pattern_counts
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 426:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: report_data['summary']['pattern_type_counts'] = pattern_counts
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 430:13 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: report_data['files'][file_path] = [issue.to_dict() for issue in issues]
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 430:13 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: report_data['files'][file_path] = [issue.to_dict() for issue in issues]
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+
+📁 File: scripts/merge_samples.py
+  🟡 Line 46:13 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: args.__dict__[k] = v
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 94:13 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs[k] = np.array([val]*adata.shape[0])
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 107:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs['batch_gex_data'] = row.gex_data
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 108:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs['batch_clones_file'] = row.clones_file
+     Fix: Use df.loc[mask, "column"] = value instead
+
+
+📁 File: scripts/modernize_numpy_dtypes.py
+  🟡 Line 141:13 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: self.compiled_patterns[name] = {
+     Fix: Use df.loc[mask, "column"] = value instead
+
+
+📁 File: scripts/run_conga.py
+  🟡 Line 316:13 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: args.__dict__[k] = v
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 644:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_pca_tcr'] = kpcs
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 648:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns['organism'] = args.organism
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 676:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns['batch_keys'] = args.batch_keys
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 685:13 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns['batch_keys'] = new_batch_keys
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 699:13 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs[k] = vals
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 783:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns['force_variable_genes'] = force_genes
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 878:16 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: assert X_tcr.shape[0] == adata.shape[0]
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 880:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm[tcr_obsm_key] = X_tcr[reorder,:]
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 903:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns['organism'] = args.organism
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 984:16 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: assert X_tcr.shape[0] == adata.shape[0]
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 986:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm[tcr_obsm_key] = X_tcr[reorder,:]
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 987:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs['clusters_tcr'] = np.array(adata.obs['clusters_tcr'])[reorder]
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 988:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obsm['X_tcr_2d'] = np.array(adata.obsm['X_tcr_2d'])[reorder,:]
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1001:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns['batch_keys'] = [adata.uns['batch_keys']]
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🔴 Line 1098:7 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['active_tcr_representation'] = tcr_representation.active
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1098:1 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['active_tcr_representation'] = tcr_representation.active
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1099:7 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['tcr_selection_reason'] = tcr_representation.reason
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1099:1 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['tcr_selection_reason'] = tcr_representation.reason
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1100:7 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['kpca_reduction_limit'] = args.kpca_reduction_limit
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1100:1 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['kpca_reduction_limit'] = args.kpca_reduction_limit
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1101:7 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['num_observations'] = adata.shape[0]
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1101:1 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['num_observations'] = adata.shape[0]
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1106:15 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['encoding_config'] = encoding_config.as_uns_dict()
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1106:9 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['encoding_config'] = encoding_config.as_uns_dict()
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1109:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['used_kpca_representation'] = True
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1109:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['used_kpca_representation'] = True
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1112:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['used_exact_tcrdist'] = True
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1112:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['used_exact_tcrdist'] = True
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1113:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['tcrdist_cpp_available'] = util.tcrdist_cpp_available()
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1113:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['tcrdist_cpp_available'] = util.tcrdist_cpp_available()
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1114:11 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['exact_path_by_override'] = (
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1114:5 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['exact_path_by_override'] = (
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🔴 Line 1171:7 - HIGH
+     Pattern: chained_assignment
+     Issue: Chained assignment with double indexing
+     Code: adata.uns['conga_stats']['nbr_frac_for_nndists'] = nbr_frac_for_nndists
+     Fix: Use df.loc[mask, col] = value instead
+
+  🔴 Line 1171:1 - HIGH
+     Pattern: ast_analysis
+     Issue: AST detected chained subscript assignment
+     Code: adata.uns['conga_stats']['nbr_frac_for_nndists'] = nbr_frac_for_nndists
+     Fix: Use df.loc[row_indexer, col_indexer] = value
+
+  🟡 Line 1200:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs['N_ins'] = num_inserts
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1222:1 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs['nndists_gex'] = nndists_gex
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1223:1 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.obs['nndists_tcr'] = nndists_tcr
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1244:35 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: (args.tcr_database_tsvfile or adata.uns['organism'] == 'human')):
+     Fix: Use df.loc[mask, "column"] = value instead
+
+  🟡 Line 1558:5 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns['conga_results'] = save
+     Fix: Use df.loc[mask, "column"] = value instead
+
+
+📁 File: scripts/setup_10x_for_conga.py
+  🟡 Line 88:13 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: args.__dict__[k] = v
+     Fix: Use df.loc[mask, "column"] = value instead
+
+
+📁 File: scripts/test_all_plotting_functions.py
+  🟡 Line 99:9 - MEDIUM
+     Pattern: chained_assignment
+     Issue: Column selection followed by indexing assignment
+     Code: adata.uns['organism'] = args.organism
+     Fix: Use df.loc[mask, "column"] = value instead
+
+
+============================================================
+MANUAL REVIEW / ANALYSIS (added 2026-10-09)
+============================================================
+
+The raw tool output above reports 421 "potential CoW issues" across 25
+files (249 HIGH, 172 MEDIUM). Manual review of every distinct code pattern
+in this report found ZERO genuine pandas copy-on-write risks. The detector
+pattern-matches generic `x[a][b] = value` / `x[a] = value` syntax without
+checking whether `x` is actually a pandas DataFrame, which produces a very
+high false-positive rate on this codebase. Specifically:
+
+1. The large majority of "chained_assignment" and "ast_analysis" hits are
+   subscript assignment into plain Python dicts or AnnData's `.uns`
+   container, e.g.:
+     adata.uns['conga_results'][table_tag] = results_df
+     overall_status['python']['compatible'] = python_compatible
+     recommendations['hardware_specific']['gpu'] = "..."
+   None of these are DataFrames. `adata.uns` is a dict-like container;
+   assigning into nested dict/dict or dict/list structures is unaffected
+   by pandas CoW semantics.
+
+2. Several hits are plain dict- or list-indexed references to DataFrames
+   the function owns outright (not a view/slice of another DataFrame),
+   e.g. conga/tcr_clumping.py:913-915:
+     matched_dfs[i][f'{chain}_match_UMI'] = clones
+   `matched_dfs[i]` is `matched_dfs.append(db_tcrs_df[...].copy())` from
+   line 893 -- a DataFrame the function copied and owns. Single-level
+   column assignment on an owned DataFrame via list/dict indirection is
+   CoW-safe; it is equivalent to `df = matched_dfs[i]; df[col] = value`.
+
+3. The "query_chaining" and "mixed_indexing" pattern-type hits (lines
+   102 and 128 of the audit report) are matches against comments inside
+   scripts/audit_cow_patterns.py's OWN source code
+   (`# Pattern 2: Query chaining (df.query(...)[col] = value)`), i.e. the
+   tool flagged its own docstrings/comments as issues. The tool's exclude
+   list does not exclude itself.
+
+4. The one hit that references real `.loc`-based assignment,
+   conga/plotting.py:1868-1872 (`results.loc[missing_epitope,'db_epitope']
+   = ...`), is ALREADY using the correct, CoW-safe `.loc[mask, col]`
+   pattern that the tool itself recommends as the fix. It was flagged only
+   because the tool's own "suggested fix" string in its report matched a
+   search pattern, not because the code is unsafe.
+
+No instance of the genuinely risky pattern this task targets --
+`df[col][mask] = value` chained assignment on an actual pandas DataFrame
+that silently no-ops under unconditional CoW -- was found anywhere in
+conga/ or scripts/.
+
+CONCLUSION: Task 4 (pandas 3.0 copy-on-write compliance) -- the specific
+chained-assignment risk this audit targets -- is VERIFIED CLEAN for
+conga/preprocess.py and conga/tcrdist/*.py (the modules task 4.1/4.2 call
+out), and no genuine instance exists elsewhere in the package either.
+audit_cow_patterns.py itself needs a precision improvement (track variable
+provenance / only flag when the base is demonstrably DataFrame-typed, and
+exclude its own source file) before its output is usable as a pass/fail
+gate; as currently written, every one of its 421 flags is a false positive
+on this codebase, so no code changes were made as a result of running it.
+inplace=True call sites are reviewed separately (see task 4.4 writeup).

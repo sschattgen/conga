@@ -112,7 +112,13 @@ def main():
         'info',
         help='Show CoNGA installation info'
     )
-    
+
+    # Check command (pandas 3.0 / NumPy 2.0 compatibility validation)
+    check_parser = subparsers.add_parser(
+        'check',
+        help='Validate pandas/NumPy/scanpy/anndata environment compatibility'
+    )
+
     args = parser.parse_args()
     
     if args.command is None:
@@ -126,8 +132,23 @@ def main():
         return run_analysis(args)
     elif args.command == 'info':
         return show_info()
+    elif args.command == 'check':
+        return run_compatibility_check()
     
     return 0
+
+
+def run_compatibility_check():
+    """Run the pandas 3.0 / NumPy 2.0 compatibility check and report results."""
+    from conga.compatibility import check_environment_compatibility, CompatibilityError
+
+    try:
+        status = check_environment_compatibility(verbose=True)
+    except CompatibilityError as e:
+        print(f"\nERROR: {e}", file=sys.stderr)
+        return 1
+
+    return 0 if status.get('compatible', False) else 1
 
 
 def run_setup(args):

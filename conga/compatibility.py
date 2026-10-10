@@ -159,31 +159,26 @@ def check_pandas_compatibility() -> Dict[str, Any]:
     status['compatible'] = compatible
     
     if compatible:
-        # Enable copy-on-write if available (pandas 3.0+)
+        # Report copy-on-write status. In pandas 3.0+, CoW is unconditional
+        # and the `mode.copy_on_write` option is a no-op kept only for
+        # backward compatibility (removed entirely in pandas 4.0); setting
+        # it emits a Pandas4Warning (a DeprecationWarning subclass, not a
+        # FutureWarning) under 3.0.6+. We therefore only *set* the option
+        # for pre-3.0 pandas, where it still has an effect, and otherwise
+        # just report the (always-on) CoW status without touching the
+        # option -- avoiding both the no-op write and its warning.
         try:
-            if hasattr(pd.options.mode, 'copy_on_write'):
-                # Check if we're using pandas 3.x where copy_on_write can still be set
-                pandas_ver = version.parse(PANDAS_VERSION)
-                if pandas_ver >= version.parse("3.0.0") and pandas_ver < version.parse("4.0.0"):
-                    # In pandas 3.x, try to enable CoW but handle deprecation warnings
-                    import warnings
-                    with warnings.catch_warnings():
-                        warnings.filterwarnings("ignore", category=FutureWarning, message=".*copy_on_write.*")
-                        try:
-                            pd.options.mode.copy_on_write = True
-                            status['cow_enabled'] = True
-                        except Exception:
-                            pass  # Setting may fail in some pandas versions
-                elif pandas_ver >= version.parse("4.0.0"):
-                    # In pandas 4.0+, CoW is always enabled
-                    status['cow_enabled'] = True
-                else:
-                    # Pre-3.0 pandas
-                    pd.options.mode.copy_on_write = True
-                    status['cow_enabled'] = True
-                    
-                if status['cow_enabled']:
-                    status['warnings'].append("Copy-on-write enabled for pandas 3.0+ compatibility")
+            pandas_ver = version.parse(PANDAS_VERSION)
+            if pandas_ver >= version.parse("3.0.0"):
+                # CoW is unconditional; nothing to enable.
+                status['cow_enabled'] = True
+            elif hasattr(pd.options.mode, 'copy_on_write'):
+                # Pre-3.0 pandas: CoW is opt-in, so actually enable it.
+                pd.options.mode.copy_on_write = True
+                status['cow_enabled'] = True
+
+            if status['cow_enabled']:
+                status['warnings'].append("Copy-on-write enabled for pandas 3.0+ compatibility")
         except Exception as e:
             status['warnings'].append(f"Could not configure copy-on-write: {e}")
             

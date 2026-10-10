@@ -37,6 +37,7 @@ the next few months. Questions and requests can be directed to `pbradley` at `fr
 * [FAISS Acceleration](#faiss-acceleration)
 * [Running](#running)
 * [Installation](#installation)
+* [Compatibility](#compatibility)
 * [Migrating Seurat data to CoNGA](#migrating-seurat-data-to-conga)
 * [Merging multiple datasets for CoNGA analysis](#merging-multiple-datasets-into-a-single-object-for-conga-analysis)
 * [Updates](#updates)
@@ -391,6 +392,102 @@ This historical environment predates the Python 3.12+ requirement and will not w
 5. Ensure you have a tool for SVG to PNG conversion available.
 
 See the section below on SVG to PNG conversion for more details.
+
+# Compatibility
+
+CoNGA requires **pandas 3.0+** and **NumPy 2.0+** (pulled in automatically
+by `pip install -e .` / `mamba env create -f environment.yml`). These are
+major-version bumps with real runtime behavior changes, not just API
+renames, so this section exists to document what changed and how to tell
+if your environment is affected.
+
+## Why this matters
+
+* **pandas 3.0** makes copy-on-write (CoW) unconditional. Code written
+  against pre-3.0 pandas that relied on chained assignment
+  (`df[col][mask] = value`) to mutate a DataFrame in place will now
+  silently do nothing instead of raising -- the kind of bug that passes
+  code review and fails quietly on real data.
+* **NumPy 2.0** removes legacy dtype aliases (`np.float_`, `np.int_`,
+  `np.bool_`, `np.object_`) outright rather than deprecating them, and
+  changes mixed int/float casting behavior under
+  [NEP 50](https://numpy.org/neps/nep-0050-scalar-promotion.html).
+
+CoNGA's own code (`conga/`) has been audited for both of these: no legacy
+NumPy aliases or `numpy.core` imports remain anywhere in the package, and
+every `inplace=True` call site and chained-subscript pattern has been
+reviewed for CoW safety. The full pipeline (`--graph_vs_graph`,
+`--tcr_clumping`, `--graph_vs_features`, `--all`, across all three TCR
+representation paths) has been run end-to-end against pandas 3.0.6 /
+NumPy 2.5.3 with zero pandas/NumPy deprecation warnings.
+
+## Checking your environment
+
+Both `run_conga.py` and `setup_10x_for_conga.py` run a compatibility check
+automatically at startup and print a short report:
+
+```
+CoNGA Environment Compatibility Check
+========================================
+Overall Status: ✅ COMPATIBLE
+Core Dependencies:
+  ✅ Python: 3.14.8
+  ✅ pandas: 3.0.6
+  ✅ numpy: 2.5.3
+Optional Dependencies:
+  ✅ scanpy: 1.12.4
+  ✅ anndata: 0.13.4
+```
+
+If your environment has an incompatible pandas/NumPy/Python version, the
+script exits immediately with a clear error message instead of failing
+deep inside a multi-minute analysis. You can also run the check on its own
+at any time:
+
+```bash
+conga check
+```
+
+or from Python:
+
+```python
+from conga.compatibility import check_environment_compatibility
+check_environment_compatibility()
+```
+
+## Troubleshooting
+
+* **`CompatibilityError` at startup** -- your environment has a Python,
+  pandas, or NumPy version below CoNGA's minimum. Recreate the environment
+  with `mamba env create -f environment.yml` (development) or
+  `pip install -e .` in a fresh `python>=3.12` virtualenv (see
+  Installation above) rather than patching versions individually.
+* **`AttributeError: module 'numpy' has no attribute 'float_'` (or
+  `int_`/`bool_`/`object_`)** in your *own* downstream scripts that call
+  into `conga` -- this means your script, not CoNGA, still uses a removed
+  NumPy 2.0 legacy alias. Replace `np.float_` with `np.float64`,
+  `np.int_` with `np.int64`, `np.bool_` with `bool`, `np.object_` with
+  `object`.
+* **A value you assigned via chained indexing
+  (`df[col][mask] = value`) doesn't seem to take effect** -- this is the
+  classic pandas 3.0 CoW silent-no-op failure mode. Use
+  `df.loc[mask, col] = value` instead. This pattern has been audited out
+  of `conga/` itself, but it's worth checking your own analysis scripts if
+  you see stale values after what looks like a successful assignment.
+* **Unexpected dtype after a mixed int/float NumPy operation** -- NEP 50
+  changed numeric promotion rules in NumPy 2.0. Make casts explicit with
+  `.astype(np.float64)` (or the dtype you intend) rather than relying on
+  implicit upcasting.
+* **Warnings about `mode.copy_on_write`** -- pandas 4.0 will remove the
+  `pd.options.mode.copy_on_write` setting entirely (CoW is permanently on
+  from 3.0 forward). CoNGA's `conga/compatibility.py` already accounts for
+  this; if you see this warning from your own code, it's safe to delete
+  the option-setting line, since it has no effect under pandas 3.0+.
+* **Need the exact dependency versions this was validated against?** See
+  `modernization_results/` in the repository for dated audit reports (CoW
+  pattern audit, NumPy legacy alias scan, `inplace=True` review, and a full
+  workflow-matrix run log) from the pandas 3.0/NumPy 2.0 compatibility
+  validation pass.
 
 # Migrating Seurat data to CoNGA
 We recommend using the write10XCounts function from the DropletUtils package for
@@ -843,6 +940,22 @@ in the `adata.var` array whose name starts with
    * For large datasets, CoNGA automatically uses exact neighbor calculation to avoid memory issues
    * Install FAISS for additional memory efficiency: `pip install -e ".[performance]"` (from a local clone)
    * Use `--kpca_reduction_limit` to control when KernelPCA is skipped (default: 20,000)
+
+1. I'm getting a `CompatibilityError` when I run `run_conga.py` or
+`setup_10x_for_conga.py`
+   * Your environment's Python, pandas, or NumPy version is below CoNGA's minimum
+     (pandas 3.0+, NumPy 2.0+, Python 3.12+). See the Compatibility section above.
+   * Run `conga check` to see a detailed report of what's incompatible.
+   * The fix is almost always to recreate the environment (`mamba env create -f
+     environment.yml` or a fresh `pip install -e .` in a new `python>=3.12`
+     virtualenv) rather than trying to upgrade individual packages in place.
+
+1. An assignment like `df[col][mask] = value` in my own analysis script doesn't
+seem to do anything
+   * This is pandas 3.0's copy-on-write making chained assignment silently
+     no-op instead of raising. Use `df.loc[mask, col] = value` instead. See the
+     Compatibility section above for more on this and other pandas 3.0/NumPy 2.0
+     behavior changes.
 
 1. How can I visualize the different batches in my data? Or other discrete/categorical
 features assigned to individual cells?

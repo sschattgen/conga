@@ -107,11 +107,24 @@ assert args.kpca_kernel in [None, 'gaussian'] #None means classic default
 sys.path.append( os.path.dirname( os.path.dirname( os.path.abspath(__file__) ) ) ) # so we can import conga
 import conga
 from conga import util
+from conga.compatibility import check_environment_compatibility, CompatibilityError
 from conga.preprocess import (make_tcrdist_kernel_pcs_file_from_clones_file,
                               condense_clones_file_and_barcode_mapping_file_by_tcrdist,
                               resolve_tcr_representation)
 
 from conga.tcrdist.make_10x_clones_file import make_10x_clones_file
+
+# Validate pandas/NumPy/scanpy/anndata environment compatibility before doing
+# any real work (see run_conga.py for the matching check and rationale).
+try:
+    check_environment_compatibility(verbose=True)
+except CompatibilityError as e:
+    sys.stderr.write(f"\nERROR: Incompatible environment detected:\n{e}\n")
+    sys.stderr.write(
+        "See README.md 'Compatibility' section for supported pandas/NumPy/"
+        "Python versions and troubleshooting steps.\n"
+    )
+    sys.exit(1)
 
 # Resolve default values now that conga is imported
 if args.kpca_reduction_limit is None:

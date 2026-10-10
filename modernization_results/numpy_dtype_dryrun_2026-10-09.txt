@@ -1,0 +1,88 @@
+NumPy Dtype Legacy Alias Modernization — Dry Run
+Date: 2026-10-09
+Command: mamba run -n conga-dev python scripts/modernize_numpy_dtypes.py --dry-run
+Environment: conga-dev (pandas 3.0.6, numpy 2.5.3, Python 3.12)
+
+==================================================
+RAW OUTPUT
+==================================================
+NumPy Dtype Legacy Alias Modernization
+==================================================
+🔍 DRY RUN MODE - No files will be modified
+Scanning 56 Python files...
+Found 22 replacements in 1 files
+📁 scripts/modernize_numpy_dtypes.py
+   Line 63: np.float_
+     'np.float_': {
+   Line 66: np.float_
+     'description': 'Legacy np.float_ → np.float64'
+   Line 68: np.int_
+     'np.int_': {
+   Line 71: np.int_
+     'description': 'Legacy np.int_ → np.int64'
+   Line 73: np.bool_
+     'np.bool_': {
+   Line 76: np.bool_
+     'description': 'Legacy np.bool_ → bool (Python built-in)'
+   Line 78: np.object_
+     'np.object_': {
+   Line 81: np.object_
+     'description': 'Legacy np.object_ → object (Python built-in)'
+   Line 83: np.complex_
+     'np.complex_': {
+   Line 86: np.complex_
+     'description': 'Legacy np.complex_ → np.complex128'
+   Line 88: np.str_
+     'np.str_': {
+   Line 91: np.str_
+     'description': 'Legacy np.str_ → str (Python built-in)'
+   Line 93: np.unicode_
+     'np.unicode_': {
+   Line 96: np.unicode_
+     'description': 'Legacy np.unicode_ → str (Python built-in)'
+   Line 102: numpy.float_
+     'numpy.float_': {
+   Line 105: numpy.float_
+     'description': 'Legacy numpy.float_ → numpy.float64'
+   Line 107: numpy.int_
+     'numpy.int_': {
+   Line 110: numpy.int_
+     'description': 'Legacy numpy.int_ → numpy.int64'
+   Line 112: numpy.bool_
+     'numpy.bool_': {
+   Line 115: numpy.bool_
+     'description': 'Legacy numpy.bool_ → bool'
+   Line 117: numpy.object_
+     'numpy.object_': {
+   Line 120: numpy.object_
+     'description': 'Legacy numpy.object_ → object'
+
+==================================================
+ANALYSIS
+==================================================
+All 22 "replacements" found are false positives: they are matches inside
+scripts/modernize_numpy_dtypes.py's own DTYPE_PATTERNS dict, which defines
+the legacy alias strings as dict keys/regex patterns/description text for
+the tool's own detection logic (e.g. the literal string 'np.float_': {...}).
+The tool's exclude list does not exclude itself, so it flags its own
+pattern-definition source as if it were legacy usage.
+
+No other file in the 56 scanned Python files contains any of:
+  np.float_, np.int_, np.bool_, np.object_, np.complex_, np.str_,
+  np.unicode_, numpy.float_, numpy.int_, numpy.bool_, numpy.object_
+
+This matches an independent manual grep across conga/ (excluding
+tcrdist_cpp/) for the same patterns, which also returned zero hits.
+
+CONCLUSION: Task 3 (NumPy 2.0 legacy alias elimination) is VERIFIED
+COMPLETE. No code changes needed. The codebase contains no legacy NumPy
+dtype aliases and no numpy.core imports.
+
+Known tool bug (not fixed, not blocking): modernize_numpy_dtypes.py's
+--report-file argument is only honored when dry_run=False (see modernize()
+in scripts/modernize_numpy_dtypes.py, report_file is only written in the
+"Applying changes" branch). Running with --dry-run --report-file silently
+ignores --report-file. Since dry-run found nothing to apply, this doesn't
+block verification, but it means the tool can't self-document a clean
+dry-run result to a file — this report was captured by hand from stdout
+instead.
