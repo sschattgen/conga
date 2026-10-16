@@ -152,6 +152,38 @@ Severity: **[bug]** = wrong behavior or instructions that fail;
   been opened" during a `--all` run)
 - **What:** Memory grows over a long run; mostly harmless at 5K cells.
 
+### 15. [risk] TCR-clumping and graph-vs-graph null-model statistics are not seeded (results change run to run)
+- **Where:** conga/correlations.py:330 (`p = np.random.permutation(N)`, numpy's
+  global RNG, for the shuffled graph-overlap null model behind
+  `_graph_vs_graph_stats.tsv`); conga/tcrdist/tcr_sampler.py:608-631
+  (Python's unseeded `random.choice`/`random.shuffle`, used to generate the
+  background TCRs that TCR clumping p-values are computed against).
+- **What:** Two identical `run_conga.py --all` runs on the bundled 5K PBMC
+  data (2026-10-16) gave an identical `_graph_vs_graph.tsv` (CoNGA scores),
+  but `_tcr_clumping.tsv` differed: same hit clonotypes and neighbor counts,
+  but `expected_num_nbrs`, `pvalue_adj`, and `clonotype_fdr_value` changed by
+  up to ~2x (e.g. 0.0056 vs 0.0027). One hit cluster also changed size (7 vs 8
+  clonotypes in `_tcr_clumping_logos.png`). The overlap z-scores in
+  `_graph_vs_graph_stats.tsv` also changed (14.99 vs 12.04). Commit `0ca6252`
+  ("Make pipeline stochastic steps actually seeded") says the pipeline is now
+  deterministic, but its reproducibility tests evidently don't cover these
+  outputs.
+- **Fix:** route `--random_seed` into a `np.random.default_rng(seed)` passed
+  to these functions, and use a seeded `random.Random(seed)` instance in
+  tcr_sampler instead of the module-level `random` functions. Extend the
+  reproducibility tests to compare `_tcr_clumping.tsv` and
+  `_graph_vs_graph_stats.tsv`. Borderline TCR-clumping hits near the FDR
+  threshold can currently appear or disappear between runs.
+
+### 16. [confusing] Inconsistent font metrics tables in the SVG code
+- **Where:** conga/svg_basic.py and conga/tcrdist/tcrdist_svg_basic.py
+  (`all_text_width = {20:12.5, 100:60.}`, `all_text_height = {20:15.5, 100:75.}`)
+- **What:** The size-20 entries imply a character 0.625 em wide and 0.775 em
+  tall; the size-100 entries imply 0.60 x 0.75. Only the size-100 values are
+  used by the logos (`text_in_box`); the size-20 values are used only by
+  `color_stack`. Not a bug in current figures, but confusing. (These two
+  files are also near-duplicates of each other.)
+
 ---
 
 ## Test suite
@@ -163,7 +195,7 @@ built: `pytest tests/ -m "not slow"` → **480 passed, 13 failed, 3 errors,
 install; each is explained below. After `pip install harmonypy`,
 `test_batch_integration.py` + `test_run_conga_cli.py` → 46 passed.
 
-### 15. [bug] Harmony tests fail instead of skipping when `harmonypy` is absent
+### 17. [bug] Harmony tests fail instead of skipping when `harmonypy` is absent
 - **Where:** tests/test_batch_integration.py (11 tests in
   `TestHarmonyIntegrationEndToEnd`, `TestHarmonyIntegrationConfigUns`,
   `TestHarmonyIntegrationH5adRoundTrip`, `TestClusterAndTsneAndUmapReusesIntegratedPcaGex`)
@@ -173,7 +205,7 @@ install; each is explained below. After `pip install harmonypy`,
   correctly with a skip.
 - **Fix:** `pytest.importorskip("harmonypy")` in those classes.
 
-### 16. [bug] Cross-process reproducibility test hardcodes a developer's Mac path
+### 18. [bug] Cross-process reproducibility test hardcodes a developer's Mac path
 - **Where:** tests/test_vectorized_b1_1.py:370-377
 - **What:** It runs `mamba run -n conga-dev python /tmp/test_embedding_reproducibility.py`
   with `cwd='/Users/sschattg/conga-dev'`, so it fails with
@@ -185,7 +217,7 @@ install; each is explained below. After `pip install harmonypy`,
   embedding script in 3 separate processes with `conga_env` python gave an
   identical SHA-256 each time (`755f8e73…`).
 
-### 17. [bug] Performance fixtures used by tests are not in the repo
+### 19. [bug] Performance fixtures used by tests are not in the repo
 - **Where:** tests/test_config.py:88-92 (`performance_adata` fixture),
   used by tests/test_comprehensive_validation.py:134 → 3 errors
   (`performance_{small,medium,large}_adata.h5ad` not found).
@@ -196,7 +228,7 @@ install; each is explained below. After `pip install harmonypy`,
 - **Fix:** generate them in a session-scoped fixture under `tmp_path_factory`
   (deterministic seed), or skip with a clear message when absent.
 
-### 18. [risk] `scripts/test_modernization_results.py` references inputs that don't exist, and silently drops them
+### 20. [risk] `scripts/test_modernization_results.py` references inputs that don't exist, and silently drops them
 - **Where:** scripts/test_modernization_results.py:114, 129, 144
   (`'input_files': ['test_clones.tsv', 'test_gex.h5ad']`) and lines 206-213
 - **What:** Neither file exists in `test_data/`. The loop only adds
@@ -208,7 +240,7 @@ install; each is explained below. After `pip install harmonypy`,
   `SC5v2_humanPBMCs_*` `.h5`, gex_data_type `10x_h5`), and `assert` that
   every input exists.
 
-### 19. [confusing] Test and example docs assume specific personal environments
+### 21. [confusing] Test and example docs assume specific personal environments
 - tests/README.md uses `mamba run -n conga-dev ...` throughout (see entry 7);
   tests/README_error_conditions_I2_2.md:129 uses `cd /Users/sschattg/conga-dev/tests`.
 - examples/setup_all.bash and examples/run_all.bash hardcode `PYTHON=` paths
