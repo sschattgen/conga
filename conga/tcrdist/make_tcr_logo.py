@@ -6,6 +6,7 @@ from .basic import *
 from .amino_acids import amino_acids
 from . import all_genes
 from . import tcrdist_svg_basic # hacky code duplication
+from . import mpl_logo_basic # matplotlib versions of the tcrdist_svg_basic logo fxns
 from . import tcr_distances
 from . import util
 from . import tcr_sampler ## for analyze_junction
@@ -65,9 +66,13 @@ def make_tcr_logo(
         pwm_height,
         junction_bars_height,
         ypad,
-        show_full_cdr3
+        show_full_cdr3,
+        drawer = tcrdist_svg_basic,
 ):
     """ Returns a list of commands for svg output via tcrdist_svg_basic.create_file
+
+    or, if drawer=mpl_logo_basic, a list of drawing commands for
+    mpl_logo_basic.draw_cmds
 
     width = vj_logo_width + xpad + pwmplusgaps_width + xpad + vj_logo_width
     height = pwm_height + ypad + junction_bars_height
@@ -191,21 +196,21 @@ def make_tcr_logo(
     #x0 = xmargin + glyph_size_text_width + ii_ab2 * ( single_glyph_width + ab_glyphs_spacer )
     x0 = upper_left[0]
 
-    cmds.append( tcrdist_svg_basic.make_stack( (x0,y0), (x0 + vj_logo_width,y1), vl ) )
+    cmds.append( drawer.make_stack( (x0,y0), (x0 + vj_logo_width,y1), vl ) )
 
     ## a box around the V-logo
-    cmds.append( tcrdist_svg_basic.rectangle( ( x0-boxpad,y0-boxpad), (x0 + vj_logo_width+boxpad,y1+boxpad ),
+    cmds.append( drawer.rectangle( ( x0-boxpad,y0-boxpad), (x0 + vj_logo_width+boxpad,y1+boxpad ),
                                       'none', 'black', stroke_width=1 ) )
 
     if junction_bars: ## label V-logo down below
         text = 'V'+greek_letter
         fontsize = junction_bars_height*0.9
         p0 = [ x0 + 0.5* vj_logo_width - 0.6*fontsize, y1+junction_bars_height ]
-        cmds.append( tcrdist_svg_basic.make_text( text, p0, fontsize, font_family=font_family ) )
+        cmds.append( drawer.make_text( text, p0, fontsize, font_family=font_family ) )
 
     x0 += vj_logo_width + xpad
 
-    cmds.append( tcrdist_svg_basic.rectangle( ( x0-boxpad,y0-boxpad), (x0 + pwmplusgaps_width+boxpad,y1+boxpad ),
+    cmds.append( drawer.rectangle( ( x0-boxpad,y0-boxpad), (x0 + pwmplusgaps_width+boxpad,y1+boxpad ),
                                       'none', 'black', stroke_width=1 ) )
 
 
@@ -220,7 +225,7 @@ def make_tcr_logo(
         colpwm[0] = pwm[pos]
         #if verbose:
         #    print 'colpwm:',pos,pwm[pos]
-        cmds.append( tcrdist_svg_basic.protein_logo( (x0,y0), (x0+column_width,y1), colpwm ) )
+        cmds.append( drawer.protein_logo( (x0,y0), (x0+column_width,y1), colpwm ) )
 
         save_x0 = x0 ## for junction_bars
 
@@ -229,7 +234,7 @@ def make_tcr_logo(
         ## any gaps?
         if gap_count[pos]:
             gap_column_width = float( column_width * gap_count[pos] ) / len(members)
-            cmds.append( tcrdist_svg_basic.text_in_box( (x0,y0), (x0+gap_column_width,y1), gap_character, 'black' ) )
+            cmds.append( drawer.text_in_box( (x0,y0), (x0+gap_column_width,y1), gap_character, 'black' ) )
 
             x0+= gap_column_width
         else:
@@ -261,7 +266,7 @@ def make_tcr_logo(
                     color = junction_bars_color[ a ]
                     p0 = [ junction_bar_x0+ j   *junction_bar_width, y1shift]
                     p1 = [ junction_bar_x0+(j+1)*junction_bar_width, y1shift_next ]
-                    cmds.append( tcrdist_svg_basic.rectangle( p0, p1, fill=color, stroke=color ) )
+                    cmds.append( drawer.rectangle( p0, p1, fill=color, stroke=color ) )
                     y1shift = y1shift_next
 
 
@@ -270,16 +275,16 @@ def make_tcr_logo(
     x0 += xpad
 
     ## now the J-logo
-    cmds.append( tcrdist_svg_basic.make_stack( (x0,y0), (x0+vj_logo_width,y1), jl ) )
+    cmds.append( drawer.make_stack( (x0,y0), (x0+vj_logo_width,y1), jl ) )
 
-    cmds.append( tcrdist_svg_basic.rectangle( ( x0-boxpad,y0-boxpad), (x0 + vj_logo_width+boxpad,y1+boxpad ),
+    cmds.append( drawer.rectangle( ( x0-boxpad,y0-boxpad), (x0 + vj_logo_width+boxpad,y1+boxpad ),
                                               'none', 'black', stroke_width=1 ) )
 
     if junction_bars: ## label V-logo down below
         text = 'J'+greek_letter
         fontsize = junction_bars_height * 0.9
         p0 = [ x0 + 0.5* vj_logo_width - 0.6*fontsize, y1+junction_bars_height ]
-        cmds.append( tcrdist_svg_basic.make_text( text, p0, fontsize, font_family=font_family ) )
+        cmds.append( drawer.make_text( text, p0, fontsize, font_family=font_family ) )
 
 
     return cmds #####################################
@@ -292,10 +297,11 @@ def make_default_logo_svg_cmds(
         upper_left, width, height, organism, tcr_infos, chain,
         tcrdist_calculator = None,
         add_fake_alleles = False,
-        show_full_cdr3 = False
+        show_full_cdr3 = False,
+        drawer = tcrdist_svg_basic,
 ):
     # right now single-chain only
-    # returns cmds
+    # returns cmds (see make_tcr_logo for drawer)
 
     assert chain in 'AB'
 
@@ -424,7 +430,8 @@ def make_default_logo_svg_cmds(
                           scale_h * default_pwm_height,
                           scale_h * default_junction_bars_height,
                           scale_h * default_ypad,
-                          show_full_cdr3 )
+                          show_full_cdr3,
+                          drawer = drawer )
 
 
 
@@ -435,7 +442,8 @@ def make_tcr_logo_svg_commands_for_tcrs(
         organism,
         upper_left,
         width_height,
-        tcrdist_calculator=None # so we can avoid recalculating V gene distances over and over again
+        tcrdist_calculator=None, # so we can avoid recalculating V gene distances over and over again
+        drawer = tcrdist_svg_basic, # or mpl_logo_basic
 ):
     ''' tcrs is a list of tuples: tcrs = [ (atcr1,btcr1), (atcr2,btcr2), ....
     atcr1 = (va1, ja1, cdr3a1, cdr3a_nucseq1, *)
@@ -474,7 +482,8 @@ def make_tcr_logo_svg_commands_for_tcrs(
     cmds = make_default_logo_svg_cmds(
         upper_left, width_height[0], width_height[1], organism, infos, chain,
         tcrdist_calculator = tcrdist_calculator,
-        add_fake_alleles = add_fake_alleles, show_full_cdr3 = show_full_cdr3 )
+        add_fake_alleles = add_fake_alleles, show_full_cdr3 = show_full_cdr3,
+        drawer = drawer )
 
 
     return cmds
@@ -528,6 +537,30 @@ def make_tcr_logo_for_tcrs(
     tcrdist_svg_basic.create_file( cmds, svg_width, svg_height, pngfile[:-4]+'.svg', create_png=True )
 
     #print default_width,default_height
+
+
+def draw_tcr_logo_for_tcrs(
+        ax,
+        tcrs,
+        chain,
+        organism,
+        tcrdist_calculator=None # so we can avoid recalculating V gene distances over and over again
+):
+    ''' Matplotlib version of make_tcr_logo_for_tcrs: draws the same logo onto
+    the matplotlib Axes ax, with no SVG file or SVG->PNG conversion.
+
+    tcrs is a list of tuples: tcrs = [ (atcr1,btcr1), ....
+    atcr1 = (va1, ja1, cdr3a1, cdr3a_nucseq1, *)
+    btcr1 = (vb1, jb1, cdr3b1, cdr3b_nucseq1, *)
+    '''
+    cmds = make_tcr_logo_svg_commands_for_tcrs(
+        tcrs, chain, organism, [xmargin,ymargin],
+        (default_width, default_height),
+        tcrdist_calculator = tcrdist_calculator,
+        drawer = mpl_logo_basic )
+
+    mpl_logo_basic.draw_cmds( ax, cmds, 2*xmargin + default_width,
+                              2*ymargin + default_height )
 
 
 ########################################################################################################################

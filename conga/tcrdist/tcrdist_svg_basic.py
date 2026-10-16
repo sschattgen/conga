@@ -280,7 +280,10 @@ def text_in_box( upper_left, lower_right, text, color ):
 
 
 
-def protein_logo( upper_left, lower_right, pwm, scale={} ):## scale[pos] should be in range [0,1]
+def protein_logo_boxes( upper_left, lower_right, pwm, scale={} ):## scale[pos] should be in range [0,1]
+    ''' Layout for protein_logo, shared by the SVG and matplotlib renderers
+    (see mpl_logo_basic.py). Returns list of (upper_left, lower_right, aa, color)
+    '''
 
     aacolor = logo_aacolor
     # for aa in "G"       :aacolor[aa] = CB_ORANGE #"orange" ## special for glycine
@@ -300,7 +303,7 @@ def protein_logo( upper_left, lower_right, pwm, scale={} ):## scale[pos] should 
 
     letter_width = float(width) / N
 
-    cmds = []
+    boxes = []
 
     for pos in range(N):
         l = [(y,x) for x,y in pwm[pos].items() ]
@@ -319,11 +322,16 @@ def protein_logo( upper_left, lower_right, pwm, scale={} ):## scale[pos] should 
                 y1 = upper_y + (totfreq+freq) * scaled_height
                 x0 = upper_left[0] + pos*letter_width
                 x1 = upper_left[0] + (pos+1)*letter_width
-                cmds.append( text_in_box( (x0,y0), (x1,y1), aa, aacolor[aa] ) )
+                boxes.append( ( (x0,y0), (x1,y1), aa, aacolor[aa] ) )
             totfreq += freq
             #print pos,aa,freq,totfreq,sum(pwm[pos].values()),pwm[pos]
         assert abs(totfreq-1.0)<1e-2
 
+    return boxes
+
+def protein_logo( upper_left, lower_right, pwm, scale={} ):## scale[pos] should be in range [0,1]
+    cmds = [ text_in_box( p0, p1, aa, color ) for p0, p1, aa, color in
+             protein_logo_boxes( upper_left, lower_right, pwm, scale ) ]
     return '\n'.join(cmds)+'\n'
 
 def generic_logo( upper_left, lower_right, pwm ):
@@ -356,7 +364,11 @@ def generic_logo( upper_left, lower_right, pwm ):
     return '\n'.join(cmds)+'\n'
 
 
-def make_stack( upper_left, lower_right, l ):
+def stack_boxes( upper_left, lower_right, l ):
+    ''' Layout for make_stack, shared by the SVG and matplotlib renderers
+    (see mpl_logo_basic.py). Returns list of (upper_left, lower_right, word, color)
+    NOTE: sorts l in place (largest value first)
+    '''
     x0 = upper_left [0]
     x1 = lower_right[0]
 
@@ -368,7 +380,7 @@ def make_stack( upper_left, lower_right, l ):
 
     total = sum([x[0] for x in l])
     totval = 0
-    cmds = []
+    boxes = []
     for vwc in l:
         if len(vwc) == 2:
             val,word = vwc
@@ -378,9 +390,14 @@ def make_stack( upper_left, lower_right, l ):
             val,word,color = vwc
         y0 = upper_left[1] + height * float(totval) / total
         y1 = upper_left[1] + height * float(totval+val) / total
-        cmds.append( text_in_box( (x0,y0), (x1,y1), word, color ) )
+        boxes.append( ( (x0,y0), (x1,y1), word, color ) )
         totval+=val
 
+    return boxes
+
+def make_stack( upper_left, lower_right, l ):
+    cmds = [ text_in_box( p0, p1, word, color ) for p0, p1, word, color in
+             stack_boxes( upper_left, lower_right, l ) ]
     return '\n'.join(cmds)+'\n'
 
 

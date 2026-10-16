@@ -18,7 +18,8 @@ from . import pmhc_scoring
 from . import correlations
 from . import tcr_scoring
 from .tags import *
-from .tcrdist.make_tcr_logo import make_tcr_logo_for_tcrs
+from .tcrdist.make_tcr_logo import make_tcr_logo_for_tcrs, draw_tcr_logo_for_tcrs
+from .tcrdist import mpl_logo_basic
 from .tcrdist.tcr_distances import TcrDistCalculator
 from .tcrdist.util import assign_colors_to_conga_tcrs
 from .tcrdist.all_genes import all_genes
@@ -127,8 +128,12 @@ def make_rank_genes_logo_stack( ranks, upper_left, logo_width, max_logo_height,
                                 top_pval_for_max_height = 1e-30,
                                 min_pval_for_scaling = 1e-300,
                                 signcolors=False,
-                                num_genes_to_show = 10 ):
+                                num_genes_to_show = 10,
+                                drawer = svg_basic ):
     ''' ranks is a list of (gene,l2r,pval)
+
+    drawer is svg_basic (returns svg cmds) or mpl_logo_basic (returns
+    matplotlib drawing cmds for mpl_logo_basic.draw_cmds)
     '''
 
     def pval_factor( pval, min_pval ):
@@ -159,14 +164,14 @@ def make_rank_genes_logo_stack( ranks, upper_left, logo_width, max_logo_height,
         y1 = y0 + height
         if signcolors:
             if l2r <0:
-                cmds.append( svg_basic.text_in_box( [x0,y0], [x1,y1], gene, color='blue' ) )
+                cmds.append( drawer.text_in_box( [x0,y0], [x1,y1], gene, color='blue' ) )
             else:
-                cmds.append( svg_basic.text_in_box( [x0,y0], [x1,y1], gene, color='red' ) )
+                cmds.append( drawer.text_in_box( [x0,y0], [x1,y1], gene, color='red' ) )
         else:
             if l2r < 1:
-                cmds.append( svg_basic.text_in_box( [x0,y0], [x1,y1], gene, color='lightgray' ) )
+                cmds.append( drawer.text_in_box( [x0,y0], [x1,y1], gene, color='lightgray' ) )
             else:
-                cmds.append( svg_basic.text_in_box( [x0,y0], [x1,y1], gene, color='black' ) )
+                cmds.append( drawer.text_in_box( [x0,y0], [x1,y1], gene, color='black' ) )
         # elif l2r < 1:
         #     cmds.append( svg_basic.text_in_box( [x0,y0], [x1,y1], gene, color='blue' ) )
         # elif l2r < 1.5:
@@ -207,20 +212,46 @@ def make_single_rank_genes_logo(
         background_color='white' )
 
 
-def _make_lit_matches_logo(
-        clone_indices,
-        lit_matches,
-        svgfile,
+def draw_single_rank_genes_logo(
+        ax,
+        ranks,
         margin = 10,
         logo_width = 300,
-        max_logo_height = 400,
-        create_png = True,
-        create_html = False,
+        logo_max_height = 400,
+        top_pval_for_max_height = 1e-50,
+        min_pval_for_scaling = 1e-300,
+        num_genes_to_show = 10,
+        signcolors=False,
 ):
+    ''' Matplotlib version of make_single_rank_genes_logo: draws the same
+    logo onto the Axes ax, with no SVG file or SVG->PNG conversion
+    '''
+    cmds = make_rank_genes_logo_stack(
+        ranks, [margin, margin], logo_width, logo_max_height,
+        top_pval_for_max_height=top_pval_for_max_height,
+        min_pval_for_scaling=min_pval_for_scaling,
+        signcolors=signcolors,
+        num_genes_to_show=num_genes_to_show,
+        drawer=mpl_logo_basic )
+
+    mpl_logo_basic.draw_cmds(
+        ax, cmds, logo_width+2*margin, logo_max_height + 2*margin)
+
+
+def _lit_matches_logo_cmds(
+        clone_indices,
+        lit_matches,
+        drawer, # svg_basic or mpl_logo_basic
+        margin,
+        logo_width,
+        max_logo_height,
+):
+    ''' Returns None if there are no lit matches for clone_indices
+    '''
     clone_indices = set(clone_indices)
     mask = [x in clone_indices for x in lit_matches.clone_index]
     if np.sum(mask)==0:
-        return False
+        return None
 
     lit_matches = lit_matches[mask]
 
@@ -252,11 +283,52 @@ def _make_lit_matches_logo(
     count_sum = sum(x[0] for x in countslist)
     for count, match in countslist:
         height = total_height * count / count_sum
-        cmd = svg_basic.text_in_box(
+        cmd = drawer.text_in_box(
             [margin, y0], [margin+logo_width,y0+height], match,
             color='black')
         cmds.append(cmd)
         y0+=height
+
+    return cmds
+
+
+def _draw_lit_matches_logo(
+        ax,
+        clone_indices,
+        lit_matches,
+        margin = 10,
+        logo_width = 300,
+        max_logo_height = 400,
+):
+    ''' Matplotlib version of _make_lit_matches_logo
+    returns False if there were no lit matches (and nothing was drawn)
+    '''
+    cmds = _lit_matches_logo_cmds(
+        clone_indices, lit_matches, mpl_logo_basic, margin, logo_width,
+        max_logo_height)
+    if cmds is None:
+        return False
+
+    mpl_logo_basic.draw_cmds(
+        ax, cmds, logo_width+2*margin, max_logo_height + 2*margin)
+    return True
+
+
+def _make_lit_matches_logo(
+        clone_indices,
+        lit_matches,
+        svgfile,
+        margin = 10,
+        logo_width = 300,
+        max_logo_height = 400,
+        create_png = True,
+        create_html = False,
+):
+    cmds = _lit_matches_logo_cmds(
+        clone_indices, lit_matches, svg_basic, margin, logo_width,
+        max_logo_height)
+    if cmds is None:
+        return False
 
     # # for starters: just take the top one
     # top_count, top_match = countslist[0]
@@ -364,7 +436,12 @@ def make_logo_plots(
         lit_matches=None, # show an additional 'logo' with lit-matches
 
         ## makes pdf version make_graph_vs_graph_logos and make_tcr_clumping_plots, expect large file sizes
-        save_pdf = False
+        save_pdf = False,
+
+        ## how to draw the DEG, TCR, TCRseq-feature, and lit-match logos:
+        ## 'matplotlib' draws them directly; 'svg' is the legacy route
+        ## (svg files -> external svg-to-png converter -> imread)
+        logo_renderer = 'matplotlib',
 
 ):
     ''' need:
@@ -380,6 +457,9 @@ def make_logo_plots(
     multiple versions and complications and variable renamings. Sorry!
 
     '''
+
+    assert logo_renderer in ['matplotlib', 'svg'], logo_renderer
+    use_svg_logos = (logo_renderer == 'svg')
 
     if not make_gex_header:
         make_gex_header_raw, make_gex_header_nbrZ = False, False
@@ -1327,12 +1407,17 @@ or arguments to the conga.plotting.make_logo_plots function.
                 plt.axes( [left,bottom,width,height] )
                 if len(clp_rank_genes) > start_rank and clp_rank_genes[start_rank][2] < 0.99:
                     # if none of the pvals are better than 1 then we get an all white image--> black box (?)
-                    make_single_rank_genes_logo( clp_rank_genes[start_rank:stop_rank], pngfile[:-3]+'svg',
-                                                 logo_width=800, logo_max_height=1000, top_pval_for_max_height=1e-6)
+                    if use_svg_logos:
+                        make_single_rank_genes_logo( clp_rank_genes[start_rank:stop_rank], pngfile[:-3]+'svg',
+                                                     logo_width=800, logo_max_height=1000, top_pval_for_max_height=1e-6)
 
-                    image = mpimg.imread(pngfile)
-                    tmpfiles.append(pngfile)
-                    plt.imshow(image, cmap='Greys_r')
+                        image = mpimg.imread(pngfile)
+                        tmpfiles.append(pngfile)
+                        plt.imshow(image, cmap='Greys_r')
+                    else:
+                        draw_single_rank_genes_logo(
+                            plt.gca(), clp_rank_genes[start_rank:stop_rank],
+                            logo_width=800, logo_max_height=1000, top_pval_for_max_height=1e-6)
                     xmn,xmx = plt.xlim()
                     ymn,ymx = plt.ylim()
                     #plt.plot([xmn,xmx],[ymn,ymn],'-k')
@@ -1355,15 +1440,19 @@ or arguments to the conga.plotting.make_logo_plots function.
 
             plt.axes( [left,bottom,width,height] )
 
-            pngfile = '{}_tmp_{}_{}_{}.png'.format(logo_pngfile, clp[0], clp[1], ab)
-            tmpfiles.append(pngfile)
-            # if 1: # old way
-            #     old_make_tcr_logo( [ tcrs[x] for x in nodes ], ab, organism, pngfile )
-            # else: # new way
-            make_tcr_logo_for_tcrs( [ tcrs[x] for x in nodes ], ab, organism, pngfile,
-                                    tcrdist_calculator=tcrdist_calculator )
-            image = mpimg.imread(pngfile)
-            plt.imshow(image)
+            if use_svg_logos:
+                pngfile = '{}_tmp_{}_{}_{}.png'.format(logo_pngfile, clp[0], clp[1], ab)
+                tmpfiles.append(pngfile)
+                # if 1: # old way
+                #     old_make_tcr_logo( [ tcrs[x] for x in nodes ], ab, organism, pngfile )
+                # else: # new way
+                make_tcr_logo_for_tcrs( [ tcrs[x] for x in nodes ], ab, organism, pngfile,
+                                        tcrdist_calculator=tcrdist_calculator )
+                image = mpimg.imread(pngfile)
+                plt.imshow(image)
+            else:
+                draw_tcr_logo_for_tcrs( plt.gca(), [ tcrs[x] for x in nodes ], ab, organism,
+                                        tcrdist_calculator=tcrdist_calculator )
             plt.axis('off')
             if last_row:
                 plt.text(0.5,-0.05, 'TCR{} logo'.format(ab), ha='center', va='top', transform=plt.gca().transAxes)
@@ -1382,14 +1471,20 @@ or arguments to the conga.plotting.make_logo_plots function.
             plt.axes( [left,bottom,width,height] )
             if len(clp_rank_scores):
                 # if none of the pvals are better than 1 then we get an all white image--> black box (?)
-                make_single_rank_genes_logo( clp_rank_scores[:3], pngfile[:-3]+'svg',
-                                             logo_width=900, logo_max_height=1000, top_pval_for_max_height=1e-6,
-                                             signcolors=True)
+                if use_svg_logos:
+                    make_single_rank_genes_logo( clp_rank_scores[:3], pngfile[:-3]+'svg',
+                                                 logo_width=900, logo_max_height=1000, top_pval_for_max_height=1e-6,
+                                                 signcolors=True)
 
-                #image = mpimg.imread(pngfile)
-                image = plt.imread(pngfile)
-                tmpfiles.append(pngfile)
-                plt.imshow(image)
+                    #image = mpimg.imread(pngfile)
+                    image = plt.imread(pngfile)
+                    tmpfiles.append(pngfile)
+                    plt.imshow(image)
+                else:
+                    draw_single_rank_genes_logo(
+                        plt.gca(), clp_rank_scores[:3],
+                        logo_width=900, logo_max_height=1000, top_pval_for_max_height=1e-6,
+                        signcolors=True)
                 xmn,xmx = plt.xlim()
                 ymn,ymx = plt.ylim()
                 #plt.plot([xmn,xmx],[ymn,ymn],'-k')
@@ -1412,18 +1507,24 @@ or arguments to the conga.plotting.make_logo_plots function.
             width = lit_logo_width/fig_width
 
             plt.axes( [left,bottom,width,height] )
-            pngfile = '{}.tmp_{}_{}_lit.png'\
-                      .format(logo_pngfile, clp[0], clp[1])
+            if use_svg_logos:
+                pngfile = '{}.tmp_{}_{}_lit.png'\
+                          .format(logo_pngfile, clp[0], clp[1])
 
-            success = _make_lit_matches_logo(
-                nodes, lit_matches, pngfile[:-3]+'svg',
-                logo_width=1900*lit_logo_width,
-                max_logo_height=2000*logo_height)
+                success = _make_lit_matches_logo(
+                    nodes, lit_matches, pngfile[:-3]+'svg',
+                    logo_width=1900*lit_logo_width,
+                    max_logo_height=2000*logo_height)
 
-            if success: # there were lit matches for this cluster
-                image = mpimg.imread(pngfile)
-                tmpfiles.append(pngfile)
-                plt.imshow(image, cmap='Greys_r')
+                if success: # there were lit matches for this cluster
+                    image = mpimg.imread(pngfile)
+                    tmpfiles.append(pngfile)
+                    plt.imshow(image, cmap='Greys_r')
+            else:
+                _draw_lit_matches_logo(
+                    plt.gca(), nodes, lit_matches,
+                    logo_width=1900*lit_logo_width,
+                    max_logo_height=2000*logo_height)
             plt.axis('off')
             if last_row:
                 plt.text(0.5,-0.05, 'Lit.DB\nmatch', ha='center', va='top',
