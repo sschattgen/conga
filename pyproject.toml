@@ -10,11 +10,11 @@ readme = "README.md"
 license = {text = "MIT"}
 authors = [
     {name = "Phil Bradley", email = "pbradley@fredhutch.org"},
-    {name = "Stefan Schattgen", email = "stefan.schattgen@stjude.org"},
+    {name = "Stefan Schattgen", email = "sschattg@fredhutch.org"},
 ]
 maintainers = [
     {name = "Phil Bradley", email = "pbradley@fredhutch.org"},
-    {name = "Stefan Schattgen", email = "stefan.schattgen@stjude.org"},
+    {name = "Stefan Schattgen", email = "sschattg@fredhutch.org"},
 ]
 keywords = ["single-cell", "tcr-seq", "bcr-seq", "immunology", "bioinformatics", "vectorized-tcrdist", "faiss", "performance", "neighbor-search"]
 classifiers = [
