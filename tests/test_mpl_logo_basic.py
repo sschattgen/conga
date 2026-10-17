@@ -4,9 +4,9 @@ logos in the graph-vs-graph / tcr-clumping figures (svg_free branch).
 The layout code (make_tcr_logo, make_rank_genes_logo_stack, ...) is shared by
 the legacy SVG renderer and the matplotlib renderer via a `drawer` argument.
 These tests check:
-  * that, for real TCR logos and DEG/TCR-feature logos, the two drawers are
-    handed exactly the same boxes, glyphs, rectangles and colors, in the same
-    order (parsed back out of the SVG text), and
+  * that, for real TCR logos, DEG/TCR-feature logos, and TCRdist trees, the two
+    drawers are handed exactly the same boxes, glyphs, rectangles and colors,
+    in the same order (parsed back out of the SVG text), and
   * that the matplotlib rendering of each primitive follows the SVG geometry
     conventions (glyph scaling into its box, stroke centered on the edge).
 """
@@ -25,6 +25,7 @@ from conga.tcrdist import mpl_logo_basic, tcrdist_svg_basic
 from conga.tcrdist.make_tcr_logo import (
     make_tcr_logo_svg_commands_for_tcrs, draw_tcr_logo_for_tcrs,
     xmargin, ymargin, default_width, default_height)
+from conga.tcrdist.make_tcr_trees import make_tcr_tree_svg_commands
 from conga.tcrdist.tcr_distances import TcrDistCalculator
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -63,13 +64,17 @@ def tcrdist_calculator():
 _TEXT_IN_BOX_RE = re.compile(
     r'<text x="([-\d.]+)" y="([-\d.]+)" font-size="100" font-family="[^"]+" '
     r'fill="([^"]+)" transform="scale\(([-\d.]+),([-\d.]+)\)">([^<]*)</text>')
-_TEXT_RE = re.compile(
+_TEXT_RE = re.compile( # make_text; tree plotter text has no font-weight
     r'<text x="([-\d.]+)" y="([-\d.]+)" font-size="([-\d.e]+)" '
-    r'font-weight="(\w+)" font-family="([^"]+)" fill="([^"]+)" '
+    r'(?:font-weight="(\w+)" )?font-family="([^"]+)" fill="([^"]+)" '
     r'xml:space="preserve">([^<]*)</text>')
 _RECT_RE = re.compile(
     r'<rect x="([-\d.e]+)" y="([-\d.e]+)" height="([-\d.e]+)" width="([-\d.e]+)" '
-    r'style="fill:([^;]+);stroke:([^;]+);stroke-width:([-\d.e]+)" />')
+    r'style="fill:([^;]+);stroke:([^;]+);stroke-width:([-\d.e]+)'
+    r'(;stroke-dasharray:5,5)?" />')
+_LINE_RE = re.compile(
+    r'<line x1="([-\d.]+)" y1="([-\d.]+)" x2="([-\d.]+)" y2="([-\d.]+)" '
+    r'stroke-width="([-\d.e]+)" stroke="([^"]+)"/>')
 
 
 def _parse_svg(svg_text):
@@ -78,7 +83,8 @@ def _parse_svg(svg_text):
     '''
     prims = []
     pattern = re.compile('|'.join(
-        f'(?:{r.pattern})' for r in [_TEXT_IN_BOX_RE, _TEXT_RE, _RECT_RE]))
+        f'(?:{r.pattern})' for r in [_TEXT_IN_BOX_RE, _TEXT_RE, _RECT_RE,
+                                     _LINE_RE]))
     for m in pattern.finditer(svg_text):
         s = m.group(0)
         if (mm := _TEXT_IN_BOX_RE.fullmatch(s)):
@@ -91,13 +97,17 @@ def _parse_svg(svg_text):
         elif (mm := _TEXT_RE.fullmatch(s)):
             x, y, fs, weight, family, color, text = mm.groups()
             prims.append(('text', (float(x), float(y), float(fs)), text,
-                          (color, weight, family)))
-        else:
-            mm = _RECT_RE.fullmatch(s)
-            x, y, h, w, fill, stroke, sw = mm.groups()
+                          (color, weight or 'normal', family)))
+        elif (mm := _RECT_RE.fullmatch(s)):
+            x, y, h, w, fill, stroke, sw, dashed = mm.groups()
             x, y, h, w, sw = map(float, (x, y, h, w, sw))
             prims.append(('rect', (x, y, x+w, y+h), None,
-                          (fill, stroke, sw)))
+                          (fill, stroke, sw, dashed is not None)))
+        else:
+            mm = _LINE_RE.fullmatch(s)
+            x1, y1, x2, y2, sw, color = mm.groups()
+            prims.append(('line', tuple(map(float, (x1, y1, x2, y2, sw))), None,
+                          color))
     return prims
 
 
@@ -110,10 +120,12 @@ def _mpl_prims(cmds):
         elif isinstance(c, mpl_logo_basic.Text):
             prims.append(('text', (c.lower_left[0], c.lower_left[1], c.fontsize),
                           c.text, (c.color, c.font_weight, c.font_family)))
+        elif isinstance(c, mpl_logo_basic.Line):
+            prims.append(('line', (*c.p0, *c.p1, c.stroke_width), None, c.color))
         else:
             (x0, y0), (x1, y1) = c.upper_left, c.lower_right
             prims.append(('rect', (x0, y0, x1, y1), None,
-                          (c.fill, c.stroke, float(c.stroke_width))))
+                          (c.fill, c.stroke, float(c.stroke_width), c.dashed)))
     return prims
 
 
@@ -132,7 +144,8 @@ def _assert_same_prims(svg_prims, mpl_prims):
 
 
 def _count_svg_elements(svg_text):
-    return svg_text.count('<text ') + svg_text.count('<rect ')
+    return (svg_text.count('<text ') + svg_text.count('<rect ') +
+            svg_text.count('<line '))
 
 
 ## same geometry from both drawers #############################################
@@ -287,3 +300,108 @@ def test_unknown_drawing_command_fails_loudly():
     with pytest.raises(AssertionError):
         mpl_logo_basic.draw_cmds(ax, ['<text>not a command</text>'], 10, 10)
     plt.close(fig)
+
+
+## TCRdist trees ###############################################################
+
+def _tree_inputs(tcrdist_calculator):
+    # MAIT-like TCRs form clusters (--> logos, dashed boxes); others add diversity
+    tcrs = (_load_tcrs(lambda df: df.va_gene.str.startswith('TRAV1-2*'), 40) +
+            _load_tcrs(lambda df: ~df.va_gene.str.startswith('TRAV1-2*'), 40))
+    D = np.array([[tcrdist_calculator(a, b) for b in tcrs] for a in tcrs])
+    scores = list(np.linspace(0, 3, len(tcrs)))
+    return tcrs, D, scores
+
+
+def test_tree_drawers_get_identical_geometry(tcrdist_calculator):
+    tcrs, D, scores = _tree_inputs(tcrdist_calculator)
+    kw = dict(tcrdist_calculator=tcrdist_calculator, color_scores=scores,
+              color_score_range=[0, 3.0], title='test tree')
+    svg_cmds = make_tcr_tree_svg_commands(
+        tcrs, 'human', [25, 0], [800, 1000], D, **kw)
+    mpl_cmds = make_tcr_tree_svg_commands(
+        tcrs, 'human', [25, 0], [800, 1000], D, drawer=mpl_logo_basic, **kw)
+
+    svg_text = '\n'.join(svg_cmds)
+    svg_prims = _parse_svg(svg_text)
+    assert len(svg_prims) == _count_svg_elements(svg_text) # parsed them all
+    mpl_prims = _mpl_prims(mpl_cmds)
+    _assert_same_prims(svg_prims, mpl_prims)
+
+    # exercised: tree branches, dashed glyph boxes, labels, and TCR logos
+    rects = [p for p in mpl_prims if p[0] == 'rect']
+    assert sum(p[3][3] for p in rects) >= 2 # dashed boxes around subtrees
+    assert sum(not p[3][3] for p in rects) > 100 # branches, junction bars
+    assert any(p[0] == 'text' and p[2] == 'test tree' for p in mpl_prims)
+    assert any(p[0] == 'box' and p[2] == 'S' for p in mpl_prims) # logo glyphs
+
+
+def test_dashed_rect_follows_svg_dash_pattern():
+    # stroke-dasharray:5,5 runs along the outline from the upper left corner:
+    # top edge left-to-right (s=0..50), then the right edge downward (s=50..80)
+    img = _render_cmds([mpl_logo_basic.rectangle(
+        (10, 10), (60, 40), 'none', 'black', stroke_width=3, dashed=True)],
+                       80, 60)
+    def inked(x, y):
+        return img[y, x].max() < 0.1
+    def blank(x, y):
+        return img[y, x].min() > 0.9
+    for s in [1, 3, 11, 13, 21, 43]: # dashes on [0,5), [10,15), ...
+        assert inked(10 + s, 10), s
+    for s in [6, 8, 16, 18, 37]: # gaps on [5,10), [15,20), ...
+        assert blank(10 + s, 10), s
+    assert inked(60, 10 + 2) and blank(60, 10 + 7) and inked(60, 10 + 12)
+    assert inked(60, 10) # corner inside the dash at s=[50,55) is filled (miter)
+    assert blank(35, 25) # interior unfilled
+
+
+def test_tree_plotter_text_is_right_aligned_like_svg():
+    plotter = mpl_logo_basic.make_tree_plotter()
+    plotter.make_text('150', (200, 50), 10)
+    cmd, = plotter.cmds
+    assert cmd.lower_left == pytest.approx((200 - 10*0.6*3, 50))
+    assert (cmd.fontsize, cmd.color, cmd.font_weight) == (10, 'black', 'normal')
+
+
+def test_tree_plotter_lines():
+    plotter = mpl_logo_basic.make_tree_plotter()
+    plotter.make_line([10, 20], [10, 80], 4, 0.5)        # vertical
+    plotter.make_line([10, 20], [90, 20], 6, None)       # horizontal, no score
+    plotter.make_line([0, 0], [30, 40], 4, 1.0)          # diagonal
+    v, h, d = plotter.cmds
+    assert (v.upper_left, v.lower_right) == ((8, 20), (12, 80))
+    assert v.fill == v.stroke == tcrdist_svg_basic.rgb_from_fraction(0.5)
+    assert (h.upper_left, h.lower_right) == ((10, 17), (90, 23))
+    assert h.fill == '#aaaaaa'
+    assert isinstance(d, mpl_logo_basic.Line) and d.stroke_width == 2
+    (path, color), = mpl_logo_basic._patches_for_cmd(d)
+    ext = path.get_extents() # 2-wide segment from (0,0) to (30,40), butt caps
+    assert (ext.x0, ext.x1) == pytest.approx((-0.8, 30.8))
+    assert (ext.y0, ext.y1) == pytest.approx((-0.6, 40.6))
+
+
+def test_save_cmds_as_png_canvas_size(tmp_path):
+    pngfile = str(tmp_path / 'test.png')
+    mpl_logo_basic.save_cmds_as_png(
+        [mpl_logo_basic.rectangle((0, 0), (50, 20), 'red', 'red')], 230, 170,
+        pngfile)
+    img = plt.imread(pngfile)
+    assert img.shape[:2] == (170, 230) # one svg unit per pixel
+    np.testing.assert_allclose(img[10, 25, :3], [1, 0, 0], atol=0.01)
+    np.testing.assert_allclose(img[100, 100, :3], [1, 1, 1], atol=0.01)
+
+    # higher resolution: same layout, 3 pixels per svg unit
+    mpl_logo_basic.save_cmds_as_png(
+        [mpl_logo_basic.rectangle((0, 0), (50, 20), 'red', 'red')], 230, 170,
+        pngfile, scale=3)
+    img3 = plt.imread(pngfile)
+    assert img3.shape[:2] == (3*170, 3*230)
+    np.testing.assert_allclose(img3[3*10, 3*25, :3], [1, 0, 0], atol=0.01)
+    np.testing.assert_allclose(img3[3*20+3, 3*25, :3], [1, 1, 1], atol=0.01) # below rect+stroke
+
+
+def test_empty_text_draws_nothing():
+    # svg draws nothing for empty <text>; matplotlib's TextPath fails on ''
+    assert mpl_logo_basic._patches_for_cmd(mpl_logo_basic.make_text('', (0, 0), 10)) == []
+    assert mpl_logo_basic._patches_for_cmd(
+        mpl_logo_basic.text_in_box((0, 0), (5, 5), '', 'black')) == []

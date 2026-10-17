@@ -19,7 +19,7 @@ from . import correlations
 from . import tcr_scoring
 from .tags import *
 from .tcrdist.make_tcr_logo import make_tcr_logo_for_tcrs, draw_tcr_logo_for_tcrs
-from .tcrdist import mpl_logo_basic
+from .tcrdist import mpl_logo_basic, tcrdist_svg_basic
 from .tcrdist.tcr_distances import TcrDistCalculator
 from .tcrdist.util import assign_colors_to_conga_tcrs
 from .tcrdist.all_genes import all_genes
@@ -3361,12 +3361,21 @@ def make_tcrdist_trees(
         output_prefix,
         group_by = None,
         max_tcrs_per_cluster_for_tcrdists=5000, # if more, will subsample
+        tree_renderer = 'matplotlib', # or 'svg' (legacy: svg -> svg-to-png converter)
+        png_scale = 1.0, # png pixels per tree-layout unit; 1 --> 800x1000 per tree
 ):
     """
     generate TCRdist trees by gene expression cluster
     group_by: use 'clusters_gex' or 'clusters_tcr' to generate trees
        by respective cluster assignments.
+    png_scale: resolution of the png; e.g. 3 gives 2400x3000 pixels per tree,
+       same layout (only supported by the matplotlib tree_renderer)
     """
+    assert tree_renderer in ['matplotlib', 'svg'], tree_renderer
+    assert png_scale > 0
+    assert tree_renderer == 'matplotlib' or png_scale == 1, \
+        'png_scale is only supported for tree_renderer="matplotlib"'
+    drawer = tcrdist_svg_basic if tree_renderer == 'svg' else mpl_logo_basic
     if group_by is None or group_by == 'clusters_gex':
         group_by = 'clusters_gex'
         tag = 'GEX'
@@ -3430,7 +3439,8 @@ def make_tcrdist_trees(
             ctcrs, organism, [x_offset,0], [width,height], cdists,
             max_tcrs_for_trees=400, tcrdist_calculator=tcrdister,
             color_scores=cscores, color_score_range = color_score_range,
-            title=f'{tag} cluster {clust}')
+            title=f'{tag} cluster {clust}',
+            drawer = drawer)
 
         x_offset += width + xpad
 
@@ -3438,8 +3448,12 @@ def make_tcrdist_trees(
 
     pngfile = f'{output_prefix}_{figure_tag}.png'
     print('making:', pngfile)
-    svg_basic.create_file(all_cmds, x_offset-xpad, height, pngfile[:-3]+'svg',
-                          create_png= True )
+    if tree_renderer == 'svg':
+        svg_basic.create_file(all_cmds, x_offset-xpad, height, pngfile[:-3]+'svg',
+                              create_png= True )
+    else:
+        mpl_logo_basic.save_cmds_as_png(all_cmds, x_offset-xpad, height, pngfile,
+                                        scale=png_scale)
 
     def conga_score_from_color_score(x):
         return 10**(-1*(x**2)) * num_clones / 100.
@@ -3466,9 +3480,19 @@ def make_tcrdist_tree_for_conga_score_threshold(
         outfile_prefix,
         min_clonotypes=10,
         max_tcrs_for_tcrdists=5000, # if more, will subsample
+        tree_renderer = 'matplotlib', # or 'svg' (legacy: svg -> svg-to-png converter)
+        png_scale = 1.0, # png pixels per tree-layout unit; 1 --> 800x1000
 ):
     ''' Make a tcrdist tree for clonotypes with conga_scores below a threshold
+
+    png_scale: resolution of the png; e.g. 3 gives 2400x3000 pixels, same layout
+       (only supported by the matplotlib tree_renderer)
     '''
+    assert tree_renderer in ['matplotlib', 'svg'], tree_renderer
+    assert png_scale > 0
+    assert tree_renderer == 'matplotlib' or png_scale == 1, \
+        'png_scale is only supported for tree_renderer="matplotlib"'
+    drawer = tcrdist_svg_basic if tree_renderer == 'svg' else mpl_logo_basic
 
     if 'conga_scores' not in adata.obs.columns:
         print('ERROR make_tcrdist_tree_for_conga_hits:',
@@ -3517,13 +3541,18 @@ def make_tcrdist_tree_for_conga_score_threshold(
         ctcrs, organism, [0,0], [width,height], cdists,
         max_tcrs_for_trees=400, tcrdist_calculator=tcrdister,
         color_scores=cscores, color_score_range = color_score_range,
-        title=f'conga_score_threshold {threshold:.1f}')
+        title=f'conga_score_threshold {threshold:.1f}',
+        drawer = drawer)
 
     figure_tag = CONGA_THRESHOLD_TCRDIST_TREE
     pngfile = f'{outfile_prefix}_{figure_tag}.png'
     print('making:', pngfile)
-    svg_basic.create_file(cmds, width, height, pngfile[:-3]+'svg',
-                          create_png=True )
+    if tree_renderer == 'svg':
+        svg_basic.create_file(cmds, width, height, pngfile[:-3]+'svg',
+                              create_png=True )
+    else:
+        mpl_logo_basic.save_cmds_as_png(cmds, width, height, pngfile,
+                                        scale=png_scale)
 
     def conga_score_from_color_score(x):
         return 10**(-1*(x**2)) * threshold
