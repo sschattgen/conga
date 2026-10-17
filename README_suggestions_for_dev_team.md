@@ -174,6 +174,14 @@ Severity: **[bug]** = wrong behavior or instructions that fail;
   reproducibility tests to compare `_tcr_clumping.tsv` and
   `_graph_vs_graph_stats.tsv`. Borderline TCR-clumping hits near the FDR
   threshold can currently appear or disappear between runs.
+- **Same issue in the TCRdist tree figures:** plotting.py calls
+  `make_tcr_tree_svg_commands` without a `random_seed`, so any cluster with
+  more than 400 TCRs is subsampled with `random.Random(None)` (OS entropy)
+  for its tree (make_tcr_trees.py, `max_tcrs_for_trees`). In the 5K PBMC run,
+  GEX cluster 0 (408 clonotypes) draws a different tree every run.
+  `make_tcrdist_trees` / `make_tcrdist_tree_for_conga_score_threshold`
+  also use the unseeded module-level `random.shuffle` when a cluster has more
+  than 5000 TCRs.
 
 ### 16. [confusing] Inconsistent font metrics tables in the SVG code
 - **Where:** conga/svg_basic.py and conga/tcrdist/tcrdist_svg_basic.py
