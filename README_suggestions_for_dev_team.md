@@ -198,6 +198,10 @@ Severity: **[bug]** = wrong behavior or instructions that fail;
   reproducibility tests to compare `_tcr_clumping.tsv` and
   `_graph_vs_graph_stats.tsv`. Borderline TCR-clumping hits near the FDR
   threshold can currently appear or disappear between runs.
+- **Also `_tcr_db_match.tsv`:** two `--all` runs of the same code on the 5K
+  PBMC data gave 15 vs 16 literature-database matches, presumably for the
+  same reason (random background sampling; see
+  `--num_random_samples_for_tcr_matching`).
 - **Same issue in the TCRdist tree figures:** plotting.py calls
   `make_tcr_tree_svg_commands` without a `random_seed`, so any cluster with
   more than 400 TCRs is subsampled with `random.Random(None)` (OS entropy)
