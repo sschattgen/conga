@@ -279,28 +279,13 @@ Included via pip in `environment.yml`. For manual installation:
 pip install scvi-tools
 ```
 
-### SVG to PNG Conversion
+### SVG to PNG conversion: no longer needed
 
-CoNGA generates SVG plots and converts them to PNG. Install one of:
-
-**ImageMagick (recommended, included in environment.yml):**
-```bash
-mamba install -c conda-forge imagemagick
-# Or on macOS with Homebrew:
-brew install imagemagick
-```
-
-**Inkscape:**
-```bash
-mamba install -c conda-forge inkscape
-# Or on macOS with Homebrew:
-brew install inkscape
-```
-
-**cairosvg:**
-```bash
-pip install cairosvg
-```
+CoNGA now draws all of its figures (including the TCR logos and TCRdist
+trees) directly with matplotlib, so no SVG-to-PNG converter is required. A
+converter (e.g. `mamba install -c conda-forge imagemagick`) is only needed for
+the legacy `logo_renderer='svg'` / `tree_renderer='svg'` plotting options; see
+the "Figure rendering" section of the README.
 
 ---
 
@@ -355,7 +340,6 @@ xcode-select --install
 
 ### macOS
 - Xcode Command Line Tools or conda cxx-compiler required
-- ImageMagick path may need adjustment in `conga/convert_svg_to_png.py`
 - Apple Silicon (M1/M2): Most dependencies work natively, FAISS has native support
 
 ### Linux
@@ -511,7 +495,6 @@ pip install -e ".[all]"
 
 # You'll still need:
 # - C++ compiler for tcrdist_cpp
-# - ImageMagick/Inkscape for SVG conversion
 ```
 
-Note: conda/mamba installation is strongly recommended as it handles all system dependencies (C++ compiler, ImageMagick, etc.) automatically.
+Note: conda/mamba installation is strongly recommended as it handles all system dependencies (C++ compiler, etc.) automatically.

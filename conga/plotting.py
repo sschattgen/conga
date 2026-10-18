@@ -1447,7 +1447,8 @@ or arguments to the conga.plotting.make_logo_plots function.
                 #     old_make_tcr_logo( [ tcrs[x] for x in nodes ], ab, organism, pngfile )
                 # else: # new way
                 make_tcr_logo_for_tcrs( [ tcrs[x] for x in nodes ], ab, organism, pngfile,
-                                        tcrdist_calculator=tcrdist_calculator )
+                                        tcrdist_calculator=tcrdist_calculator,
+                                        renderer='svg' )
                 image = mpimg.imread(pngfile)
                 plt.imshow(image)
             else:
@@ -3363,6 +3364,7 @@ def make_tcrdist_trees(
         max_tcrs_per_cluster_for_tcrdists=5000, # if more, will subsample
         tree_renderer = 'matplotlib', # or 'svg' (legacy: svg -> svg-to-png converter)
         png_scale = 1.0, # png pixels per tree-layout unit; 1 --> 800x1000 per tree
+        save_pdf = False, # also save a vector pdf version
 ):
     """
     generate TCRdist trees by gene expression cluster
@@ -3370,11 +3372,14 @@ def make_tcrdist_trees(
        by respective cluster assignments.
     png_scale: resolution of the png; e.g. 3 gives 2400x3000 pixels per tree,
        same layout (only supported by the matplotlib tree_renderer)
+    save_pdf: also write the figure as a vector pdf next to the png (only
+       supported by the matplotlib tree_renderer; the svg renderer leaves a
+       vector .svg file instead)
     """
     assert tree_renderer in ['matplotlib', 'svg'], tree_renderer
     assert png_scale > 0
-    assert tree_renderer == 'matplotlib' or png_scale == 1, \
-        'png_scale is only supported for tree_renderer="matplotlib"'
+    assert tree_renderer == 'matplotlib' or (png_scale == 1 and not save_pdf), \
+        'png_scale and save_pdf are only supported for tree_renderer="matplotlib"'
     drawer = tcrdist_svg_basic if tree_renderer == 'svg' else mpl_logo_basic
     if group_by is None or group_by == 'clusters_gex':
         group_by = 'clusters_gex'
@@ -3454,6 +3459,11 @@ def make_tcrdist_trees(
     else:
         mpl_logo_basic.save_cmds_as_png(all_cmds, x_offset-xpad, height, pngfile,
                                         scale=png_scale)
+        if save_pdf:
+            pdffile = pngfile[:-4]+'.pdf'
+            print('making:', pdffile)
+            mpl_logo_basic.save_cmds_as_pdf(all_cmds, x_offset-xpad, height,
+                                            pdffile)
 
     def conga_score_from_color_score(x):
         return 10**(-1*(x**2)) * num_clones / 100.
@@ -3482,16 +3492,19 @@ def make_tcrdist_tree_for_conga_score_threshold(
         max_tcrs_for_tcrdists=5000, # if more, will subsample
         tree_renderer = 'matplotlib', # or 'svg' (legacy: svg -> svg-to-png converter)
         png_scale = 1.0, # png pixels per tree-layout unit; 1 --> 800x1000
+        save_pdf = False, # also save a vector pdf version
 ):
     ''' Make a tcrdist tree for clonotypes with conga_scores below a threshold
 
     png_scale: resolution of the png; e.g. 3 gives 2400x3000 pixels, same layout
        (only supported by the matplotlib tree_renderer)
+    save_pdf: also write the figure as a vector pdf next to the png (only
+       supported by the matplotlib tree_renderer)
     '''
     assert tree_renderer in ['matplotlib', 'svg'], tree_renderer
     assert png_scale > 0
-    assert tree_renderer == 'matplotlib' or png_scale == 1, \
-        'png_scale is only supported for tree_renderer="matplotlib"'
+    assert tree_renderer == 'matplotlib' or (png_scale == 1 and not save_pdf), \
+        'png_scale and save_pdf are only supported for tree_renderer="matplotlib"'
     drawer = tcrdist_svg_basic if tree_renderer == 'svg' else mpl_logo_basic
 
     if 'conga_scores' not in adata.obs.columns:
@@ -3553,6 +3566,10 @@ def make_tcrdist_tree_for_conga_score_threshold(
     else:
         mpl_logo_basic.save_cmds_as_png(cmds, width, height, pngfile,
                                         scale=png_scale)
+        if save_pdf:
+            pdffile = pngfile[:-4]+'.pdf'
+            print('making:', pdffile)
+            mpl_logo_basic.save_cmds_as_pdf(cmds, width, height, pdffile)
 
     def conga_score_from_color_score(x):
         return 10**(-1*(x**2)) * threshold

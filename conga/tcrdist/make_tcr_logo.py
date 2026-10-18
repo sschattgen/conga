@@ -494,49 +494,45 @@ def make_tcr_logo_for_tcrs(
         chain,
         organism,
         pngfile,
-        tcrdist_calculator=None # so we can avoid recalculating V gene distances over and over again
+        tcrdist_calculator=None, # so we can avoid recalculating V gene distances over and over again
+        renderer='matplotlib',
+        png_scale=1.0,
 ):
-    ''' tcrs is a list of tuples: tcrs = [ (atcr1,btcr1), ....
-    atcr1 = (va1, ja1, cdr3a1,*)
-    btcr1 = (vb1, jb1, cdr3b1,*)
+    ''' Make a TCR logo png file.
+
+    tcrs is a list of tuples: tcrs = [ (atcr1,btcr1), ....
+    atcr1 = (va1, ja1, cdr3a1, cdr3a_nucseq1, *)
+    btcr1 = (vb1, jb1, cdr3b1, cdr3b_nucseq1, *)
+
+    renderer='matplotlib' (default) draws the png directly. renderer='svg' is
+    the legacy route: write pngfile[:-4]+'.svg' and convert it to the png with
+    an external svg-to-png tool (see convert_svg_to_png.py).
+
+    png_scale: png pixels per logo-layout unit (1 --> 1250x158 pixels); only
+    supported by the matplotlib renderer
     '''
     assert chain in 'AB'
     assert pngfile.endswith('.png')
+    assert renderer in ['matplotlib', 'svg'], renderer
+    assert png_scale > 0
+    assert renderer == 'matplotlib' or png_scale == 1, \
+        'png_scale is only supported for renderer="matplotlib"'
 
-    add_fake_alleles = False
-    show_full_cdr3 = False
-
-    # backwards compatibility, fill out info that would have been in clones file
-    infos = []
-    for tcr in tcrs:
-        atcr, btcr = tcr
-        info = {}
-        for iab, ab in enumerate('ab'):
-            info[f'cdr3{ab}'] = tcr[iab][2]
-            info[f'cdr3{ab}_nucseq'] = tcr[iab][3]
-            for ivj, vj in enumerate('vj'):
-                gene = tcr[iab][ivj]
-                assert gene in all_genes.all_genes[organism]
-                for tag in 'gene genes rep reps'.split():
-                    info[f'{vj}{ab}_{tag}'] = gene
-                info[f'{vj}{ab}_countreps'] = all_genes.all_genes[organism][gene].count_rep
-        infos.append(info)
-
-    if tcrdist_calculator is None:
-        tcrdist_calculator = tcr_distances.TcrDistCalculator(organism)
-
-    cmds = make_default_logo_svg_cmds(
-        [xmargin,ymargin], default_width, default_height, organism, infos,
-        chain, tcrdist_calculator = tcrdist_calculator,
-        add_fake_alleles = add_fake_alleles, show_full_cdr3 = show_full_cdr3 )
-
+    drawer = mpl_logo_basic if renderer == 'matplotlib' else tcrdist_svg_basic
+    cmds = make_tcr_logo_svg_commands_for_tcrs(
+        tcrs, chain, organism, [xmargin,ymargin],
+        (default_width, default_height),
+        tcrdist_calculator = tcrdist_calculator,
+        drawer = drawer )
 
     svg_width = 2*xmargin + default_width
     svg_height = 2*ymargin + default_height
 
-    tcrdist_svg_basic.create_file( cmds, svg_width, svg_height, pngfile[:-4]+'.svg', create_png=True )
-
-    #print default_width,default_height
+    if renderer == 'matplotlib':
+        mpl_logo_basic.save_cmds_as_png( cmds, svg_width, svg_height, pngfile,
+                                         scale=png_scale )
+    else:
+        tcrdist_svg_basic.create_file( cmds, svg_width, svg_height, pngfile[:-4]+'.svg', create_png=True )
 
 
 def draw_tcr_logo_for_tcrs(

@@ -41,7 +41,7 @@ the next few months. Questions and requests can be directed to `pbradley` at `fr
 * [Migrating Seurat data to CoNGA](#migrating-seurat-data-to-conga)
 * [Merging multiple datasets for CoNGA analysis](#merging-multiple-datasets-into-a-single-object-for-conga-analysis)
 * [Updates](#updates)
-* [SVG to PNG](#svg-to-png)
+* [Figure rendering (no SVG converter needed)](#figure-rendering-no-svg-converter-needed)
 * [Testing CoNGA without going through the pain of installing it](#testing-conga-without-going-through-the-pain-of-installing-it)
     - [Docker](#docker)
     - [Google colab](#google-colab)
@@ -369,9 +369,8 @@ scanpy==1.4.3 anndata==0.6.18 umap-learn==0.3.9 numpy==1.16.2 scipy==1.2.1 panda
 
 This historical environment predates the Python 3.12+ requirement and will not work with the current `conga` package; it's included only for reference if you need to reproduce the exact numbers in the original manuscript. For current installations, use the Quick Installation or Development Installation instructions above.
 
-5. Ensure you have a tool for SVG to PNG conversion available.
-
-See the section below on SVG to PNG conversion for more details.
+No SVG-to-PNG conversion tool is needed: CoNGA draws all of its figures with
+matplotlib (see [Figure rendering](#figure-rendering-no-svg-converter-needed)).
 
 # Compatibility
 
@@ -592,39 +591,41 @@ conga.tcrdist.make_10x_clone_file.make_10x_clone_file_batch('path/to/metadata.cs
 
 See [`docs/UPDATES.md`](docs/UPDATES.md) for the release and change history.
 
-# svg to png
-The `conga` image-making pipeline requires an svg to png conversion. There seem to be a variety of
-options for doing this, with the best choice being somewhat platform dependent. We've had good luck with
-ImageMagick `convert` (on Linux, MacOS, and Windows) and Inkscape (on mac).
+# Figure rendering (no SVG converter needed)
+Earlier versions of `conga` drew the TCR/BCR sequence logos, the DEG and
+TCR-feature logos, and the TCRdist trees as SVG files and then converted them
+to PNG with an external tool (ImageMagick, Inkscape, rsvg-convert or
+cairosvg), which was a common source of installation trouble. These figures
+are now drawn directly with matplotlib, using the DejaVu Sans Mono font that
+ships with matplotlib, so no converter and no system fonts are needed. The
+layout of every logo and tree is computed by the same code as before.
 
-On Mac, we recommend installing Inkscape (https://inkscape.org/ or via conda
-`conda install -c conda-forge inkscape`)
-
-or
-
-ImageMagick (using Homebrew with `brew install imagemagick` or
-via conda with `conda install -c conda-forge imagemagick`).
-
-On Windows, we recommend the self-installing executable available from ImageMagick:
-(https://imagemagick.org/script/download.php)
-
-Another possibility is `pip install cairosvg` from within the relevant
-environment.
-
-The conversion is handled in the file `conga/convert_svg_to_png.py`, so you can modify that file if things are
-not working and you have a tool installed; `conga` may not be looking in the right place. For example, the Inkscape install location on Mac seems to
-switch around; it may be necessary to fiddle with the variable
-`PATH_TO_INKSCAPE` in `conga/convert_svg_to_png.py`. Also if the fonts
-in the TCR/BCR logos look bad you could try switching the MONOSPACE_FONT_FAMILY
-variable in that python file (see comments at the top of the file).
+Options:
+* **TCRdist tree resolution:** `run_conga.py --tcrdist_tree_png_scale 3` (or
+  `png_scale=3` in `conga.plotting.make_tcrdist_trees` and
+  `make_tcrdist_tree_for_conga_score_threshold`) gives 2400x3000-pixel trees
+  with the same layout; the default (1) keeps the previous 800x1000 pixels per
+  tree.
+* **Vector output:** `run_conga.py --save_tcrdist_tree_pdfs` (or
+  `save_pdf=True`) also writes PDF versions of the tree figures. (The SVG
+  route used to leave `.svg` copies of the tree figures; those are no longer
+  written.) `conga.plotting.make_logo_plots` has its own `save_pdf` option for
+  the cluster-logo figures.
+* **Stand-alone TCR logos:** `scripts/make_tcr_logos.py` writes PNGs directly
+  and also takes `--png_scale`.
+* **Legacy SVG route:** `logo_renderer='svg'` (for `make_logo_plots`, and so
+  for `make_graph_vs_graph_logos` and the TCR-clumping logo figures) and
+  `tree_renderer='svg'` (for the two tree functions) still use the old SVG
+  route, for comparison. They need one of the converters listed in
+  `conga/convert_svg_to_png.py`, e.g. `mamba install -c conda-forge
+  imagemagick`. These options are planned for removal.
 
 # Testing CoNGA without going through the pain of installing it
 If you want to test CoNGA without taking the time to install it, here are some options.
 ## Docker
 There is a [Dockerfile](Dockerfile) in the repository root that builds a
 self-contained image with CoNGA (including FAISS-CPU acceleration), the
-compiled `tcrdist_cpp` executables, and ImageMagick for SVG-to-PNG
-conversion. Build it from the repository root:
+compiled `tcrdist_cpp` executables. Build it from the repository root:
 ```
 docker build -t conga .
 ```

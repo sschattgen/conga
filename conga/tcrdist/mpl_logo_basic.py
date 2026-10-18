@@ -273,6 +273,16 @@ def draw_cmds( ax, cmds, width, height ):
     ax.set_aspect('equal')
 
 
+def _cmds_figure( cmds, width, height ):
+    ''' a Figure (1 inch = 100 svg units) showing the width x height canvas '''
+    width, height = int(width), int(height) # as in the svg header
+    fig = Figure(figsize=(width/100., height/100.), dpi=100)
+    ax = fig.add_axes([0, 0, 1, 1])
+    draw_cmds(ax, cmds, width, height)
+    ax.axis('off')
+    return fig
+
+
 def save_cmds_as_png( cmds, width, height, pngfile, scale=1.0 ):
     ''' Render cmds on a canvas of width x height svg units and save as a png
     with a white background, with `scale` png pixels per svg unit. At the
@@ -282,9 +292,13 @@ def save_cmds_as_png( cmds, width, height, pngfile, scale=1.0 ):
     '''
     assert pngfile.endswith('.png')
     assert scale > 0
-    width, height = int(width), int(height) # as in the svg header
-    fig = Figure(figsize=(width/100., height/100.), dpi=100)
-    ax = fig.add_axes([0, 0, 1, 1])
-    draw_cmds(ax, cmds, width, height)
-    ax.axis('off')
-    fig.savefig(pngfile, dpi=100*scale, facecolor='white')
+    _cmds_figure(cmds, width, height).savefig(
+        pngfile, dpi=100*scale, facecolor='white')
+
+
+def save_cmds_as_pdf( cmds, width, height, pdffile ):
+    ''' Vector (pdf) version of save_cmds_as_png; text is drawn as glyph
+    outlines, so no fonts need to be embedded
+    '''
+    assert pdffile.endswith('.pdf')
+    _cmds_figure(cmds, width, height).savefig(pdffile, facecolor='white')
