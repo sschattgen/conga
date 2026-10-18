@@ -301,3 +301,35 @@ install; each is explained below. After `pip install harmonypy`,
 - **Suggestion:** decide which repository is canonical, point the README,
   badge and notebook at it, and once the svg_free changes are there, drop
   notebook cells 4-5.
+
+---
+
+## Clustering
+
+### 23. [risk] Leiden clustering changed in `0ca6252`: labels no longer ordered by size, and partitions shifted
+- **Where:** conga/preprocess.py `cluster_and_tsne_and_umap` (~line 1312) and
+  `calc_tcrdist_nbrs_umap_clusters_cpp` (~line 3191); also devel.py.
+- **What:** Commit `0ca6252` ("Make pipeline stochastic steps actually
+  seeded") switched every `sc.tl.leiden` call from scanpy's default
+  (`leidenalg`, run to convergence on a directed graph) to `flavor='igraph',
+  n_iterations=2, directed=False`. Two consequences, measured on the 5K PBMC
+  run by rebuilding the exact neighbor graphs (the current call reproduces
+  the stored clusters exactly):
+  - **Labels are no longer ordered by cluster size.** `leidenalg` renumbers
+    clusters "in decreasing size"; igraph does not, and neither scanpy nor
+    conga re-sorts. GEX cluster sizes in label order are now 408, **6**, 391,
+    24, 16, 174, 246, 72, 29, 24, versus 407, 407, 255, 167, 72, 28, 24, 16, 7,
+    **7** with the old default. The 6-clonotype cluster (myeloid signature:
+    S100A8/9, LYZ, CST3, FCN1, so likely doublets or contamination) is found
+    by both methods; it used to be labeled last.
+  - **The partitions also changed.** GEX: adjusted Rand index (ARI) 0.96
+    versus the old default. TCR: ARI 0.82 (13 vs 12 clusters, with several
+    clusters split or recombined). Modularity is about the same for both
+    (0.6375 vs 0.6380 GEX; 0.7129 vs 0.7139 TCR), so neither is wrong, but
+    cluster-dependent outputs (hit grouping in the logo figures, GEX-cluster
+    DEGs, per-cluster trees, cluster names and colors) no longer match runs
+    made before 2026-10-07. This isn't mentioned in the CHANGELOG or docs.
+- **Fix:** relabel clusters by decreasing size after clustering (branch
+  `sort_clusters_by_size`, separate PR), and decide whether to keep the
+  igraph method (faster; scanpy's announced future default) or return to
+  `leidenalg`. Either way, note the change in the CHANGELOG.
