@@ -4,6 +4,7 @@ A running log of errors, inconsistencies, and points of confusion found in the
 code and docs while setting up and using CoNGA. Each entry says where the
 problem is, what goes wrong, and a suggested fix. Line numbers refer to the
 commit current when the entry was written (started 2026-10-16 at `ebe0732`).
+Entries 1, 2 and 8 were updated 2026-10-18 after merging master `e5644fd`.
 
 Severity: **[bug]** = wrong behavior or instructions that fail;
 **[risk]** = can silently give wrong or degraded results;
@@ -27,13 +28,25 @@ Severity: **[bug]** = wrong behavior or instructions that fail;
   Alternative: `mamba install -c conda-forge h5py` before the pip step.
 - **Suggestion:** add a short "Troubleshooting: older Linux" note to the
   README/INSTALL.md.
+- **Update (master `e5644fd`):** `environment.yml` now pins `h5py=3.15.1`,
+  which fixes the `mamba env create -f environment.yml` route. The pip routes
+  are unchanged: `pyproject.toml` has no h5py constraint (h5py comes in
+  through anndata/scanpy/tables), so `pip install -e .` on an older-glibc
+  host still tries to build h5py 3.16 and fails. Options: add the same
+  workaround note to the docs, or add `h5py<3.16` (or `h5py!=3.16.*`) to
+  `pyproject.toml` dependencies, keeping in mind that this also holds back
+  hosts that could use 3.16 wheels.
 
 ### 2. [bug] Wrong path to `tcrdist_cpp` in the dev-install instructions
-- **Where:** README.md:338 and INSTALL.md:90: `cd conga/tcrdist_cpp && make && cd ../..`
+- **Where:** INSTALL.md:90: `cd conga/tcrdist_cpp && make && cd ../..`, and
+  README.md:318: `cd tcrdist_cpp && make && cd ../..`
 - **What:** `tcrdist_cpp/` is at the repo root, not inside the `conga/`
-  package, so this `cd` fails. Elsewhere INSTALL.md (lines 53, 72, 318, 436),
-  `setup_dev_env.sh`, and the Dockerfile correctly use `cd tcrdist_cpp`.
-- **Fix:** `cd tcrdist_cpp && make && cd ..`
+  package. Master `e5644fd` fixed the first `cd` in the README, but its
+  trailing `cd ../..` now goes one level *above* the repository, so the
+  next command in the instructions runs in the wrong directory. INSTALL.md:90
+  still has the original wrong path. Elsewhere INSTALL.md (lines 53, 72, 436),
+  `setup_dev_env.sh`, and the Dockerfile are correct.
+- **Fix:** `cd tcrdist_cpp && make && cd ..` in both places.
 
 ### 3. [risk] The README's Quick Installation skips the C++ build step
 - **Where:** README.md ~lines 288-310
@@ -83,9 +96,18 @@ Severity: **[bug]** = wrong behavior or instructions that fail;
   throughout. Pick one name.
 
 ### 8. [confusing] Python version differs across install routes
-- `environment.yml`: 3.14; `environment-minimal.yml`: 3.12; README quick
-  install: 3.14; INSTALL.md: 3.12; Dockerfile: 3.12;
-  `setup_dev_env.sh:17` sets `PYTHON_VERSION="3.12"` but never uses it.
+- `environment.yml`: 3.13 (changed from 3.14 in master `db1148d`, "due to
+  issue with numba build with 3.14.8"); `environment-minimal.yml`: 3.12;
+  README quick install (README.md:271): `mamba create -n conga_env
+  python=3.14`; INSTALL.md: 3.12; Dockerfile: 3.12; `setup_dev_env.sh:17`
+  sets `PYTHON_VERSION="3.12"` but never uses it.
+- The docs now contradict the default dev environment: README.md:262 and
+  INSTALL.md:9,139-140 say the suite "passes on 3.12 and 3.14" and that 3.13
+  "has not been directly tested", yet 3.13 is now what `environment.yml`
+  installs, and the README quick install still recommends 3.14, which hit
+  the numba build problem. Suggest: pick one recommended version (3.12 or
+  3.13), use it in every route, and record which versions the suite was
+  actually run on.
 - `environment-minimal.yml:29` includes `louvain`, while `environment.yml`
   has a long comment explaining that louvain is "intentionally NOT
   included". (That works only because the minimal file pins 3.12, but the
