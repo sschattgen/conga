@@ -108,6 +108,8 @@ Severity: **[bug]** = wrong behavior or instructions that fail;
   the numba build problem. Suggest: pick one recommended version (3.12 or
   3.13), use it in every route, and record which versions the suite was
   actually run on.
+- CHANGELOG.md ("Python 3.14 Support") also still says "`environment.yml`
+  now installs 3.14 by default for development".
 - `environment-minimal.yml:29` includes `louvain`, while `environment.yml`
   has a long comment explaining that louvain is "intentionally NOT
   included". (That works only because the minimal file pins 3.12, but the
@@ -279,3 +281,23 @@ install; each is explained below. After `pip install harmonypy`,
   `CONGA_REPO=/home/pbradley/gitrepos/conga/`. These are flagged "change
   this", but they could default to `python` on PATH and a path relative to
   the script.
+
+---
+
+## Docs and notebooks
+
+### 22. [confusing] Which GitHub repository is canonical? (Colab notebook, README links)
+- **Where:** colab_conga_pipeline.ipynb (cell 7: `!git clone
+  https://github.com/phbradley/conga.git`; cells 4-5: "Install a tool for
+  converting from SVG to PNG files" / `!pip install cairosvg`); README.md
+  "Open in Colab" badge (points at phbradley/conga) vs. the Development
+  Installation instructions (now `git clone https://github.com/sschattgen/conga.git`).
+- **What:** The notebook installs and runs whatever is on `phbradley/conga`
+  master, so changes merged into `sschattgen/conga` (including the
+  converter-free figures from the `svg_free` branch) don't reach Colab users.
+  The cairosvg install cell was deliberately left in place on `svg_free` for
+  that reason: removing it while the notebook still clones phbradley/conga
+  would break the notebook.
+- **Suggestion:** decide which repository is canonical, point the README,
+  badge and notebook at it, and once the svg_free changes are there, drop
+  notebook cells 4-5.
