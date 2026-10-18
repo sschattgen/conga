@@ -167,26 +167,6 @@ See the FAQ entry below for a worked example of adding batch columns to an `AnnD
 
 FAISS (Facebook AI Similarity Search) provides GPU and CPU-optimized vector similarity search for performance improvements on large datasets.
 
-## Installation Options
-
-FAISS is an optional dependency with tiered backend selection. Install it as
-an extra from a local clone (see the Installation section below -- CoNGA is
-not published on PyPI):
-
-```bash
-# CPU-only performance boost (recommended)
-pip install -e ".[performance]"
-
-# GPU acceleration (requires CUDA-capable hardware)
-pip install -e ".[performance-gpu]"
-
-# All features including FAISS CPU
-pip install -e ".[all]"
-
-# All features including FAISS GPU
-pip install -e ".[all-gpu]"
-```
-
 ## Automatic Backend Selection
 
 CoNGA automatically selects the best available backend:
@@ -324,7 +304,7 @@ For the latest features or to contribute:
 
 ```bash
 # Clone repository
-git clone https://github.com/phbradley/conga.git
+git clone https://github.com/sschattgen/conga.git
 cd conga
 
 # Create development environment
@@ -335,7 +315,7 @@ mamba activate conga-dev
 pip install -e .
 
 # Compile C++ components (recommended)
-cd conga/tcrdist_cpp && make && cd ../..
+cd tcrdist_cpp && make && cd ../..
 ```
 
 ## Optional Dependencies
