@@ -8,6 +8,7 @@ from scipy.sparse import issparse
 from scipy.stats import mannwhitneyu
 from collections import Counter, OrderedDict
 import subprocess
+import contextlib
 from . import tags
 
 # try not to have any conga imports here
@@ -119,6 +120,21 @@ def get_vdj_type(organism: str) -> str:
 # Shared constants for vectorized TCRdist implementation
 # These are read by all three CLI scripts for consistent defaults
 DEFAULT_RANDOM_SEED: int = 42
+
+
+@contextlib.contextmanager
+def seeded_global_np_random(random_seed):
+    ''' For third-party code that draws from the global np.random state and
+    offers no way to pass a seed (e.g. the strip-plot jitter in seaborn, used
+    by sc.pl.violin): seeds the global state for the duration of the block,
+    then restores the previous state.
+    '''
+    state = np.random.get_state()
+    np.random.seed(random_seed)
+    try:
+        yield
+    finally:
+        np.random.set_state(state)
 
 KPCA_REDUCTION_LIMIT: int = 20000        # Observation count at or above which KernelPCA is not performed
 

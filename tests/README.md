@@ -141,6 +141,16 @@ are kept for historical reference; this file is the canonical index.
   CLI wiring of `args.random_seed` into all 7 call sites of the three seeded
   preprocess functions, checked by exact occurrence count to catch partial
   wiring.
+- **`test_seeded_randomness.py`** — The other random steps reachable from
+  `run_conga.py` (background TCR sampling for clumping/database matching,
+  graph-vs-graph permutations, TCRdist tree subsampling, FAISS IVF index
+  building, `devel.calc_nbr_zscore_threshold`): same seed gives identical
+  output without touching the global RNGs, a different seed gives different
+  output. Also covers the qc-violin jitter (`util.seeded_global_np_random`)
+  and the column order of `_cluster_gene_scores.tsv`, and checks that
+  `--random_seed` is accepted on the
+  non-vectorized TCR paths and that the vectorized encoding doesn't depend on
+  the seed.
 
 ### Metaconga matching
 
