@@ -210,6 +210,18 @@ Severity: **[bug]** = wrong behavior or instructions that fail;
   `make_tcrdist_trees` / `make_tcrdist_tree_for_conga_score_threshold`
   also use the unseeded module-level `random.shuffle` when a cluster has more
   than 5000 TCRs.
+- **Status (2026-10-19): addressed in
+  [PR #4](https://github.com/sschattgen/conga/pull/4) (`seed_randomness`),
+  awaiting review.** Every random step above (and a few others) now takes
+  a `random_seed` argument set from `--random_seed`, and `--random_seed` is
+  accepted on all TCR paths. Two `--all` runs with different
+  `PYTHONHASHSEED` values gave identical tables, figures and h5ad contents.
+  The end-to-end check found two more run-to-run differences, both fixed
+  in the PR: the strip-plot jitter in `_qc_violins.png` (seaborn uses the
+  global `np.random` state) and the column order of
+  `_cluster_gene_scores.tsv` (set-iteration order). Still unseeded: the
+  `stripplot` jitter in `devel.find_gex_cluster_degs`, which is identical
+  between pipeline runs but not between notebook calls.
 
 ### 16. [confusing] Inconsistent font metrics tables in the SVG code
 - **Where:** conga/svg_basic.py and conga/tcrdist/tcrdist_svg_basic.py
