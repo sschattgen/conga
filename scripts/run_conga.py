@@ -110,6 +110,13 @@ parser.add_argument('--find_hotspot_features', action='store_true')
 
 ## minor analysis modes
 parser.add_argument('--make_tcrdist_trees', action='store_true')
+parser.add_argument('--tcrdist_tree_png_scale', type=float, default=1.0,
+                    help='Resolution of the TCRdist tree pngs, in pixels per '
+                    'layout unit: 1 (default) gives 800x1000 pixels per tree, '
+                    '3 gives 2400x3000 with the same layout')
+parser.add_argument('--save_tcrdist_tree_pdfs', action='store_true',
+                    help='Also save vector pdf versions of the TCRdist tree '
+                    'figures')
 parser.add_argument('--cluster_vs_cluster', action='store_true')
 parser.add_argument('--find_gex_cluster_degs', action='store_true')
 parser.add_argument('--find_batch_biases', action='store_true')
@@ -1397,11 +1404,15 @@ if args.graph_vs_graph and args.graph_vs_features: #########################
 if args.make_tcrdist_trees: ###################################################
     # make tcrdist trees for each of the gex clusters,
     conga.plotting.make_tcrdist_trees(
-        adata, args.outfile_prefix, group_by = 'clusters_gex')
+        adata, args.outfile_prefix, group_by = 'clusters_gex',
+        png_scale = args.tcrdist_tree_png_scale,
+        save_pdf = args.save_tcrdist_tree_pdfs)
 
 
     conga.plotting.make_tcrdist_tree_for_conga_score_threshold(
-        adata, 10., args.outfile_prefix)
+        adata, 10., args.outfile_prefix,
+        png_scale = args.tcrdist_tree_png_scale,
+        save_pdf = args.save_tcrdist_tree_pdfs)
 
 
 if args.cluster_vs_cluster:

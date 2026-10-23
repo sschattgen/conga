@@ -13,9 +13,9 @@ parser = argparse.ArgumentParser(
     epilog = f'''
     Required columns in the TSV file: {' '.join(required_cols)}
 
-    Should generate SVG and PNG formatted files. Sometimes the default SVG-->PNG
-    conversion process does not work well, in which case you could try converting the
-    SVG files with something like Inkscape.
+    Generates one PNG file per chain: OUTFILE_PREFIX_tcr_logo_A.png and
+    OUTFILE_PREFIX_tcr_logo_B.png (drawn with matplotlib; no SVG-to-PNG converter
+    is needed). Use --png_scale for higher resolution, e.g. --png_scale 3.
 
     Example first two lines from a TSV file:
 va	ja	cdr3a	cdr3a_nucseq	vb	jb	cdr3b	cdr3b_nucseq
@@ -33,7 +33,10 @@ parser.add_argument('--tcrs_tsvfile', required=True,
                     help='Tab-separated-values format file with TCR information, '
                     'required columns= '+' '.join(required_cols))
 parser.add_argument('--outfile_prefix', required=True,
-                    help='Prefix for the output SVG and PNG filenames')
+                    help='Prefix for the output PNG filenames')
+parser.add_argument('--png_scale', type=float, default=1.0,
+                    help='Resolution: PNG pixels per logo-layout unit '
+                    '(1 --> 1250x158 pixels per logo, the default)')
 parser.add_argument('--organism', choices=['mouse', 'human'], required=True)
 #maybe these could work? choices=['mouse', 'human', 'mouse_gd', 'human_gd', 'human_ig')
 
@@ -66,6 +69,7 @@ tcrdist_calculator = TcrDistCalculator(args.organism)
 for ab in 'AB':
     pngfile = f'{args.outfile_prefix}_tcr_logo_{ab}.png'
     make_tcr_logo_for_tcrs(
-        tcrs, ab, args.organism, pngfile, tcrdist_calculator=tcrdist_calculator)
+        tcrs, ab, args.organism, pngfile, tcrdist_calculator=tcrdist_calculator,
+        png_scale=args.png_scale)
     print('made:', pngfile)
 
