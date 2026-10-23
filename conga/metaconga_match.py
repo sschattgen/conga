@@ -1119,6 +1119,7 @@ def find_clump_matches(
         adata,
         num_random_samples_for_bg_freqs = 200000,
         adjusted_pvalue_threshold = 1.0,
+        random_seed = util.DEFAULT_RANDOM_SEED, # for the background tcrs
 ):
     ''' Compare the TCRs in adata to TCRs in the metaconga TCR clusters to find
     similar sequences using TCRdist and a background model
@@ -1136,6 +1137,7 @@ def find_clump_matches(
         #background_tcrs_df = bg_df,
         adjusted_pvalue_threshold = adjusted_pvalue_threshold,
         num_random_samples_for_bg_freqs=num_random_samples_for_bg_freqs,
+        random_seed=random_seed,
     )
 
     results = _process_clump_matches(adata, results)

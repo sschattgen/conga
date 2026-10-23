@@ -7,6 +7,7 @@ from . import translation
 from .all_genes import all_genes, gap_character
 from .genetic_code import genetic_code, reverse_genetic_code
 from . import logo_tools
+from .. import util
 
 # set up legacy D gene nucleotide sequence dict, 1-indexed integer keys
 all_trbd_nucseq = {}
@@ -528,14 +529,19 @@ def resample_shuffled_tcr_chains(
         chain, # 'A' or 'B'
         junctions_df, # dataframe made by the above function
         preserve_vj_pairings = False,
+        random_seed = util.DEFAULT_RANDOM_SEED,
 ):
     ''' returns list of (v_gene, j_gene, cdr3, cdr3_nucseq) for inputting into tcrdist calcs (e.g.)
 
     Does not impose a TRBJ1 --> TRBD1 restriction, but that could
     be added...
 
+    random_seed seeds a private random.Random, so the output is fully
+    determined by the inputs (the global random state is not used)
     '''
     assert chain in ['A', 'B']
+    assert int(random_seed) == random_seed
+    rng = random.Random(int(random_seed))
     # need list of (v_gene, j_gene, cdr3_nucseq, breakpoints_pre_d, breakpoints_post_d)
     # breakpoints sets could contain negative numbers: that means read from the back
     #
@@ -605,12 +611,12 @@ def resample_shuffled_tcr_chains(
     while len(new_tcrs) < num_samples:
         #print(len(new_tcrs))
         if preserve_vj_pairings:
-            j = random.choice(junctions) # determines v and j genes
-            t1 = random.choice(v_gene2junctions[trim_allele(j[0])])
-            t2 = random.choice(j_gene2junctions[trim_allele(j[1])])
+            j = rng.choice(junctions) # determines v and j genes
+            t1 = rng.choice(v_gene2junctions[trim_allele(j[0])])
+            t2 = rng.choice(j_gene2junctions[trim_allele(j[1])])
         else:
-            t1 = random.choice(junctions)
-            t2 = random.choice(junctions)
+            t1 = rng.choice(junctions)
+            t2 = rng.choice(junctions)
         nucseq1 = t1[2]
         nucseq2 = t2[2]
         if nucseq1 == nucseq2:
@@ -620,7 +626,7 @@ def resample_shuffled_tcr_chains(
             continue
 
         inds = [3] if chain=='A' else [3,4]
-        random.shuffle(inds)
+        rng.shuffle(inds)
 
         success = False
         for ind in inds:
@@ -628,7 +634,7 @@ def resample_shuffled_tcr_chains(
             # ind=4: t1[ind] = breakpoints_post_d
             shared = t1[ind] & t2[ind]
             if shared:
-                bp = random.choice(list(shared))
+                bp = rng.choice(sorted(shared))
                 nucseq = nucseq1[: bp] + nucseq2[bp :]
                 assert len(nucseq)%3==0
                 if bp<0: # DEBUGGING

@@ -119,6 +119,7 @@ Configuration Guidelines
 - `index_type="auto"`: Automatic selection based on data characteristics  
 - `force_flat_threshold=10000`: Always use exact search below this size
 - `train_size_limit=50000`: Limit training data for IVF indices
+- `random_seed=42`: Seed for the random subsamples used to choose and train IVF indices
 
 Usage Examples
 --------------
@@ -215,6 +216,7 @@ from enum import Enum
 from typing import Dict, List, Optional, Tuple, Union, Any
 import numpy as np
 from sklearn.metrics import pairwise_distances
+from . import util
 
 # Import pandas if available for convenience functions
 try:
@@ -342,7 +344,7 @@ def _detect_backends():
     # Test CPU backend (always available if FAISS is installed)
     try:
         # Create a small test index
-        test_data = np.random.random((5, 3)).astype('float32')
+        test_data = np.random.default_rng(0).random((5, 3)).astype('float32')
         cpu_index = faiss.IndexFlatL2(3)
         cpu_index.add(test_data)
         
@@ -372,7 +374,7 @@ def _detect_backends():
                 gpu_res = faiss.StandardGpuResources()
                 
                 # Create small test index  
-                test_data = np.random.random((5, 3)).astype('float32')
+                test_data = np.random.default_rng(0).random((5, 3)).astype('float32')
                 cpu_index = faiss.IndexFlatL2(3)
                 gpu_index = faiss.index_cpu_to_gpu(gpu_res, 0, cpu_index)
                 
@@ -559,6 +561,7 @@ class FaissIndexConfig:
     lsh_nbits: int = None  # LSH bits (auto-selected if None)
     train_size_limit: int = 50000  # Max samples for IVF training
     force_flat_threshold: int = 10000  # Always use flat below this size
+    random_seed: int = util.DEFAULT_RANDOM_SEED  # for index-building subsamples
     
     def __post_init__(self):
         """Validate configuration parameters."""
@@ -729,7 +732,8 @@ class FaissNeighborSearcher:
         # Estimate clonotype diversity (unique patterns)
         if n_samples > 1000:
             # Sample subset for diversity estimation
-            sample_indices = np.random.choice(n_samples, 1000, replace=False)
+            rng = np.random.default_rng(self.index_config.random_seed)
+            sample_indices = rng.choice(n_samples, 1000, replace=False)
             sample_data = X[sample_indices]
         else:
             sample_data = X
@@ -1452,7 +1456,8 @@ class FaissNeighborSearcher:
         # Train index (learn cluster centers)
         train_size = min(n_samples, self.index_config.train_size_limit)
         if train_size < n_samples:
-            train_indices = np.random.choice(n_samples, train_size, replace=False)
+            rng = np.random.default_rng(self.index_config.random_seed)
+            train_indices = rng.choice(n_samples, train_size, replace=False)
             X_train = X[train_indices].copy()
         else:
             X_train = X

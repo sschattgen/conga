@@ -451,6 +451,7 @@ def filter_normalize_and_hvg(
         outfile_prefix_for_qc_plots = None,
         normalize_antibody_features_CLR=True, # centered log normalize
         add_variable_genes=None, # list of extra genes to add
+        random_seed=util.DEFAULT_RANDOM_SEED, # for the qc violin-plot jitter
 ):
     '''Filters cells and genes to find highly variable genes'''
     if not exclude_TR_genes:
@@ -511,8 +512,9 @@ def filter_normalize_and_hvg(
 
     if outfile_prefix_for_qc_plots is not None:
         pngfile = outfile_prefix_for_qc_plots+'_qc_violins.png'
-        sc.pl.violin(adata, ['n_genes', 'n_counts', 'percent_mito'],
-                     jitter=0.4, multi_panel=True, show=False)
+        with util.seeded_global_np_random(random_seed): # jitter
+            sc.pl.violin(adata, ['n_genes', 'n_counts', 'percent_mito'],
+                         jitter=0.4, multi_panel=True, show=False)
         print('making:', pngfile)
         plt.savefig(pngfile)
         plt.close()
@@ -1370,6 +1372,7 @@ def filter_and_scale(
         normalize_antibody_features_CLR=True, # centered log normalize
         hvg_batch_key=None,
         add_variable_genes=None, # for HVG
+        random_seed=util.DEFAULT_RANDOM_SEED, # for the qc violin-plot jitter
 ):
     ## filter, normalize, identify highly variable genes ('hvg')
     adata = filter_normalize_and_hvg(
@@ -1383,6 +1386,7 @@ def filter_and_scale(
         normalize_antibody_features_CLR=normalize_antibody_features_CLR,
         hvg_batch_key = hvg_batch_key,
         add_variable_genes = add_variable_genes,
+        random_seed = random_seed,
     )
 
 

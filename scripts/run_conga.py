@@ -243,7 +243,10 @@ parser.add_argument('--cdr3_weight', type=float, default=None,
                     help='Weight applied to CDR3 region in vectorized encoding'
                     ' (default: 3.0)')  
 parser.add_argument('--random_seed', type=int, default=None,
-                    help='Random seed for deterministic vectorized encoding'
+                    help='Seed for all of the random steps in the pipeline'
+                    ' (clustering, UMAP, kernel PCA, background TCR sampling,'
+                    ' permutation tests, tree subsampling, ...); the vectorized'
+                    ' TCR encoding is deterministic and does not depend on it'
                     ' (default: 42)')
 
 
@@ -452,12 +455,12 @@ if args.match_metaconga_aaclusters is not None and not args.force_variable_genes
     print('WARNING: --match_metaconga_aaclusters',
           'adding --force_variable_genes', variable_genes_file)
 
-# Flag conflict detection
+# Flag conflict detection. --random_seed is not an encoding flag: it seeds
+# every random step in the pipeline, whatever the TCR representation.
 encoding_flags_set = [
     args.aa_mds_dim is not None,
     args.num_pos_cdr3 is not None, 
     args.cdr3_weight is not None,
-    args.random_seed != util.DEFAULT_RANDOM_SEED
 ]
 has_encoding_flags = any(encoding_flags_set)
 
@@ -479,8 +482,6 @@ if args.use_kpca_tcrdist and has_encoding_flags:
         conflicting.append('--num_pos_cdr3') 
     if args.cdr3_weight is not None:
         conflicting.append('--cdr3_weight')
-    if args.random_seed != util.DEFAULT_RANDOM_SEED:
-        conflicting.append('--random_seed')
     print(f'ERROR: --use_kpca_tcrdist conflicts with encoding flags: {conflicting}')
     sys.exit(1)
 
@@ -493,8 +494,6 @@ if (args.no_kpca or args.use_exact_tcrdist_nbrs) and has_encoding_flags:
         conflicting.append('--num_pos_cdr3')
     if args.cdr3_weight is not None:
         conflicting.append('--cdr3_weight')
-    if args.random_seed != util.DEFAULT_RANDOM_SEED:
-        conflicting.append('--random_seed')
     base_flag = '--no_kpca' if args.no_kpca else '--use_exact_tcrdist_nbrs'
     print(f'ERROR: {base_flag} conflicts with encoding flags: {conflicting}')
     sys.exit(1)
@@ -586,6 +585,7 @@ outlog.write('sys.argv: {}\n'.format(' '.join(sys.argv)))
 sc.logging.print_header()
 hostname = os.popen('hostname').readlines()[0][:-1]
 outlog.write('hostname: {}\n'.format(hostname))
+outlog.write(f'random_seed: {args.random_seed}\n')
 
 #############################################################################
 ###
@@ -625,6 +625,7 @@ if args.restart is None: ################################## load GEX/TCR data
             outfile=args.kpca_file,
             gaussian_kernel_sdev = args.kpca_gaussian_kernel_sdev,
             force_Dmax = args.kpca_default_kernel_Dmax,
+            random_seed=args.random_seed,
         )
 
     adata = conga.preprocess.read_dataset(
@@ -663,6 +664,7 @@ if args.restart is None: ################################## load GEX/TCR data
             force_Dmax=args.kpca_default_kernel_Dmax,
             tcrs=tcrs,
             return_pcs = True,
+            random_seed=args.random_seed,
         )
         adata.obsm['X_pca_tcr'] = kpcs
 
@@ -683,8 +685,6 @@ if args.restart is None: ################################## load GEX/TCR data
             conflicting.append('--num_pos_cdr3')
         if args.cdr3_weight is not None:
             conflicting.append('--cdr3_weight')
-        if args.random_seed != util.DEFAULT_RANDOM_SEED:
-            conflicting.append('--random_seed')
         print(f'ERROR: Organism "{args.organism}" not supported by vectorizer. '
               f'Encoding flags not allowed: {conflicting}')
         sys.exit(1)
@@ -823,6 +823,7 @@ if args.restart is None: ################################## load GEX/TCR data
             max_percent_mito = args.max_percent_mito,
             outfile_prefix_for_qc_plots = outfile_prefix_for_qc_plots,
             add_variable_genes = add_variable_genes,
+            random_seed = args.random_seed,
         )
 
     if args.filter_ribo_norm_low_cells:
@@ -899,7 +900,8 @@ if args.restart is None: ################################## load GEX/TCR data
             
         X_tcr = adata.obsm[tcr_obsm_key]
         assert X_tcr.shape[0] == adata.shape[0]
-        reorder = np.random.permutation(X_tcr.shape[0])
+        reorder = np.random.default_rng(args.random_seed).permutation(
+            X_tcr.shape[0])
         adata.obsm[tcr_obsm_key] = X_tcr[reorder,:]
         outlog.write('randomly permuting {} {}\n'\
                      .format(tcr_obsm_key, X_tcr.shape))
@@ -937,8 +939,6 @@ else: ### restarting from a previous conga run
             conflicting.append('--num_pos_cdr3')
         if args.cdr3_weight is not None:
             conflicting.append('--cdr3_weight')
-        if args.random_seed != util.DEFAULT_RANDOM_SEED:
-            conflicting.append('--random_seed')
         print(f'ERROR: Organism "{adata.uns["organism"]}" not supported by vectorizer. '
               f'Encoding flags not allowed: {conflicting}')
         sys.exit(1)
@@ -1005,7 +1005,8 @@ else: ### restarting from a previous conga run
         
         X_tcr = adata.obsm[tcr_obsm_key]
         assert X_tcr.shape[0] == adata.shape[0]
-        reorder = np.random.permutation(X_tcr.shape[0])
+        reorder = np.random.default_rng(args.random_seed).permutation(
+            X_tcr.shape[0])
         adata.obsm[tcr_obsm_key] = X_tcr[reorder,:]
         adata.obs['clusters_tcr'] = np.array(adata.obs['clusters_tcr'])[reorder]
         adata.obsm['X_tcr_2d'] = np.array(adata.obsm['X_tcr_2d'])[reorder,:]
@@ -1121,6 +1122,7 @@ conga.preprocess.record_active_tcr_representation(adata, tcr_representation.acti
 adata.uns['conga_stats']['active_tcr_representation'] = tcr_representation.active
 adata.uns['conga_stats']['tcr_selection_reason'] = tcr_representation.reason
 adata.uns['conga_stats']['kpca_reduction_limit'] = args.kpca_reduction_limit
+adata.uns['conga_stats']['random_seed'] = args.random_seed
 adata.uns['conga_stats']['num_observations'] = adata.shape[0]
 
 if tcr_representation.active == util.OBSM_KEY_VEC_TCR:
@@ -1225,7 +1227,8 @@ if args.analyze_junctions:
 
 
 if args.shuffle_gex_nbrs:
-    reorder = np.random.permutation(num_clones)
+    # seed+1 so that this permutation differs from the --shuffle_tcr_kpcs one
+    reorder = np.random.default_rng(args.random_seed+1).permutation(num_clones)
     print('shuffling gex nbrs: num_shuffle_fixed_points=',
           np.sum(reorder==np.arange(num_clones)))
     reorder_list = list(reorder)
@@ -1278,7 +1281,8 @@ if (args.match_to_tcr_database and
         tmpfile_prefix= args.outfile_prefix,
         num_random_samples_for_bg_freqs=
             args.num_random_samples_for_tcr_matching, # long line
-        adjusted_pvalue_threshold= args.pvalue_threshold_for_db_matching
+        adjusted_pvalue_threshold= args.pvalue_threshold_for_db_matching,
+        random_seed= args.random_seed,
     )
 
     conga.plotting.make_tcr_db_match_plot(
@@ -1303,6 +1307,7 @@ if args.tcr_clumping: #########################################################
         num_random_samples= num_random_samples,
         pvalue_threshold= args.pvalue_threshold_for_tcr_clumping,
         also_find_clumps_within_gex_clusters= args.intra_cluster_tcr_clumping,
+        random_seed= args.random_seed,
     )
 
     nbrs_gex, nbrs_tcr = all_nbrs[ max(args.nbr_fracs) ]
@@ -1330,14 +1335,15 @@ if args.match_metaconga_aaclusters is not None: ###############################
 
 
 if args.match_metaconga_clumps: ################################################
-    conga.metaconga_match.find_clump_matches(adata)
+    conga.metaconga_match.find_clump_matches(
+        adata, random_seed=args.random_seed)
     conga.metaconga_match.plot_clump_matches(adata, args.outfile_prefix)
 
 
 if args.graph_vs_graph_stats: #################################################
     conga.correlations.compute_graph_vs_graph_stats(
         adata, all_nbrs, num_random_repeats=100,
-        outfile_prefix=args.outfile_prefix)
+        outfile_prefix=args.outfile_prefix, random_seed=args.random_seed)
 
     # cols = ('graph_overlap_type nbr_frac overlap expected_overlap'
     #         ' overlap_zscore').split()
@@ -1405,12 +1411,14 @@ if args.make_tcrdist_trees: ###################################################
     # make tcrdist trees for each of the gex clusters,
     conga.plotting.make_tcrdist_trees(
         adata, args.outfile_prefix, group_by = 'clusters_gex',
+        random_seed = args.random_seed,
         png_scale = args.tcrdist_tree_png_scale,
         save_pdf = args.save_tcrdist_tree_pdfs)
 
 
     conga.plotting.make_tcrdist_tree_for_conga_score_threshold(
         adata, 10., args.outfile_prefix,
+        random_seed = args.random_seed,
         png_scale = args.tcrdist_tree_png_scale,
         save_pdf = args.save_tcrdist_tree_pdfs)
 
@@ -1476,7 +1484,8 @@ if args.analyze_CD4_CD8:
         adata, all_nbrs[nbr_frac_for_plotting][0], args.outfile_prefix)
 
 if args.analyze_proteins:
-    conga.devel.analyze_proteins(adata, args.outfile_prefix)
+    conga.devel.analyze_proteins(adata, args.outfile_prefix,
+                                 random_seed=args.random_seed)
 
 if args.analyze_special_genes:
     conga.devel.analyze_special_genes(adata, args.outfile_prefix)
@@ -1520,7 +1529,7 @@ if args.find_batch_biases: #####################################################
 ## also make umaps colored by batch assignment of rep cell
 if 'batch_keys' in adata.uns:
     conga.plotting.make_batch_colored_umaps(
-        adata, args.outfile_prefix)
+        adata, args.outfile_prefix, random_seed=args.random_seed)
 
     conga_scores, tcr_clumping_pvalues = None, None
     if args.graph_vs_graph:
