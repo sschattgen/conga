@@ -47,8 +47,6 @@ dependencies:
   # Utilities
   - pyyaml>=6.0
   
-  # For SVG to PNG conversion
-  - imagemagick
   
   # Pip for editable install
   - pip>=23.0

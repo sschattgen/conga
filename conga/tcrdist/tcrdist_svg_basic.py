@@ -173,47 +173,74 @@ def make_amino_acids_text(
 
 
 
+def tree_line_geometry( p0, p1, line_width, normalized_score, color=None, cmap=None ):
+    ''' Geometry and color for a tree edge, shared by SVG_tree_plotter and
+    mpl_logo_basic.MPL_tree_plotter. Returns
+
+    ('rect', upper_left, lower_right, color) for a vertical or horizontal line, or
+    ('line', p0, p1, stroke_width, color) otherwise
+    '''
+    if normalized_score==None:
+        #color='black'
+        color = '#aaaaaa' # gray
+    elif color==None:
+        color = rgb_from_fraction(normalized_score, cmap=cmap)
+
+    if p0[0] == p1[0]: ## vertical line, get width exactly right
+        x = p0[0] ; y0 = min(p0[1],p1[1]) ; y1 = max(p0[1],p1[1] )
+
+        upper_left = ( x-line_width/2.0, y0 )
+        lower_right = ( x+line_width/2.0, y1 )
+        return ( 'rect', upper_left, lower_right, color )
+
+    elif p0[1] == p1[1]: ## horizontal line, get width exactly right
+        y = p0[1] ; x0 = min(p0[0],p1[0]) ; x1 = max(p0[0],p1[0] )
+
+        upper_left  = ( x0, y-line_width/2.0 )
+        lower_right = ( x1, y+line_width/2.0 )
+        return ( 'rect', upper_left, lower_right, color )
+    else:
+        return ( 'line', p0, p1, 0.5*line_width, color )
+
+
+def tree_text_lower_left( text, p, fontsize ):
+    ''' tree text is right-aligned at p; returns the lower left corner '''
+    ## shift so that p is the lower right
+    textwidth = fontsize*0.6 * len(text)
+    return ( p[0]-textwidth, p[1] )
+
+
 class SVG_tree_plotter:
     def __init__( self, cmap=None ):
         self.cmds = []
         self.cmap = cmap
 
     def make_line( self, p0, p1, line_width, normalized_score, extra_tag=None, color=None ):
+        geom = tree_line_geometry( p0, p1, line_width, normalized_score, color=color, cmap=self.cmap )
 
-        if normalized_score==None:
-            #color='black'
-            color = '#aaaaaa' # gray
-        elif color==None:
-            color = rgb_from_fraction(normalized_score, cmap=self.cmap)
-
-        if p0[0] == p1[0]: ## vertical line, get width exactly right
-            x = p0[0] ; y0 = min(p0[1],p1[1]) ; y1 = max(p0[1],p1[1] )
-
-            upper_left = ( x-line_width/2.0, y0 )
-            lower_right = ( x+line_width/2.0, y1 )
-            cmd = rectangle( upper_left, lower_right, color, color )
-
-        elif p0[1] == p1[1]: ## horizontal line, get width exactly right
-            y = p0[1] ; x0 = min(p0[0],p1[0]) ; x1 = max(p0[0],p1[0] )
-
-            upper_left  = ( x0, y-line_width/2.0 )
-            lower_right = ( x1, y+line_width/2.0 )
+        if geom[0] == 'rect':
+            _, upper_left, lower_right, color = geom
             cmd = rectangle( upper_left, lower_right, color, color )
         else:
+            _, p0, p1, stroke_width, color = geom
             cmd = '<line x1="{:.3f}" y1="{:.3f}" x2="{:.3f}" y2="{:.3f}" stroke-width="{}" stroke="{}"/>\n'\
-                .format( p0[0], p0[1], p1[0], p1[1], 0.5*line_width,color )
+                .format( p0[0], p0[1], p1[0], p1[1], stroke_width, color )
         self.cmds.append( cmd )
 
     def make_text( self, text, p, fontsize, extra_tag=None ):
         color = 'black'
-        ## shift so that p is the lower right
-        textwidth = fontsize*0.6 * len(text)
+        x, y = tree_text_lower_left( text, p, fontsize )
         cmd = '<text x="{:.3f}" y="{:.3f}" font-size="{}" font-family="{}" fill="{}" xml:space="preserve">{}</text>\n'\
-            .format( p[0]-textwidth, p[1], fontsize, MONOSPACE_FONT_FAMILY, color, text )
+            .format( x, y, fontsize, MONOSPACE_FONT_FAMILY, color, text )
         self.cmds.append( cmd )
 
     def write( self, out ):
         out.write('\n'.join( self.cmds )+'\n' )
+
+
+def make_tree_plotter( cmap=None ):
+    ''' see mpl_logo_basic.make_tree_plotter '''
+    return SVG_tree_plotter( cmap=cmap )
 
 
 
@@ -280,7 +307,10 @@ def text_in_box( upper_left, lower_right, text, color ):
 
 
 
-def protein_logo( upper_left, lower_right, pwm, scale={} ):## scale[pos] should be in range [0,1]
+def protein_logo_boxes( upper_left, lower_right, pwm, scale={} ):## scale[pos] should be in range [0,1]
+    ''' Layout for protein_logo, shared by the SVG and matplotlib renderers
+    (see mpl_logo_basic.py). Returns list of (upper_left, lower_right, aa, color)
+    '''
 
     aacolor = logo_aacolor
     # for aa in "G"       :aacolor[aa] = CB_ORANGE #"orange" ## special for glycine
@@ -300,7 +330,7 @@ def protein_logo( upper_left, lower_right, pwm, scale={} ):## scale[pos] should 
 
     letter_width = float(width) / N
 
-    cmds = []
+    boxes = []
 
     for pos in range(N):
         l = [(y,x) for x,y in pwm[pos].items() ]
@@ -319,11 +349,16 @@ def protein_logo( upper_left, lower_right, pwm, scale={} ):## scale[pos] should 
                 y1 = upper_y + (totfreq+freq) * scaled_height
                 x0 = upper_left[0] + pos*letter_width
                 x1 = upper_left[0] + (pos+1)*letter_width
-                cmds.append( text_in_box( (x0,y0), (x1,y1), aa, aacolor[aa] ) )
+                boxes.append( ( (x0,y0), (x1,y1), aa, aacolor[aa] ) )
             totfreq += freq
             #print pos,aa,freq,totfreq,sum(pwm[pos].values()),pwm[pos]
         assert abs(totfreq-1.0)<1e-2
 
+    return boxes
+
+def protein_logo( upper_left, lower_right, pwm, scale={} ):## scale[pos] should be in range [0,1]
+    cmds = [ text_in_box( p0, p1, aa, color ) for p0, p1, aa, color in
+             protein_logo_boxes( upper_left, lower_right, pwm, scale ) ]
     return '\n'.join(cmds)+'\n'
 
 def generic_logo( upper_left, lower_right, pwm ):
@@ -356,7 +391,11 @@ def generic_logo( upper_left, lower_right, pwm ):
     return '\n'.join(cmds)+'\n'
 
 
-def make_stack( upper_left, lower_right, l ):
+def stack_boxes( upper_left, lower_right, l ):
+    ''' Layout for make_stack, shared by the SVG and matplotlib renderers
+    (see mpl_logo_basic.py). Returns list of (upper_left, lower_right, word, color)
+    NOTE: sorts l in place (largest value first)
+    '''
     x0 = upper_left [0]
     x1 = lower_right[0]
 
@@ -368,7 +407,7 @@ def make_stack( upper_left, lower_right, l ):
 
     total = sum([x[0] for x in l])
     totval = 0
-    cmds = []
+    boxes = []
     for vwc in l:
         if len(vwc) == 2:
             val,word = vwc
@@ -378,9 +417,14 @@ def make_stack( upper_left, lower_right, l ):
             val,word,color = vwc
         y0 = upper_left[1] + height * float(totval) / total
         y1 = upper_left[1] + height * float(totval+val) / total
-        cmds.append( text_in_box( (x0,y0), (x1,y1), word, color ) )
+        boxes.append( ( (x0,y0), (x1,y1), word, color ) )
         totval+=val
 
+    return boxes
+
+def make_stack( upper_left, lower_right, l ):
+    cmds = [ text_in_box( p0, p1, word, color ) for p0, p1, word, color in
+             stack_boxes( upper_left, lower_right, l ) ]
     return '\n'.join(cmds)+'\n'
 
 

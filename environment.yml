@@ -67,8 +67,6 @@ dependencies:
   - pyyaml>=6.0
   - tqdm>=4.66
   
-  # For SVG to PNG conversion
-  - imagemagick
   
   # Pip dependencies not in conda
   - pip>=23.0
