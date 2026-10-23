@@ -972,7 +972,12 @@ def find_gex_cluster_degs(
             use_raw = True, stripplot=True, show=False, swap_axes=True,
             var_group_positions = var_group_positions,
             var_group_labels = var_group_labels,
-            var_group_rotation = 1.0 )
+            var_group_rotation = 1.0,
+            # passed through to seaborn.violinplot. scanpy colors the violins
+            # with hue=<the groupby categories>; with pandas 3, seaborn 0.13's
+            # dodge='auto' check counts unobserved categorical combinations
+            # and "dodges" each violin to 1/num_groups width, off-center
+            dodge = False )
         pngfile = outfile_prefix+'_gex_cluster_degs_violin.png'
         plt.savefig(pngfile, bbox_inches="tight")
         adata.uns.setdefault('conga_results',{})[GEX_CLUSTERS_DEGS_VIOLINPLOT] = pngfile

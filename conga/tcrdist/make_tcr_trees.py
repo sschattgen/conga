@@ -27,7 +27,8 @@ def make_tcr_tree_svg_commands(
         color_scores=None,
         color_score_range=None,
         random_seed=DEFAULT_RANDOM_SEED, # for subsampling > max_tcrs_for_trees
-        title=''
+        title='',
+        drawer = tcrdist_svg_basic, # or mpl_logo_basic
 ):
     ''' tcrs is a list of tuples: tcrs = [ (atcr1,btcr1), (atcr2,btcr2), ....
     atcr1 = (va1, ja1, cdr3a1, cdr3a_nucseq1, *)
@@ -35,7 +36,8 @@ def make_tcr_tree_svg_commands(
 
     upper_left and width_height are tuples (x,y)
 
-    returns the svg cmds
+    returns the svg cmds (or, if drawer=mpl_logo_basic, drawing commands for
+    mpl_logo_basic.draw_cmds)
 
     untested, currently under development
     '''
@@ -176,14 +178,14 @@ def make_tcr_tree_svg_commands(
     toplabel_xpos=upper_left[0]+xmargin
     toplabel_ypos=upper_left[1]+ymargin+0.9*toplabel_fontsize # x,y passed to make_text is the lower_left corner
     if title:
-        cmds.append( tcrdist_svg_basic.make_text(title, (toplabel_xpos, toplabel_ypos),
+        cmds.append( drawer.make_text(title, (toplabel_xpos, toplabel_ypos),
                                                  toplabel_fontsize, font_family=font_family))
         toplabel_ypos += toplabel_fontsize
-    cmds.append( tcrdist_svg_basic.make_text('{} xcrs {} clusters'.format(len(tcrs), len(centers)),
+    cmds.append( drawer.make_text('{} xcrs {} clusters'.format(len(tcrs), len(centers)),
                                              (toplabel_xpos, toplabel_ypos),
                                              toplabel_fontsize, font_family=font_family))
     toplabel_ypos += toplabel_fontsize
-    cmds.append( tcrdist_svg_basic.make_text('color_range: {:.2f}-{:.2f}'\
+    cmds.append( drawer.make_text('color_range: {:.2f}-{:.2f}'\
                                              .format(color_score_range[0], color_score_range[1]),
                                              (toplabel_xpos, toplabel_ypos),
                                              toplabel_fontsize, font_family=font_family))
@@ -196,7 +198,7 @@ def make_tcr_tree_svg_commands(
                                         all_scores, percentile )
 
 
-    plotter = tcrdist_svg_basic.SVG_tree_plotter()
+    plotter = drawer.make_tree_plotter()
 
     tree_p0 = [tree_x0, tree_y0]
     tree_p1 = [tree_x0 + tree_width, tree_y0 + tree_height ]
@@ -290,10 +292,10 @@ def make_tcr_tree_svg_commands(
             line_width = max(1,int(floor(0.5+ fake_size*canvas_tree_w_factor )))
             box_x0 = Transform(max(canvas_tree_min_rmsd,little_rmsd)) ; box_x1 = Transform(big_rmsd)
             assert little_rmsd<big_rmsd
-            glyph_cmds.append( tcrdist_svg_basic.rectangle( ( box_x0, center - line_width/2.0 ),
+            glyph_cmds.append( drawer.rectangle( ( box_x0, center - line_width/2.0 ),
                                                             ( box_x1, center + line_width/2.0 ),
                                                             'none', 'black', stroke_width=3, dashed=True ) )
-            glyph_cmds.append( tcrdist_svg_basic.make_text( '%d'%real_size, ( box_x1+4, center + 0.75*15.0/2) ,
+            glyph_cmds.append( drawer.make_text( '%d'%real_size, ( box_x1+4, center + 0.75*15.0/2) ,
                                                             15, font_family=font_family))
 
         if len( glyph_edges ) < max_glyphs and my_min_cluster_size_for_glyphs>1:
@@ -362,7 +364,7 @@ def make_tcr_tree_svg_commands(
         ## silly xloc, was hard-coded to 5
         #left = upper_left[0]+xmargin-5 # old way
         left = upper_left[0] # new way
-        cmds.append( tcrdist_svg_basic.make_text('%3d'%real_size, ( left, loc+glyph_height/2.) , cluster_size_fontsize,
+        cmds.append( drawer.make_text('%3d'%real_size, ( left, loc+glyph_height/2.) , cluster_size_fontsize,
                                                  font_family=font_family))
 
 
@@ -384,7 +386,8 @@ def make_tcr_tree_svg_commands(
 
             glyph_tcrs = [tcrs[x] for x in members]
             cmds.extend(make_tcr_logo.make_tcr_logo_svg_commands_for_tcrs(
-                glyph_tcrs, ab2, organism, [x0,y0], [single_glyph_width, glyph_height], tcrdist_calculator))
+                glyph_tcrs, ab2, organism, [x0,y0], [single_glyph_width, glyph_height], tcrdist_calculator,
+                drawer=drawer))
 
 
     return plotter.cmds + cmds

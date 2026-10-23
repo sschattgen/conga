@@ -1186,6 +1186,26 @@ def calc_X_pca_gex_including_protein_features(
     print('replacing the GEX PCs with combined GEX/PROT PCS')
 
 
+def relabel_clusters_by_decreasing_size(labels):
+    ''' Returns integer cluster labels renumbered so that 0 is the largest
+    cluster, 1 the next largest, and so on; ties are broken by the original
+    label, so the result is deterministic. The partition itself is unchanged.
+
+    This is the convention of the leidenalg-based leiden (and louvain)
+    clustering that conga originally used, for which this is a no-op; igraph's
+    leiden implementation (flavor='igraph') returns labels in arbitrary order.
+    '''
+    labels = np.array(labels).astype(int)
+    old_labels, counts = np.unique(labels, return_counts=True)
+    order = sorted(zip(-counts, old_labels)) # decreasing size, then old label
+    old2new = {old: new for new, (_, old) in enumerate(order)}
+    new_labels = np.array([old2new[x] for x in labels])
+    new_counts = np.bincount(new_labels)
+    assert np.all(new_counts[:-1] >= new_counts[1:])
+    assert sorted(new_counts) == sorted(counts)
+    return new_labels
+
+
 def cluster_and_tsne_and_umap(
         adata,
         clustering_resolution= None,
@@ -1328,7 +1348,11 @@ def cluster_and_tsne_and_umap(
 
         ## set better obsm keys and data types
         # generic names-- these will be the ones we use in other stuff
-        adata.obs['clusters_'+tag] = np.copy(adata.obs[cluster_key_added]).astype(int)
+        # cluster 0 is the largest (keep leiden_/louvain_ key consistent)
+        clusters = relabel_clusters_by_decreasing_size(adata.obs[cluster_key_added])
+        adata.obs[cluster_key_added] = pd.Categorical(
+            clusters.astype(str), categories=[str(x) for x in range(np.max(clusters)+1)])
+        adata.obs['clusters_'+tag] = clusters
         adata.obsm['X_{}_2d'.format(tag)] = adata.obsm['X_umap_'+tag]
 
 
@@ -3214,7 +3238,9 @@ def calc_tcrdist_nbrs_umap_clusters_cpp(
                 ) from e
             print('ran louvain clustering:', resolution, cluster_key_added)
 
-    adata.obs[cluster_key_added] = np.copy(adata.obs[cluster_key_added]).astype(int)
+    # cluster 0 is the largest
+    adata.obs[cluster_key_added] = relabel_clusters_by_decreasing_size(
+        adata.obs[cluster_key_added])
     print('DONE running louvain', cluster_key_added)
 
     del adata.obsm['X_pca'] # delete the fake pcas

@@ -12,7 +12,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
 #  - build-essential/g++: compile the tcrdist_cpp executables (C++11)
 #  - cmake/flex/bison: louvain (python-igraph's Louvain backend) builds its C
 #    core from source via CMake on pip install; no manylinux wheel ships it
-#  - imagemagick: svg -> png conversion for CoNGA plots (conga/convert_svg_to_png.py)
 #  - git: only needed if installing extra packages from VCS; harmless to keep
 RUN apt-get update --fix-missing && \
     apt-get install -y --no-install-recommends \
@@ -20,7 +19,6 @@ RUN apt-get update --fix-missing && \
       cmake \
       flex \
       bison \
-      imagemagick \
       git \
       ca-certificates && \
     apt-get clean && \
