@@ -618,6 +618,7 @@ if args.restart is None: ################################## load GEX/TCR data
             outfile=args.kpca_file,
             gaussian_kernel_sdev = args.kpca_gaussian_kernel_sdev,
             force_Dmax = args.kpca_default_kernel_Dmax,
+            random_seed=args.random_seed,
         )
 
     adata = conga.preprocess.read_dataset(
@@ -656,6 +657,7 @@ if args.restart is None: ################################## load GEX/TCR data
             force_Dmax=args.kpca_default_kernel_Dmax,
             tcrs=tcrs,
             return_pcs = True,
+            random_seed=args.random_seed,
         )
         adata.obsm['X_pca_tcr'] = kpcs
 
