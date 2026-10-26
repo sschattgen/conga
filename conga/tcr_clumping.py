@@ -39,12 +39,15 @@ def estimate_background_tcrdist_distributions(
         preserve_vj_pairings = False,
         save_unpaired_dists = False, # tell C++ code to save to files (dev feature)
         nocleanup = False,
+        random_seed = util.DEFAULT_RANDOM_SEED, # for resampling background chains
 ):
     ''' Returns a numpy float matrix P of shape (len(tcrs), max_dist+1)
 
     the (i,j) entry in P is an estimate of the probability of seeing a paired tcrdist
     score <= j for tcr #i.
 
+    The background alpha and beta chains are resampled with seeds random_seed
+    and random_seed+1, respectively, so the result is reproducible.
     '''
     if not util.tcrdist_cpp_available():
         print('conga.tcr_clumping.estimate_background_tcrdist_distributions:: need to compile the C++ tcrdist executables')
@@ -74,11 +77,13 @@ def estimate_background_tcrdist_distributions(
         if background_alpha_chains is None:
             background_alpha_chains = tcr_sampler.resample_shuffled_tcr_chains(
                 organism, num_random_samples, 'A', junctions_df,
-                preserve_vj_pairings = preserve_vj_pairings)
+                preserve_vj_pairings = preserve_vj_pairings,
+                random_seed = random_seed)
         if background_beta_chains is None:
             background_beta_chains  = tcr_sampler.resample_shuffled_tcr_chains(
                 organism, num_random_samples, 'B', junctions_df,
-                preserve_vj_pairings = preserve_vj_pairings)
+                preserve_vj_pairings = preserve_vj_pairings,
+                random_seed = random_seed+1) # independent of the alpha draws
 
     # save all tcrs to files
     achains_file = str(tmpfile_prefix) + '_bg_achains.tsv'
@@ -150,6 +155,7 @@ def find_tcr_clumping(
         preserve_vj_pairings = False,
         bg_tcrs = None, # usually better to leave this None
         use_conservative_pvalues_for_intra_cluster_clumps = True,
+        random_seed = util.DEFAULT_RANDOM_SEED,
 ):
     ''' Returns a pandas dataframe with the following columns:
     - clone_index
@@ -186,6 +192,7 @@ def find_tcr_clumping(
         tmpfile_prefix=outprefix,
         preserve_vj_pairings=preserve_vj_pairings,
         tcrs_for_background_generation=bg_tcrs,
+        random_seed=random_seed,
     )
 
     tcrs_file = outprefix +'_tcrs.tsv'
@@ -447,6 +454,7 @@ def assess_tcr_clumping(
         #radii = [24, 48, 72, 96],
         #num_random_samples = 50000,
         #pvalue_threshold = 1.0,
+        #random_seed = util.DEFAULT_RANDOM_SEED,
 ):
     ''' This is a wrapper around find_tcr_clumping that takes an AnnData
 
@@ -558,6 +566,7 @@ def find_significant_tcrdist_matches(
         num_random_samples_for_bg_freqs = 50000,
         nocleanup=False,
         fixup_allele_assignments_in_background_tcrs_df=True,
+        random_seed=util.DEFAULT_RANDOM_SEED, # for the background tcrs
 ):
     ''' Computes paired tcrdist distances between query_tcrs_df and
     db_tcrs_df and converts them to
@@ -620,7 +629,8 @@ def find_significant_tcrdist_matches(
     bg_freqs = estimate_background_tcrdist_distributions(
         organism, query_tcrs, max_dist,
         num_random_samples= num_random_samples_for_bg_freqs,
-        tcrs_for_background_generation= background_tcrs)
+        tcrs_for_background_generation= background_tcrs,
+        random_seed= random_seed)
     assert bg_freqs.shape == (len(query_tcrs), max_dist+1)
 
     adjusted_bg_freqs = num_comparisons * bg_freqs
@@ -739,6 +749,7 @@ def match_adata_tcrs_to_db_tcrs(
         num_random_samples_for_bg_freqs = 50000,
         nocleanup=False,
         fixup_allele_assignments_in_background_tcrs_df=True,
+        random_seed=util.DEFAULT_RANDOM_SEED, # for the background tcrs
 ):
     ''' Find significant tcrdist matches between tcrs in adata and tcrs
     in db_tcrs_tsvfile
@@ -800,6 +811,7 @@ def match_adata_tcrs_to_db_tcrs(
         num_random_samples_for_bg_freqs=num_random_samples_for_bg_freqs,
         fixup_allele_assignments_in_background_tcrs_df=fixup_allele_assignments_in_background_tcrs_df,
         nocleanup=nocleanup,
+        random_seed=random_seed,
         )
 
     if not results.empty:

@@ -266,6 +266,7 @@ def _compute_graph_overlap_stats(
         verbose=False,
         swaptags=False,
         max_calculation_time=2000,# in seconds
+        random_seed=util.DEFAULT_RANDOM_SEED,
 ):
     ''' Helper function for graph-graph overlap summary analysis
 
@@ -325,9 +326,10 @@ def _compute_graph_overlap_stats(
         M1 = _make_csr_nbrs(tcr_nbrs).tocoo()
         M2 = M1.copy()
         overlaps = []
+        rng = np.random.default_rng(random_seed)
         for r in range(num_random_repeats+1):
             if r:
-                p = np.random.permutation(N)
+                p = rng.permutation(N)
             else:
                 p = np.arange(N)
             M1.row = p[M2.row]
@@ -432,6 +434,7 @@ def compute_graph_vs_graph_stats(
         all_nbrs,
         num_random_repeats = 100,
         outfile_prefix = None,
+        random_seed = util.DEFAULT_RANDOM_SEED,
 ):
     '''Here we are assessing overall graph-vs-graph correlation by looking at
     the shared edges between TCR and GEX neighbor graphs and comparing
@@ -474,19 +477,21 @@ def compute_graph_vs_graph_stats(
     for nbr_frac in all_nbrs:
         gex_nbrs, tcr_nbrs = all_nbrs[nbr_frac]
         stats = _compute_graph_overlap_stats(
-            gex_nbrs, tcr_nbrs, num_random_repeats)
+            gex_nbrs, tcr_nbrs, num_random_repeats, random_seed=random_seed)
         stats['nbr_frac'] = nbr_frac
         stats['graph_overlap_type'] = 'gex_nbr_vs_tcr_nbr'
         dfl.append(stats)
 
         stats = _compute_graph_overlap_stats(
-            gex_nbrs, tcr_cluster_nbrs, num_random_repeats)
+            gex_nbrs, tcr_cluster_nbrs, num_random_repeats,
+            random_seed=random_seed)
         stats['nbr_frac'] = nbr_frac
         stats['graph_overlap_type'] = 'gex_nbr_vs_tcr_cluster'
         dfl.append(stats)
 
         stats = _compute_graph_overlap_stats(
-            tcr_nbrs, gex_cluster_nbrs, num_random_repeats, swaptags=True)
+            tcr_nbrs, gex_cluster_nbrs, num_random_repeats, swaptags=True,
+            random_seed=random_seed)
         stats['nbr_frac'] = nbr_frac
         stats['graph_overlap_type'] = 'gex_cluster_vs_tcr_nbr'
         dfl.append(stats)

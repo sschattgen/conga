@@ -378,11 +378,16 @@ def find_batch_biases(
     return nbrhood_results, pd.DataFrame(hotspot_results) # first is already converted to DF
 
 
-def calc_nbr_zscore_threshold(nbrs, num_repeats = 50):
+def calc_nbr_zscore_threshold(
+        nbrs,
+        num_repeats = 50,
+        random_seed = util.DEFAULT_RANDOM_SEED,
+):
     num_clones, num_nbrs = nbrs.shape
+    rng = np.random.default_rng(random_seed)
     mxl = []
     for i in range(num_repeats):
-        scores = np.random.randn(num_clones)
+        scores = rng.standard_normal(num_clones)
         scores = (scores-np.mean(scores))/np.std(scores) # silly
         scores = (scores + scores[nbrs].sum(axis=1))/(num_nbrs+1)
         mxl.append(np.max(scores))
@@ -851,7 +856,7 @@ def score_gex_clusters_naive_vs_memory(
         for tag, genes in all_genes.items():
             outl[tag] = calc_raw_gex_score(adata, mask, genes)
             outl[tag+'_norm'] = calc_raw_gex_score(adata, mask, genes, normed=True)
-        for gene in genes_union:
+        for gene in sorted(genes_union): # set order varies between processes
             outl[gene] = calc_raw_gex_score(adata, mask, [gene])
             outl[gene+'_norm'] = calc_raw_gex_score(adata, mask, [gene], normed=True)
         dfl.append(outl)
@@ -1231,7 +1236,7 @@ def analyze_proteins(
         exclude_protein_prefixes = ['HTO', 'TCRV', 'TCRv'],
         n_components_prot=20,
         n_components_gex=40,
-
+        random_seed=util.DEFAULT_RANDOM_SEED, # for the distance diagnostics
 ):
     ''' run pca on the protein data
 
@@ -1263,7 +1268,8 @@ def analyze_proteins(
     X_pca_prot = X_pca[:,:n_components_prot]
     X_pca_gex  = adata.obsm['X_pca_gex'][:,:n_components_gex]
     nrandom = 1000
-    inds = np.random.permutation(adata.shape[0])[:nrandom]
+    rng = np.random.default_rng(random_seed)
+    inds = rng.permutation(adata.shape[0])[:nrandom]
     D_prot = pairwise_distances(X_pca_prot[inds,:])
     D_gex = pairwise_distances(X_pca_gex[inds,:])
     print('gex_dists: ', describe(D_gex.ravel()))
@@ -1320,7 +1326,8 @@ def analyze_proteins(
         assert obsm_tag in adata.obsm.keys()
         num_nbrs = max(1, min(num_clones//10, max(20, num_clones//500)))
         nbr_frac = (num_nbrs+0.1)/num_clones
-        all_nbrs = preprocess.calc_nbrs(adata, [nbr_frac], obsm_tag_gex=obsm_tag, obsm_tag_tcr=None)
+        all_nbrs = preprocess.calc_nbrs(adata, [nbr_frac], obsm_tag_gex=obsm_tag, obsm_tag_tcr=None,
+                                       random_seed=random_seed)
         nbrs = all_nbrs[nbr_frac][0]
         assert num_nbrs == nbrs.shape[1]
         all_nbr_avg_colors = {}
@@ -1899,6 +1906,7 @@ def find_tcr_clumping_single_chain(
         verbose=True,
         preserve_vj_pairings = False,
         bg_tcrs = None, # usually better to leave this None
+        random_seed = util.DEFAULT_RANDOM_SEED,
 ):
     ''' Returns a pandas dataframe with the following columns:
     - chain (A or B)
@@ -1933,6 +1941,7 @@ def find_tcr_clumping_single_chain(
         preserve_vj_pairings=preserve_vj_pairings,
         save_unpaired_dists=True,
         tcrs_for_background_generation=bg_tcrs,
+        random_seed=random_seed,
         #nocleanup=True,
     )
 
@@ -2469,6 +2478,7 @@ def run_umap_and_clustering_from_indices_distances(
         clustering_resolution = None,
         clustering_method=None,
         n_components_umap = 2,
+        random_seed = util.DEFAULT_RANDOM_SEED, # for the placeholder X_pca
 ):
     ''' code is borrowed from conga.preprocess.calc_tcrdist_nbrs_umap_clusters_cpp
 
@@ -2515,7 +2525,8 @@ def run_umap_and_clustering_from_indices_distances(
     # as far as I can tell, these are only used if there are too many connected
     # components in the nbr graph... see the infinite while loop up above.
     print('temporarily putting random pca vectors into adata...')
-    fake_pca = np.random.randn(adata.shape[0], 10)
+    fake_pca = np.random.default_rng(random_seed).standard_normal(
+        (adata.shape[0], 10))
     adata.obsm['X_pca'] = fake_pca
 
     print('running umap', adata.shape)
@@ -2567,6 +2578,7 @@ def create_conga_hits_adata(
         big_nbr_frac = 0.25,
         num_nbrs = 10, # for UMAP/clustering
         verbose = True,
+        random_seed = util.DEFAULT_RANDOM_SEED, # for the faiss index subsamples
 ):
     ''' Try UMAP/clustering just the conga hits, using a measure that combines GEX and
     TCR
@@ -2583,7 +2595,8 @@ def create_conga_hits_adata(
     adata = adata[mask].copy()
 
     all_nbrs = preprocess.calc_nbrs(
-        adata, [small_nbr_frac, big_nbr_frac], sort_nbrs=True)
+        adata, [small_nbr_frac, big_nbr_frac], sort_nbrs=True,
+        random_seed=random_seed)
 
     nbrs_gex, nbrs_tcr= all_nbrs[big_nbr_frac]
 

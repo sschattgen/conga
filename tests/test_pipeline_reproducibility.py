@@ -21,11 +21,15 @@ TCR columns written directly into `adata.obs`, satisfying
 (`gex_data_type == 'h5ad'` and the TCR columns already present in
 `adata.obs`).
 
-Two Pipeline_Run configurations (Requirement 7), each run twice with an
-identical `--random_seed 42` and distinct `--outfile_prefix` locations:
+Three Pipeline_Run configurations, each run twice with an identical
+`--random_seed 42` and distinct `--outfile_prefix` locations:
 
     1. Default / vectorized-or-KernelPCA path (Requirement 7.1).
     2. Exact-TCRdist path via `--no_kpca` (Requirement 7.2).
+    3. Seeded analyses: `--tcr_clumping --graph_vs_graph_stats
+       --match_to_tcr_database --make_tcrdist_trees`, comparing the files
+       those analyses write as well as the final h5ad (configurations 1 and
+       2 run none of the analyses that take a seed).
 
 Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 7.1, 7.2
 """
@@ -34,6 +38,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import matplotlib.image as mpimg
 import numpy as np
 import pandas as pd
 import anndata as ad
@@ -211,6 +216,92 @@ def fixture_h5ad_path(tmp_path_factory):
     return h5ad_path
 
 
+# Analysis-configuration fixture (third Pipeline_Run configuration).
+#
+# `--tcr_clumping` and `--match_to_tcr_database` only report TCRs that are
+# unusually close to other TCRs / to a literature-database TCR, so the
+# random-clone fixture above (no database TCRs, no real clumps) yields empty
+# result tables, which would make a double-run comparison vacuous. This
+# fixture therefore mixes in (a) TCRs copied from the shipped
+# conga/data/new_paired_tcr_db_for_matching_nr.tsv (exact database matches)
+# and (b) a "clump" of near-identical TCRs, alongside the random clones.
+# Both analyses run `tcr_sampler.analyze_junction`, which needs a
+# nucleotide CDR3 whose length is 3 * len(cdr3), hence the back-translation.
+_DB_TCRS = [  # (va, ja, cdr3a, vb, jb, cdr3b), rows of the shipped database
+    ('TRAV35*01', 'TRAJ49*01', 'CAGGTGNQFYF', 'TRBV10-3*01', 'TRBJ1-5*01', 'CAISEVGVGQPQHF'),
+    ('TRAV1-2*01', 'TRAJ34*01', 'CAVRDPGNTDKLIF', 'TRBV20-1*01', 'TRBJ2-4*01', 'CSARASGGEAKNIQYF'),
+    ('TRAV2*01', 'TRAJ28*01', 'CAVSRAGAGSYQLTF', 'TRBV20-1*01', 'TRBJ2-4*01', 'CSARAGGGEAKNIQYF'),
+    ('TRAV12-2*01', 'TRAJ45*01', 'CAVSGGGADGLTF', 'TRBV28*01', 'TRBJ2-3*01', 'CASSFLGTGVEQYF'),
+    ('TRAV12-3*01', 'TRAJ12*01', 'CAMRGDSSYKLIF', 'TRBV12-4*01', 'TRBJ2-4*01', 'CASSLWEKLAKNIQYF'),
+    ('TRAV26-1*01', 'TRAJ32*01', 'CIVWGGATNKLIF', 'TRBV7-2*01', 'TRBJ2-3*01', 'CASSVRSTDTQYF'),
+    ('TRAV26-1*01', 'TRAJ45*01', 'CIVLGGADGLTF', 'TRBV7-2*01', 'TRBJ2-3*01', 'CASSFRFTDTQYF'),
+    ('TRAV3*01', 'TRAJ40*01', 'CAVSDITYKYIF', 'TRBV28*01', 'TRBJ2-2*01', 'CATGPRANTGELFF'),
+]
+# A "clump": six TCRs with the same V/J genes whose CDR3a and CDR3b each
+# differ from one another by one or two residues (the first is also a row of
+# the shipped database, so it doubles as a database match). CDR3a *and* CDR3b must both
+# differ between members: `find_tcr_clumping` does not count TCRs that share
+# an identical alpha or beta chain as neighbors.
+_CLUMP_TCRS = [
+    ('TRAV8-3*01', 'TRAJ21*01', cdr3a, 'TRBV28*01', 'TRBJ2-2*01', cdr3b)
+    for cdr3a, cdr3b in [
+        ('CAVGDNFNKFYF', 'CASSLTSAAGELFF'),
+        ('CAVGDNYNKFYF', 'CASSLTSAAGEQFF'),
+        ('CAVGENFNKFYF', 'CASSLTSATGELFF'),
+        ('CAVGDNFSKFYF', 'CASSLASAAGELFF'),
+        ('CAVADNFNKFYF', 'CASSLTSAAGDLFF'),
+        ('CAVGDNFNRFYF', 'CASSVTSAAGELFF'),
+    ]
+]
+N_ANALYSIS_RANDOM_CLONES = 24
+N_ANALYSIS_CELLS = 2 * (len(_DB_TCRS) + len(_CLUMP_TCRS)
+                        + N_ANALYSIS_RANDOM_CLONES)  # 2 cells per clone
+
+# One fixed codon per amino acid, used only to back-translate the CDR3s.
+_BACKTRANSLATE_CODONS = {
+    'A': 'gcc', 'C': 'tgc', 'D': 'gac', 'E': 'gag', 'F': 'ttc', 'G': 'ggc',
+    'H': 'cac', 'I': 'atc', 'K': 'aag', 'L': 'ctg', 'M': 'atg', 'N': 'aac',
+    'P': 'ccc', 'Q': 'cag', 'R': 'cgg', 'S': 'agc', 'T': 'acc', 'V': 'gtg',
+    'W': 'tgg', 'Y': 'tac',
+}
+
+
+def _backtranslate(cdr3: str) -> str:
+    return ''.join(_BACKTRANSLATE_CODONS[aa] for aa in cdr3)
+
+
+def _build_analysis_fixture_adata() -> ad.AnnData:
+    rng = np.random.default_rng(RANDOM_SEED)
+    counts = _make_gex_counts(N_ANALYSIS_CELLS, N_GENES, N_PROGRAMS, rng)
+    barcodes = [f'CELL{i}-1' for i in range(N_ANALYSIS_CELLS)]
+    var = pd.DataFrame(index=[f'GENE{i}' for i in range(N_GENES)])
+
+    clones = (_DB_TCRS + _CLUMP_TCRS
+              + _make_distinct_clones(N_ANALYSIS_RANDOM_CLONES))
+    rows = []
+    for cell_idx in range(N_ANALYSIS_CELLS):
+        va, ja, cdr3a, vb, jb, cdr3b = clones[cell_idx % len(clones)]
+        rows.append(dict(
+            va=va, ja=ja, cdr3a=cdr3a, cdr3a_nucseq=_backtranslate(cdr3a),
+            vb=vb, jb=jb, cdr3b=cdr3b, cdr3b_nucseq=_backtranslate(cdr3b),
+        ))
+    tcr_df = pd.DataFrame(rows, index=barcodes)
+
+    adata = ad.AnnData(X=sp.csr_matrix(counts), obs=tcr_df, var=var)
+    adata.obs_names = barcodes
+    return adata
+
+
+@pytest.fixture(scope='session')
+def analysis_fixture_h5ad_path(tmp_path_factory):
+    """Session-scoped `.h5ad` fixture for the analysis configuration (see
+    the comment above `_DB_TCRS`)."""
+    tmp_dir = tmp_path_factory.mktemp('pipeline_reproducibility_analysis_fixture')
+    h5ad_path = tmp_dir / 'analysis_fixture.h5ad'
+    _build_analysis_fixture_adata().write_h5ad(h5ad_path)
+    return h5ad_path
+
+
 def _base_args(fixture_h5ad_path: Path) -> list:
     return [
         '--gex_data', str(fixture_h5ad_path),
@@ -344,3 +435,164 @@ class TestExactTcrdistPathReproducibility:
             label='no_kpca')
         _assert_comparable_outputs_equal(
             adata1, adata2, include_vec_tcr_fields=False)
+
+
+# ---------------------------------------------------------------------------
+# Configuration 3: the seeded analyses
+# ---------------------------------------------------------------------------
+ANALYSIS_ARGS = [
+    '--tcr_clumping',
+    '--graph_vs_graph_stats',
+    '--match_to_tcr_database',
+    '--make_tcrdist_trees',
+]
+
+# Known non-deterministic column (review finding #10, deliberately NOT fixed
+# here): `_compute_graph_overlap_stats` stores `calculation_time`, the
+# wall-clock seconds the computation took (`time.time() - starttime`), in
+# the graph_vs_graph_stats table, `adata.uns['conga_results']` and
+# `_graph_vs_graph_stats.tsv`. It differs between any two runs. Every other
+# column, including `calculation_time_fitted` (a closed-form function of the
+# node and edge counts), must match exactly, so nothing else is excluded.
+WALL_CLOCK_GRAPH_STATS_COLUMNS = ['calculation_time']
+
+# Files whose bytes depend only on the data and the seed.
+_BYTE_COMPARED_SUFFIXES = ('.tsv', '_README.txt')
+# Deliberately not byte-compared (their presence is still checked through the
+# file listing): `*_log.txt` (hostname, absolute argv paths, wall-clock
+# "run_conga took N minutes"), `*_results_summary.html` (absolute paths of the
+# run directory plus embedded base64 images) and `*.h5ad` (compared field by
+# field above, since h5ad bytes can vary with HDF5 write metadata). PNGs are
+# compared as decoded pixel arrays rather than bytes so that metadata chunks
+# written by the image library cannot cause a spurious difference.
+
+
+def _run_analysis_pipeline_twice(h5ad_path: Path, tmp_path: Path):
+    """Runs the analysis configuration twice, each run in its own directory
+    (used as both cwd, so `tmp_nbrs*` scratch files stay inside `tmp_path`,
+    and output directory, with the same file names `out_*` in both so that
+    file listings and README texts are comparable). Returns the two run
+    directories.
+    """
+    run_dirs = []
+    for run_idx in (1, 2):
+        run_dir = tmp_path / f'analysis_run{run_idx}'
+        run_dir.mkdir()
+        args = (_base_args(h5ad_path) +
+                ['--outfile_prefix', str(run_dir / 'out')] + ANALYSIS_ARGS)
+        result = _run_cli(args, cwd=str(run_dir))
+        if result.returncode != 0:
+            pytest.fail(
+                f'analysis run {run_idx} exited with returncode '
+                f'{result.returncode}.\n'
+                f'--- stdout ---\n{result.stdout}\n'
+                f'--- stderr ---\n{result.stderr}'
+            )
+        assert (run_dir / 'out_final.h5ad').exists(), result.stdout
+        run_dirs.append(run_dir)
+    return run_dirs[0], run_dirs[1]
+
+
+def _assert_analysis_outputs_equal(adata1, adata2, dir1, dir2):
+    """Compares everything the analysis flags produce: the final AnnData
+    (including the result tables stored in `uns['conga_results']`), the
+    result files in the output directories and the rendered tree/clumping
+    figures.
+    """
+    failures = []
+
+    # --- AnnData: the standard comparable fields plus analysis results -----
+    try:
+        _assert_comparable_outputs_equal(
+            adata1, adata2, include_vec_tcr_fields=True)
+    except AssertionError as e:
+        failures.append(str(e))
+    if not np.array_equal(adata1.obs['tcr_clumping_pvalues'].values,
+                          adata2.obs['tcr_clumping_pvalues'].values):
+        failures.append("adata.obs['tcr_clumping_pvalues'] differs")
+    for key in ('tcr_clumping', 'graph_vs_graph_stats', 'tcr_db_match'):
+        df1 = adata1.uns['conga_results'][key].copy()
+        df2 = adata2.uns['conga_results'][key].copy()
+        if key == 'graph_vs_graph_stats':
+            df1 = df1.drop(columns=WALL_CLOCK_GRAPH_STATS_COLUMNS)
+            df2 = df2.drop(columns=WALL_CLOCK_GRAPH_STATS_COLUMNS)
+        try:
+            pd.testing.assert_frame_equal(df1, df2, check_exact=True)
+        except AssertionError as e:
+            failures.append(f"adata.uns['conga_results']['{key}'] differs: {e}")
+
+    # --- files in the output directories ------------------------------------
+    names1 = sorted(p.name for p in dir1.iterdir())
+    names2 = sorted(p.name for p in dir2.iterdir())
+    if names1 != names2:
+        failures.append(f'output file listings differ: {names1} vs {names2}')
+    for name in names1:
+        if name not in names2:
+            continue
+        f1, f2 = dir1 / name, dir2 / name
+        if name == 'out_graph_vs_graph_stats.tsv':
+            t1 = pd.read_csv(f1, sep='\t').drop(
+                columns=WALL_CLOCK_GRAPH_STATS_COLUMNS)
+            t2 = pd.read_csv(f2, sep='\t').drop(
+                columns=WALL_CLOCK_GRAPH_STATS_COLUMNS)
+            try:
+                pd.testing.assert_frame_equal(t1, t2, check_exact=True)
+            except AssertionError as e:
+                failures.append(f'{name} differs: {e}')
+        elif name.endswith(_BYTE_COMPARED_SUFFIXES):
+            if f1.read_bytes() != f2.read_bytes():
+                failures.append(f'{name} differs byte for byte')
+        elif name.endswith('.png'):
+            if not np.array_equal(mpimg.imread(f1), mpimg.imread(f2)):
+                failures.append(f'{name} differs pixel for pixel')
+
+    assert not failures, 'Reproducibility mismatch(es):\n' + '\n'.join(failures)
+
+
+def _assert_analyses_produced_output(adata, run_dir):
+    """Guards against the comparison passing vacuously because an analysis
+    silently did nothing (e.g. an empty clumping table)."""
+    results = adata.uns['conga_results']
+
+    clumping = results['tcr_clumping']
+    assert len(clumping) > 0, 'tcr_clumping produced no clumps'
+    clump_cdr3bs = {t[5] for t in _CLUMP_TCRS}
+    assert set(clumping['cdr3b']) & clump_cdr3bs, (
+        'tcr_clumping did not find the planted clump')
+    assert (adata.obs['tcr_clumping_pvalues'] < adata.n_obs).any()
+
+    assert len(results['graph_vs_graph_stats']) > 0
+
+    db_match = results['tcr_db_match']
+    assert len(db_match) > 0, 'match_to_tcr_database found no matches'
+    assert set(db_match['cdr3b']) & {t[5] for t in _DB_TCRS}
+
+    # the .tsv files on disk are non-empty tables too (an empty table is
+    # written as a single-byte file)
+    for name in ('out_tcr_clumping.tsv', 'out_tcr_db_match.tsv',
+                 'out_graph_vs_graph_stats.tsv'):
+        assert len(pd.read_csv(run_dir / name, sep='\t')) > 0, name
+
+    # the tcrdist tree figure exists and is not a blank canvas
+    trees_png = run_dir / 'out_gex_clusters_tcrdist_trees.png'
+    assert trees_png.exists()
+    assert (run_dir / 'out_gex_clusters_tcrdist_trees.png_README.txt').exists()
+    pixels = mpimg.imread(trees_png)
+    assert len(np.unique(pixels.reshape(-1, pixels.shape[-1]), axis=0)) > 2
+
+
+@pytest.mark.skipif(
+    not util.tcrdist_cpp_available(),
+    reason='needs compiled tcrdist_cpp (make in conga/tcrdist_cpp)')
+class TestSeededAnalysesReproducibility:
+    """Third configuration: the analyses that draw random numbers."""
+
+    def test_same_seed_runs_produce_identical_analysis_output(
+            self, analysis_fixture_h5ad_path, tmp_path):
+        dir1, dir2 = _run_analysis_pipeline_twice(
+            analysis_fixture_h5ad_path, tmp_path)
+        adata1 = ad.read_h5ad(dir1 / 'out_final.h5ad')
+        adata2 = ad.read_h5ad(dir2 / 'out_final.h5ad')
+        _assert_analyses_produced_output(adata1, dir1)
+        _assert_analyses_produced_output(adata2, dir2)
+        _assert_analysis_outputs_equal(adata1, adata2, dir1, dir2)

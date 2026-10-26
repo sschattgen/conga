@@ -3365,6 +3365,7 @@ def make_tcrdist_trees(
         tree_renderer = 'matplotlib', # or 'svg' (legacy: svg -> svg-to-png converter)
         png_scale = 1.0, # png pixels per tree-layout unit; 1 --> 800x1000 per tree
         save_pdf = False, # also save a vector pdf version
+        random_seed=util.DEFAULT_RANDOM_SEED, # for the subsampling; keep last so positional order matches master
 ):
     """
     generate TCRdist trees by gene expression cluster
@@ -3423,7 +3424,7 @@ def make_tcrdist_trees(
             print('make_tcrdist_trees: too many TCRs in cluster, subsampling',
                   csize, '>', max_tcrs_per_cluster_for_tcrdists)
             cinds = list(np.nonzero(cmask)[0])
-            random.shuffle(cinds)
+            random.Random(random_seed).shuffle(cinds)
             cmask = np.full((num_clones,), False)
             cmask[cinds[:max_tcrs_per_cluster_for_tcrdists]] = True
             csize = np.sum(cmask)
@@ -3444,7 +3445,7 @@ def make_tcrdist_trees(
             ctcrs, organism, [x_offset,0], [width,height], cdists,
             max_tcrs_for_trees=400, tcrdist_calculator=tcrdister,
             color_scores=cscores, color_score_range = color_score_range,
-            title=f'{tag} cluster {clust}',
+            random_seed=random_seed, title=f'{tag} cluster {clust}',
             drawer = drawer)
 
         x_offset += width + xpad
@@ -3493,6 +3494,7 @@ def make_tcrdist_tree_for_conga_score_threshold(
         tree_renderer = 'matplotlib', # or 'svg' (legacy: svg -> svg-to-png converter)
         png_scale = 1.0, # png pixels per tree-layout unit; 1 --> 800x1000
         save_pdf = False, # also save a vector pdf version
+        random_seed=util.DEFAULT_RANDOM_SEED, # for the subsampling; keep last so positional order matches master
 ):
     ''' Make a tcrdist tree for clonotypes with conga_scores below a threshold
 
@@ -3531,7 +3533,7 @@ def make_tcrdist_tree_for_conga_score_threshold(
         print('make_tcrdist_tree_for_conga_hits: too many TCRs for tcrdists,'
               'subsampling:', csize, '>', max_tcrs_for_tcrdists)
         cinds = list(np.nonzero(cmask)[0])
-        random.shuffle(cinds)
+        random.Random(random_seed).shuffle(cinds)
         cmask = np.full((adata.shape[0],), False)
         cmask[cinds[:max_tcrs_for_tcrdists]] = True
         csize = np.sum(cmask)
@@ -3554,7 +3556,7 @@ def make_tcrdist_tree_for_conga_score_threshold(
         ctcrs, organism, [0,0], [width,height], cdists,
         max_tcrs_for_trees=400, tcrdist_calculator=tcrdister,
         color_scores=cscores, color_score_range = color_score_range,
-        title=f'conga_score_threshold {threshold:.1f}',
+        random_seed=random_seed, title=f'conga_score_threshold {threshold:.1f}',
         drawer = drawer)
 
     figure_tag = CONGA_THRESHOLD_TCRDIST_TREE
@@ -3592,6 +3594,7 @@ For coloring, CoNGA scores are log-transformed, negated, and square-rooted
 def make_batch_colored_umaps(
         adata,
         outfile_prefix,
+        random_seed=util.DEFAULT_RANDOM_SEED, # for the plotting order
 ):
     ''' Note that this just plots the batch assignment of the center
     (representative) clone for each clonotype.
@@ -3608,6 +3611,7 @@ def make_batch_colored_umaps(
 
     nrows, ncols, plotno = 2, len(batch_keys), 0
     plt.figure(figsize=(ncols*4, nrows*4))
+    rng = np.random.default_rng(random_seed)
     for xy_tag in ['gex','tcr']:
         xy = adata.obsm[f'X_{xy_tag}_2d']
         for batch_key in batch_keys:
@@ -3619,7 +3623,7 @@ def make_batch_colored_umaps(
                 cmap_colors = plt.get_cmap('tab20').colors
 
             # plot clonotypes in random order
-            reorder = np.random.permutation(adata.shape[0])
+            reorder = rng.permutation(adata.shape[0])
 
             plotno += 1
             plt.subplot(nrows, ncols, plotno)

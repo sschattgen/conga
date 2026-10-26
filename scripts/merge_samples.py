@@ -149,7 +149,8 @@ if args.no_tcrdists or args.no_kpca:
     clone_ids = list(new_clones_df.clone_id)
     num_components = 50
     outfile = '{}_AB.dist_{}_kpcs'.format(args.output_clones_file[:-4], num_components)
-    kpcs = np.random.rand(num_clones, min(num_clones, num_components))
+    kpcs = np.random.default_rng(conga.util.DEFAULT_RANDOM_SEED).random(
+        (num_clones, min(num_clones, num_components)))
 
     print('writing fake (random) kernel PCs of shape', kpcs.shape, 'to', outfile)
     out = open(outfile,'w')

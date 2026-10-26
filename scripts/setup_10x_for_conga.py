@@ -54,8 +54,11 @@ parser.add_argument('--cdr3_weight', type=float, default=None,
                     help='Weight applied to CDR3 region in vectorized encoding'
                     ' (default: 3.0)')  
 parser.add_argument('--random_seed', type=int, default=None,
-                    help='Random seed for deterministic vectorized encoding'
-                    ' (default: 42)')
+                    help='Seed for the random steps in setup (currently only the '
+                    'kernel PCA, whose default solver is deterministic, so the '
+                    'output does not depend on it). Pass the same value to '
+                    'run_conga.py for a reproducible end-to-end run (an integer in '
+                    '[0, 4294967295]; default: 42)')
 
 # FAISS backend selection flags (matching run_conga.py)
 parser.add_argument('--backend_selection', type=str, default='auto',
@@ -92,6 +95,34 @@ if args.config is not None:
 if args.organism is None:
     print('Organism not specified. Add to --config file or specify with --organism')
     quit()
+
+# The vectorized-encoding flags only matter to run_conga.py (setup never builds
+# X_vec_tcr), so reject them instead of silently discarding them. This runs after
+# the --config merge, so values from the yaml file are covered too.
+# --random_seed is NOT an encoding flag: it seeds the kernel PCA below.
+encoding_flags = {
+    '--aa_mds_dim': args.aa_mds_dim,
+    '--num_pos_cdr3': args.num_pos_cdr3,
+    '--cdr3_weight': args.cdr3_weight,
+}
+unusable_flags = [flag for flag, value in encoding_flags.items() if value is not None]
+if unusable_flags:
+    print(f'ERROR: setup_10x_for_conga.py does not build the vectorized TCR '
+          f'representation, so it cannot use these encoding flags: {unusable_flags}. '
+          f'Pass them to run_conga.py instead.', file=sys.stderr)
+    sys.exit(1)
+# Validate --random_seed (after the --config merge, so a yaml value is covered
+# too), before the slow `import conga` below. The seed is meant to be passed on
+# to run_conga.py, where np.random.seed (needed for seaborn's jitter) only
+# accepts 0 <= seed < 2**32 and would fail late. An unset seed gets
+# util.DEFAULT_RANDOM_SEED (42) below, which is in range.
+if args.random_seed is not None and (
+        isinstance(args.random_seed, bool) or
+        not isinstance(args.random_seed, int) or
+        not 0 <= args.random_seed < 2**32):
+    print(f'ERROR: --random_seed must be an integer in [0, 4294967295], '
+          f'got {args.random_seed!r}', file=sys.stderr)
+    sys.exit(1)
 
 if args.input_clones_file is not None:
     assert exists(args.input_clones_file)
@@ -169,14 +200,6 @@ elif args.backend_selection in ['faiss_cpu', 'faiss_gpu']:
         print(f'WARNING: --backend_selection {args.backend_selection} requested but FAISS not installed')
         print('Will fall back to sklearn during execution')
 
-# Encoding flags validation for unsupported organisms (check after setup)
-encoding_flags_set = [
-    args.aa_mds_dim is not None,
-    args.num_pos_cdr3 is not None, 
-    args.cdr3_weight is not None,
-    args.random_seed != conga.util.DEFAULT_RANDOM_SEED
-]
-has_encoding_flags = any(encoding_flags_set)
 input_distfile = None
 
 if args.input_clones_file is None:
@@ -272,6 +295,7 @@ else:
         gaussian_kernel_sdev=args.kpca_gaussian_kernel_sdev,
         input_distfile=input_distfile,
         output_distfile=output_distfile,
+        random_seed=args.random_seed,
     )
 
 print(f'Setup completed successfully!')
