@@ -3362,10 +3362,10 @@ def make_tcrdist_trees(
         output_prefix,
         group_by = None,
         max_tcrs_per_cluster_for_tcrdists=5000, # if more, will subsample
-        random_seed=util.DEFAULT_RANDOM_SEED, # for the subsampling
         tree_renderer = 'matplotlib', # or 'svg' (legacy: svg -> svg-to-png converter)
         png_scale = 1.0, # png pixels per tree-layout unit; 1 --> 800x1000 per tree
         save_pdf = False, # also save a vector pdf version
+        random_seed=util.DEFAULT_RANDOM_SEED, # for the subsampling; keep last so positional order matches master
 ):
     """
     generate TCRdist trees by gene expression cluster
@@ -3491,10 +3491,10 @@ def make_tcrdist_tree_for_conga_score_threshold(
         outfile_prefix,
         min_clonotypes=10,
         max_tcrs_for_tcrdists=5000, # if more, will subsample
-        random_seed=util.DEFAULT_RANDOM_SEED, # for the subsampling
         tree_renderer = 'matplotlib', # or 'svg' (legacy: svg -> svg-to-png converter)
         png_scale = 1.0, # png pixels per tree-layout unit; 1 --> 800x1000
         save_pdf = False, # also save a vector pdf version
+        random_seed=util.DEFAULT_RANDOM_SEED, # for the subsampling; keep last so positional order matches master
 ):
     ''' Make a tcrdist tree for clonotypes with conga_scores below a threshold
 

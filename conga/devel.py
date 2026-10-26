@@ -1326,7 +1326,8 @@ def analyze_proteins(
         assert obsm_tag in adata.obsm.keys()
         num_nbrs = max(1, min(num_clones//10, max(20, num_clones//500)))
         nbr_frac = (num_nbrs+0.1)/num_clones
-        all_nbrs = preprocess.calc_nbrs(adata, [nbr_frac], obsm_tag_gex=obsm_tag, obsm_tag_tcr=None)
+        all_nbrs = preprocess.calc_nbrs(adata, [nbr_frac], obsm_tag_gex=obsm_tag, obsm_tag_tcr=None,
+                                       random_seed=random_seed)
         nbrs = all_nbrs[nbr_frac][0]
         assert num_nbrs == nbrs.shape[1]
         all_nbr_avg_colors = {}
@@ -2577,6 +2578,7 @@ def create_conga_hits_adata(
         big_nbr_frac = 0.25,
         num_nbrs = 10, # for UMAP/clustering
         verbose = True,
+        random_seed = util.DEFAULT_RANDOM_SEED, # for the faiss index subsamples
 ):
     ''' Try UMAP/clustering just the conga hits, using a measure that combines GEX and
     TCR
@@ -2593,7 +2595,8 @@ def create_conga_hits_adata(
     adata = adata[mask].copy()
 
     all_nbrs = preprocess.calc_nbrs(
-        adata, [small_nbr_frac, big_nbr_frac], sort_nbrs=True)
+        adata, [small_nbr_frac, big_nbr_frac], sort_nbrs=True,
+        random_seed=random_seed)
 
     nbrs_gex, nbrs_tcr= all_nbrs[big_nbr_frac]
 

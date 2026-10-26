@@ -135,3 +135,49 @@ def test_kpca_output_independent_of_seed():
            for seed in [util.DEFAULT_RANDOM_SEED, 7]]
     assert pcs[0].shape == (30, 30)
     assert np.array_equal(pcs[0], pcs[1])
+
+
+# --random_seed range: np.random.seed (needed by run_conga.py's seaborn jitter)
+# only accepts 0 <= seed < 2**32, so setup rejects other values up front,
+# before the slow `import conga`, instead of letting them fail late in run_conga.py
+
+@pytest.mark.parametrize('seed', ['-1', '4294967296'])
+def test_out_of_range_seed_rejected(seed, tmp_path):
+    p = _run_setup(['--organism', 'human', '--random_seed', seed], tmp_path)
+    assert p.returncode == 1, p.stdout + p.stderr
+    assert '--random_seed' in p.stderr
+    assert '[0, 4294967295]' in p.stderr
+    assert f'got {seed}' in p.stderr
+
+
+@pytest.mark.parametrize('seed', ['-1', '4294967296', '7.5', 'True'])
+def test_out_of_range_or_non_integer_seed_rejected_from_config_yaml(
+        seed, tmp_path):
+    config = tmp_path / 'config.yml'
+    config.write_text(f'organism: human\nrandom_seed: {seed}\n')
+    p = _run_setup(['--config', str(config)], tmp_path)
+    assert p.returncode == 1, p.stdout + p.stderr
+    assert '--random_seed' in p.stderr
+    assert '[0, 4294967295]' in p.stderr
+
+
+@pytest.mark.parametrize('seed', [0, 42, 4294967295])
+def test_in_range_seed_accepted(seed, clones_file, monkeypatch, tmp_path):
+    calls = _run_setup_in_process(
+        ['--input_clones_file', str(clones_file), '--organism', 'human',
+         '--use_kpca_tcrdist', '--random_seed', str(seed)],
+        monkeypatch, tmp_path)
+    assert len(calls) == 1
+    assert calls[0]['random_seed'] == seed
+
+
+def test_in_range_seed_accepted_from_config_yaml(clones_file, monkeypatch,
+                                                 tmp_path):
+    config = tmp_path / 'config.yml'
+    config.write_text(f'organism: human\nuse_kpca_tcrdist: true\n'
+                      f'input_clones_file: {clones_file}\n'
+                      f'random_seed: 4294967295\n')
+    calls = _run_setup_in_process(['--config', str(config)], monkeypatch,
+                                  tmp_path)
+    assert len(calls) == 1
+    assert calls[0]['random_seed'] == 4294967295

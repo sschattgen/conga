@@ -12,7 +12,8 @@ from sklearn.metrics import pairwise_distances
 # Import FAISS neighbor search for performance acceleration
 # Import FAISS neighbor search for performance acceleration
 try:
-    from .neighbors import FaissNeighborSearcher, NeighborSearchResult, Backend
+    from .neighbors import (FaissNeighborSearcher, FaissIndexConfig,
+                            NeighborSearchResult, Backend)
     _FAISS_NEIGHBORS_AVAILABLE = True
     # FAISS integration completed: provides 5-100x speedup for GEX and vectorized TCR neighbor search
     # with automatic backend selection (faiss-gpu -> faiss-cpu -> sklearn) and graceful fallback
@@ -819,7 +820,8 @@ def _run_scvi_integration(
         own default epoch-selection heuristic.
     random_seed : int
         Seed used for the `sc.tl.pca` computation of the
-        Unintegrated_Representation.
+        Unintegrated_Representation and for scVI model initialization and
+        training (via `scvi.settings.seed`).
 
     Returns
     -------
@@ -868,6 +870,9 @@ def _run_scvi_integration(
         batch_key=batch_key,
         continuous_covariate_keys=['percent_mito'],
     )
+    # scvi-tools seeds torch/numpy/python RNGs through its global settings
+    # (this does touch global RNG state, but it is the only supported hook)
+    scvi.settings.seed = random_seed
     model = scvi.model.SCVI(adata)
     model.train(max_epochs=scvi_max_epochs)
     latent = model.get_latent_representation()
@@ -925,7 +930,8 @@ def _run_harmony_integration(
         Passed to `sc.tl.pca`.
     random_seed : int
         Seed used for the `sc.tl.pca` computation of the
-        Unintegrated_Representation.
+        Unintegrated_Representation and passed to `harmonypy.run_harmony`
+        as `random_state`.
 
     Returns
     -------
@@ -971,7 +977,7 @@ def _run_harmony_integration(
     # future harmonypy release uses.
     n_cells = adata.shape[0]
     harmony_out = harmonypy.run_harmony(
-        adata.obsm['X_pca'], adata.obs, tmp_key)
+        adata.obsm['X_pca'], adata.obs, tmp_key, random_state=random_seed)
     z_corr = np.asarray(harmony_out.Z_corr)
     if z_corr.shape[0] == n_cells:
         integrated = z_corr  # already (n_cells, n_pcs)
@@ -1056,9 +1062,10 @@ def batch_integration(
         Passed to `scvi.model.SCVI.train(max_epochs=...)` on the `scvi`
         path.
     random_seed : int
-        Seed used for the `sc.tl.pca` computation of the
-        Unintegrated_Representation on both the `harmony` and `scvi`
-        paths.
+        Seed used for the `filter_normalize_and_hvg` QC jitter, the
+        `sc.tl.pca` computation of the Unintegrated_Representation, and
+        the integration step itself (`harmonypy.run_harmony` random_state,
+        or `scvi.settings.seed` on the `scvi` path).
 
     Returns
     -------
@@ -1105,6 +1112,7 @@ def batch_integration(
         hvg_min_disp=hvg_min_disp,
         hvg_batch_key=batch_key,
         normalize_antibody_features_CLR=normalize_antibody_features_CLR,
+        random_seed=random_seed,
     )
 
     if method == 'harmony':
@@ -1267,6 +1275,7 @@ def cluster_and_tsne_and_umap(
                     adata, n_neighbors, make_1d_umaps=make_1d_umaps,
                     clustering_method=clustering_method,
                     clustering_resolution=clustering_resolution,
+                    random_seed=random_seed,
                 )
                 continue
             elif active_tcr_rep in [util.OBSM_KEY_VEC_TCR, util.OBSM_KEY_PCA_TCR]:
@@ -1286,6 +1295,7 @@ def cluster_and_tsne_and_umap(
                         adata, n_neighbors, make_1d_umaps=make_1d_umaps,
                         clustering_method=clustering_method,
                         clustering_resolution=clustering_resolution,
+                        random_seed=random_seed,
                     )
                     continue
                 obsm_key = 'X_pca_tcr'
@@ -1628,7 +1638,8 @@ def _compute_gex_neighbors_fast(
     also_calc_nndists=False, 
     nbr_frac_for_nndists=None,
     force_backend=None,
-    adaptive_parameters=True
+    adaptive_parameters=True,
+    random_seed=util.DEFAULT_RANDOM_SEED
 ):
     """
     FAISS-accelerated GEX neighbor computation with sklearn fallback.
@@ -1654,6 +1665,9 @@ def _compute_gex_neighbors_fast(
         automatic selection. None leaves selection automatic.
     adaptive_parameters : bool
         Passed through to FaissNeighborSearcher's adaptive_parameters option.
+    random_seed : int
+        Seed for the random subsamples FaissNeighborSearcher draws when it
+        chooses and trains an IVF index (passed via FaissIndexConfig).
         
     Returns:
     --------
@@ -1668,7 +1682,8 @@ def _compute_gex_neighbors_fast(
                   f'force_backend={force_backend})')
             searcher = FaissNeighborSearcher(
                 force_backend=force_backend,
-                adaptive_parameters=adaptive_parameters)
+                adaptive_parameters=adaptive_parameters,
+                index_config=FaissIndexConfig(random_seed=random_seed))
             result = searcher.search_neighbors(
                 X=X,
                 nbr_fracs=nbr_fracs,
@@ -1727,7 +1742,8 @@ def _compute_tcr_vector_neighbors_fast(
     also_calc_nndists=False, 
     nbr_frac_for_nndists=None,
     force_backend=None,
-    adaptive_parameters=True
+    adaptive_parameters=True,
+    random_seed=util.DEFAULT_RANDOM_SEED
 ):
     """
     FAISS-accelerated TCR vector neighbor computation with sklearn fallback.
@@ -1762,6 +1778,9 @@ def _compute_tcr_vector_neighbors_fast(
         automatic selection. None leaves selection automatic.
     adaptive_parameters : bool
         Passed through to FaissNeighborSearcher's adaptive_parameters option.
+    random_seed : int
+        Seed for the random subsamples FaissNeighborSearcher draws when it
+        chooses and trains an IVF index (passed via FaissIndexConfig).
         
     Returns:
     --------
@@ -1808,7 +1827,8 @@ def _compute_tcr_vector_neighbors_fast(
             
             searcher = FaissNeighborSearcher(
                 force_backend=force_backend,
-                adaptive_parameters=adaptive_parameters)
+                adaptive_parameters=adaptive_parameters,
+                index_config=FaissIndexConfig(random_seed=random_seed))
             result = searcher.search_neighbors(
                 X=X_vec_tcr,
                 nbr_fracs=nbr_fracs,
@@ -2373,7 +2393,8 @@ def calc_nbrs(
         backend_selection = 'auto',
         disable_faiss_acceleration = False,
         faiss_adaptive_parameters = True,
-        store_backend_config = True):
+        store_backend_config = True,
+        random_seed = util.DEFAULT_RANDOM_SEED):
     """Returns dict mapping from nbr_frac to [nbrs_gex, nbrs_tcr]
 
     nbrs exclude self and any clones in same atcr group or btcr group
@@ -2386,6 +2407,13 @@ def calc_nbrs(
     here (see neighbors.store_backend_config_in_adata for the pre-existing,
     separately-invoked helper); it is accepted for forward compatibility but
     currently has no effect within calc_nbrs itself.
+
+    random_seed seeds the random subsamples that FaissNeighborSearcher uses to
+    choose and train an IVF index (via FaissIndexConfig.random_seed). These
+    are only drawn when the searcher does not use an exact (flat) index: for
+    10000 < N <= 1.25*target_N_for_batching (10240 by default) clonotypes, or
+    whenever sort_nbrs=True disables the batched early return. The default
+    matches the previous hard-coded seed.
     """
     force_backend = _resolve_faiss_force_backend(
         backend_selection, disable_faiss_acceleration)
@@ -2433,7 +2461,8 @@ def calc_nbrs(
                     also_calc_nndists=True, 
                     nbr_frac_for_nndists=nbr_frac_for_nndists,
                     force_backend=force_backend,
-                    adaptive_parameters=faiss_adaptive_parameters
+                    adaptive_parameters=faiss_adaptive_parameters,
+                    random_seed=random_seed
                 )
                 nndists[itag] = gex_nndists
             else:
@@ -2441,7 +2470,8 @@ def calc_nbrs(
                     X, nbr_fracs, (agroups, bgroups), 
                     also_calc_nndists=False,
                     force_backend=force_backend,
-                    adaptive_parameters=faiss_adaptive_parameters
+                    adaptive_parameters=faiss_adaptive_parameters,
+                    random_seed=random_seed
                 )
             
             # Store results in all_nbrs dict
@@ -2460,7 +2490,8 @@ def calc_nbrs(
                         also_calc_nndists=True, 
                         nbr_frac_for_nndists=nbr_frac_for_nndists,
                         force_backend=force_backend,
-                        adaptive_parameters=faiss_adaptive_parameters
+                        adaptive_parameters=faiss_adaptive_parameters,
+                        random_seed=random_seed
                     )
                     nndists[itag] = tcr_nndists
                 else:
@@ -2468,7 +2499,8 @@ def calc_nbrs(
                         X, nbr_fracs, (agroups, bgroups), 
                         also_calc_nndists=False,
                         force_backend=force_backend,
-                        adaptive_parameters=faiss_adaptive_parameters
+                        adaptive_parameters=faiss_adaptive_parameters,
+                        random_seed=random_seed
                     )
                 
                 # Store results in all_nbrs dict

@@ -57,7 +57,8 @@ parser.add_argument('--random_seed', type=int, default=None,
                     help='Seed for the random steps in setup (currently only the '
                     'kernel PCA, whose default solver is deterministic, so the '
                     'output does not depend on it). Pass the same value to '
-                    'run_conga.py for a reproducible end-to-end run (default: 42)')
+                    'run_conga.py for a reproducible end-to-end run (an integer in '
+                    '[0, 4294967295]; default: 42)')
 
 # FAISS backend selection flags (matching run_conga.py)
 parser.add_argument('--backend_selection', type=str, default='auto',
@@ -109,6 +110,18 @@ if unusable_flags:
     print(f'ERROR: setup_10x_for_conga.py does not build the vectorized TCR '
           f'representation, so it cannot use these encoding flags: {unusable_flags}. '
           f'Pass them to run_conga.py instead.', file=sys.stderr)
+    sys.exit(1)
+# Validate --random_seed (after the --config merge, so a yaml value is covered
+# too), before the slow `import conga` below. The seed is meant to be passed on
+# to run_conga.py, where np.random.seed (needed for seaborn's jitter) only
+# accepts 0 <= seed < 2**32 and would fail late. An unset seed gets
+# util.DEFAULT_RANDOM_SEED (42) below, which is in range.
+if args.random_seed is not None and (
+        isinstance(args.random_seed, bool) or
+        not isinstance(args.random_seed, int) or
+        not 0 <= args.random_seed < 2**32):
+    print(f'ERROR: --random_seed must be an integer in [0, 4294967295], '
+          f'got {args.random_seed!r}', file=sys.stderr)
     sys.exit(1)
 
 if args.input_clones_file is not None:

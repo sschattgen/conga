@@ -247,7 +247,7 @@ parser.add_argument('--random_seed', type=int, default=None,
                     ' (clustering, UMAP, kernel PCA, background TCR sampling,'
                     ' permutation tests, tree subsampling, ...); the vectorized'
                     ' TCR encoding is deterministic and does not depend on it'
-                    ' (default: 42)')
+                    ' (an integer in [0, 4294967295]; default: 42)')
 
 
 # FAISS backend selection flags
@@ -329,6 +329,18 @@ if args.config is not None:
 
 if args.outfile_prefix is None:
     print('Prefix for output files not specified. Add to --config file or specify with --outfile_prefix')
+    sys.exit(1)
+# Validate --random_seed (after the --config merge, so a yaml value is covered
+# too) before any slow work: np.random.seed, which seaborn's jitter needs
+# (util.seeded_global_np_random), only accepts 0 <= seed < 2**32 and would
+# otherwise fail late, deep inside the QC-violin block. An unset seed gets
+# util.DEFAULT_RANDOM_SEED (42) below, which is in range.
+if args.random_seed is not None and (
+        isinstance(args.random_seed, bool) or
+        not isinstance(args.random_seed, int) or
+        not 0 <= args.random_seed < 2**32):
+    print(f'ERROR: --random_seed must be an integer in [0, 4294967295], '
+          f'got {args.random_seed!r}', file=sys.stderr)
     sys.exit(1)
 
 # do the imports now since they are so freakin slow
@@ -812,6 +824,7 @@ if args.restart is None: ################################## load GEX/TCR data
             max_genes_per_cell = args.max_genes_per_cell,
             min_genes_per_cell = args.min_genes_per_cell,
             max_percent_mito = args.max_percent_mito,
+            random_seed = args.random_seed,
         )
         # batch_integration() already ran filter_normalize_and_hvg internally;
         # skip the plain filter_and_scale call below for this pathway.
@@ -1206,6 +1219,7 @@ all_nbrs, nndists_gex, nndists_tcr = conga.preprocess.calc_nbrs(
     disable_faiss_acceleration = args.disable_faiss_acceleration,
     faiss_adaptive_parameters = args.faiss_adaptive_parameters,
     store_backend_config = args.store_backend_config,
+    random_seed = args.random_seed,
 )
 
 conga.preprocess.add_mait_info_to_adata_obs(adata) # generally useful
